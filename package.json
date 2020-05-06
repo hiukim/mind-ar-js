@@ -1,0 +1,15 @@
+{
+  "name": "mind-ar",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ./tests/index.js"
+  },
+  "type": "module",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "image-js": "^0.21.9"
+  }
+}
