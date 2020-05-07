@@ -6,6 +6,10 @@ const {debugImageData} = require('../lib/utils/debug.js');
 
 const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
+const EPSILON = 0.00001;
+
+const DEBUG = true;
+let debugContent = null;
 
 const resizeImage = (image, ratio) => {
   const width = Math.round(image.width * ratio);
@@ -39,6 +43,11 @@ const resizeImage = (image, ratio) => {
 }
 
 const exec = async() => {
+  if (DEBUG) {
+    debugContent = JSON.parse(fs.readFileSync("/Users/hiukim/Desktop/kimDebugData.txt", 'utf8'));
+    //console.log("debug content: ", debugContent);
+  }
+
   const imagePath = path.join(__dirname, 'card.png');
   const image = await new Promise((resolve, reject) => {
     Image.load(imagePath).then((image) => {
@@ -81,27 +90,36 @@ const exec = async() => {
   }
   console.log("image list: ", imageList.length);
 
-  //const content = fs.readFileSync("/Users/hiukim/Desktop/featureMap.txt", 'utf8');
+  if (DEBUG) {
+    // verify image
+    let allGood = true;
+    for (let i = 0; i < imageList.length; i++) {
+      const image = imageList[i];
+      for (let j = 0; j < image.data.length; j++) {
+        if (image.data[j] !== debugContent.imageSets[i][j]) {
+          console.log("[DEBUG] incorrect image pixe: ", i, image.data[j], debugContent.imageSets[i][j]);
+          allGood = false;
+        }
+      }
+    }
+    if (allGood) console.log("[DEBUG] all image good");
+  }
+
+
   //const targetImages = content.split('|');
 
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
-    const map = extract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i]});
+    const {featureMap} = extract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i]});
 
-    /*
-    const targetMap = targetImages[i].split(",");
-    console.log("map: ", map.length, targetMap.length);
-    let wrongCount = 0;
-    let badCount = 0;
-    for (let i = 0; i < map.length; i++) {
-      if (map[i] === -1) badCount += 1;
-      if ( parseInt(map[i]) !== parseInt(targetMap[i])) {
-        console.log('wrong: ', i, map[i], targetMap[i]);
-        wrongCount += 1;
+    if (DEBUG) {
+      const targetMap = debugContent.featureMaps[i];
+      for (let i = 0; i < featureMap.length; i++) {
+        if ( Math.abs(featureMap[i] - targetMap[i]) > EPSILON) {
+          console.log('[DEBUG] incorrect feature map value: ', i, featureMap[i], targetMap[i]);
+        }
       }
     }
-    console.log("wrong count: ", wrongCount, badCount);
-    */
   }
 
   /*
