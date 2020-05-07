@@ -8,18 +8,18 @@ const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
 
 const resizeImage = (image, ratio) => {
-  const width = Math.floor(image.width * ratio);
-  const height = Math.floor(image.height * ratio);
+  const width = Math.round(image.width * ratio);
+  const height = Math.round(image.height * ratio);
 
   const imageData = new Uint8Array(width * height);
   for (let i = 0; i < width; i++) {
-    let si1 = Math.floor(1.0 * i / ratio);
-    let si2 = Math.floor(1.0 * (i+1) / ratio) - 1;
+    let si1 = Math.round(1.0 * i / ratio);
+    let si2 = Math.round(1.0 * (i+1) / ratio) - 1;
     if (si2 >= image.width) si2 = image.width - 1;
 
     for (let j = 0; j < height; j++) {
-      let sj1 = Math.floor(1.0 * j / ratio);
-      let sj2 = Math.floor(1.0 * (j+1) / ratio) - 1;
+      let sj1 = Math.round(1.0 * j / ratio);
+      let sj2 = Math.round(1.0 * (j+1) / ratio) - 1;
       if (sj2 >= image.height) sj2 = image.height - 1;
 
       let sum = 0;
@@ -73,21 +73,53 @@ const exec = async() => {
 
   console.log("dpi list: ", dpiList);
 
-  const imageList = [];
-  imageList.push(greyImage);
-  for (let i = 1; i < dpiList.length; i++) {
+  const imageList = []; // list of {data: Uint8Array[width x height], width, height}
+  for (let i = 0; i < dpiList.length; i++) {
     const w = greyImage.width * dpiList[i] / dpi;
     const h = greyImage.height * dpiList[i] / dpi;
-  //  imageList.push(greyImage.resize({width: w, height: h}));
     imageList.push( resizeImage(greyImage, dpiList[i]/dpi) );
   }
   console.log("image list: ", imageList.length);
 
+  //const content = fs.readFileSync("/Users/hiukim/Desktop/featureMap.txt", 'utf8');
+  //const targetImages = content.split('|');
+
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
-    extract({imageData: image.data, width: image.width, height: image.height});
+    const map = extract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i]});
+
+    /*
+    const targetMap = targetImages[i].split(",");
+    console.log("map: ", map.length, targetMap.length);
+    let wrongCount = 0;
+    let badCount = 0;
+    for (let i = 0; i < map.length; i++) {
+      if (map[i] === -1) badCount += 1;
+      if ( parseInt(map[i]) !== parseInt(targetMap[i])) {
+        console.log('wrong: ', i, map[i], targetMap[i]);
+        wrongCount += 1;
+      }
+    }
+    console.log("wrong count: ", wrongCount, badCount);
+    */
   }
 
+  /*
+  const content = fs.readFileSync("/Users/hiukim/Desktop/scale0Image.txt", 'utf8');
+  const targetImages = content.split('|');
+  for (let k = 0; k < targetImages.length; k++) {
+    console.log("image at: ", k);
+    const targetImage = targetImages[k].split(",");
+    if (targetImage.length !== imageList[k].data.length) {
+      console.log("wrong size: ", k, targetImage.length, imageList[k].data.length);
+    }
+    for (let i = 0; i < targetImage.length; i++) {
+      if ( parseInt(targetImage[i]) !== parseInt(imageList[k].data[i])) {
+        console.log('wrong: ', i, targetImage[i], imageList[k].data[i]);
+      }
+    }
+  }
+  */
 }
 
 exec();
