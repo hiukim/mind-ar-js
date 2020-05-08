@@ -6,9 +6,9 @@ const {debugImageData} = require('../lib/utils/debug.js');
 
 const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
-const EPSILON = 0.00001;
+const EPSILON = 0.01;
 
-const DEBUG = true;
+const DEBUG = false;
 let debugContent = null;
 
 const resizeImage = (image, ratio) => {
@@ -43,9 +43,10 @@ const resizeImage = (image, ratio) => {
 }
 
 const exec = async() => {
+  var _start = new Date().getTime();
+
   if (DEBUG) {
     debugContent = JSON.parse(fs.readFileSync("/Users/hiukim/Desktop/kimDebugData.txt", 'utf8'));
-    //console.log("debug content: ", debugContent);
   }
 
   const imagePath = path.join(__dirname, 'card.png');
@@ -105,12 +106,25 @@ const exec = async() => {
     if (allGood) console.log("[DEBUG] all image good");
   }
 
-
-  //const targetImages = content.split('|');
-
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
-    const {featureMap} = extract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i]});
+    const {featureMap, coords} = extract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i]});
+
+    const featureSet = {};
+    featureSet.scale = i;
+    featureSet.num = coords.length;
+    featureSet.mindpi = (i === imageList.length-1)? dpiList[i] * 0.5: dpiList[i+1];
+    featureSet.maxdpi = (i === 0)? dpiList[i] * 2: (dpiList[i] * 0.8 + dpiList[i-1] * 0.2);
+    featureSet.coords = [];
+    for (let j = 0; j < coords.length; j++) {
+      featureSet.coords.push({
+        x: coords[j].x,
+        y: coords[j].y,
+        mx: coords[j].mx,
+        my: coords[j].my,
+        maxSim: coords[j].maxSim,
+      });
+    }
 
     if (DEBUG) {
       const targetMap = debugContent.featureMaps[i];
@@ -119,25 +133,24 @@ const exec = async() => {
           console.log('[DEBUG] incorrect feature map value: ', i, featureMap[i], targetMap[i]);
         }
       }
-    }
-  }
 
-  /*
-  const content = fs.readFileSync("/Users/hiukim/Desktop/scale0Image.txt", 'utf8');
-  const targetImages = content.split('|');
-  for (let k = 0; k < targetImages.length; k++) {
-    console.log("image at: ", k);
-    const targetImage = targetImages[k].split(",");
-    if (targetImage.length !== imageList[k].data.length) {
-      console.log("wrong size: ", k, targetImage.length, imageList[k].data.length);
-    }
-    for (let i = 0; i < targetImage.length; i++) {
-      if ( parseInt(targetImage[i]) !== parseInt(imageList[k].data[i])) {
-        console.log('wrong: ', i, targetImage[i], imageList[k].data[i]);
+      const targetSet = debugContent.featureSets[i];
+      if (Math.abs(targetSet.mindpi - featureSet.mindpi) > EPSILON) console.log("incorrect mindpi: ", i, targetSet.mindpi, featureSet.mindpi);
+      if (Math.abs(targetSet.maxdpi - featureSet.maxdpi) > EPSILON) console.log("incorrect maxdpi: ", i, targetSet.maxdpi, featureSet.maxdpi);
+      if (Math.abs(targetSet.scale - featureSet.scale) > EPSILON) console.log("incorrect scale: ", i, targetSet.scale, featureSet.scale);
+      if (Math.abs(targetSet.num - featureSet.num) > EPSILON) console.log("incorrect num: ", i, targetSet.num, featureSet.num);
+      for (let j = 0; j < targetSet.num; j++) {
+        let c1 = targetSet.coords[j];
+        let c2 = featureSet.coords[j];
+        if ( Math.abs(c1.x - c2.x) > EPSILON || Math.abs(c1.y - c2.y) > EPSILON || Math.abs(c1.mx - c2.mx) > EPSILON || Math.abs(c1.my - c2.my) > EPSILON || Math.abs(c1.maxSim - c2.maxSim) > EPSILON) {
+          console.log("incoorrct coord: ", j, c1, c2);
+        }
       }
     }
   }
-  */
+
+  var _end = new Date().getTime();
+  console.log('exec time: ', _end - _start);
 }
 
 exec();
