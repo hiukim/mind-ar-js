@@ -2,13 +2,14 @@ const fs = require('fs');
 const {Image} = require('image-js');
 const path = require('path');
 const {extract} = require('../lib/features/index.js');
+const {extract: kpmExtract} = require('../lib/features/kpm.js');
 const {debugImageData} = require('../lib/utils/debug.js');
 
 const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
 const EPSILON = 0.01;
 
-const DEBUG = false;
+const DEBUG = true;
 let debugContent = null;
 
 const resizeImage = (image, ratio) => {
@@ -105,6 +106,57 @@ const exec = async() => {
     }
     if (allGood) console.log("[DEBUG] all image good");
   }
+
+
+
+  if (DEBUG) {
+    for (let i = 0; i < debugContent.pyramids.length; i++) {
+      for (let j = 0; j < debugContent.pyramids[i].length; j++) {
+        const pyramid = debugContent.pyramids[i][j];
+        //console.log("pyramid", i, j, pyramid.width, pyramid.height, pyramid.values.length);
+        //debugImageData({filename: "./debug/target_pyramid_"+i + "_" + j + ".png", data: pyramid.values, height: pyramid.height, width: pyramid.width});
+      }
+    }
+  }
+
+  for (let i = 0; i < imageList.length; i++) {
+    const image = imageList[i];
+
+    if (DEBUG)  {
+      if (debugContent.pyramidImages[i].values.length !== image.data.length) {
+        console.log("pyramid original image incorrect: ", i);
+      }
+      for (let j = 0; j < image.data.length; j++) {
+        if (image.data[j] !== debugContent.pyramidImages[i].values[j]) {
+          console.log("pyramid original image pixel incorrect: ", i, j, image.data[j], debugContent.pyramidImages[i].values[j]);
+        }
+      }
+    }
+
+    const pyramids = kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i});
+
+    for (let j = 0; j < pyramids.length; j++) {
+      debugImageData({filename: "./debug/pyramid_"+i + "_" + j + ".png", data: pyramids[j].imageData, height: pyramids[j].height, width: pyramids[j].width});
+    }
+
+    if (pyramids.length !== debugContent.pyramids[i].length) {
+      console.log("incorrect pyramid length: ", i, pyramids.length, debugContent.pyramids[i].length);
+    }
+    for (let j = 0; j < pyramids.length; j++) {
+      const pyramid = pyramids[j];
+      const targetPyramid = debugContent.pyramids[i][j];
+
+      if (pyramid.imageData.length !== targetPyramid.values.length) {
+        console.log("incorrect pyramid image size: ", i, j, pyramid.imageData.length, targetPyramid.values.length);
+      }
+      for (let k = 0; k < pyramid.imageData.length; k++) {
+        if (pyramid.imageData[k] !== targetPyramid.values[k]) {
+          console.log('incorrect pyramid image pixel: ', i, j, 'pos', k%image.width, Math.floor(k/image.width), pyramid.imageData[k], targetPyramid.values[k]);
+        }
+      }
+    }
+  }
+  return;
 
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
