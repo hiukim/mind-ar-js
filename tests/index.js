@@ -38,7 +38,7 @@ const resizeImage = (image, ratio) => {
       imageData[j * width + i] = Math.floor(1.0 * sum / count);
     }
   }
-  //debugImageData({filename: "./resize_"+width+".png", data: imageData, height: height, width: width});
+  //debugImageData({filename: "./debug/resize_"+width+".png", data: imageData, height: height, width: width});
 
   return {data: imageData, width: width, height: height};
 }
@@ -47,10 +47,10 @@ const exec = async() => {
   var _start = new Date().getTime();
 
   if (DEBUG) {
-    debugContent = JSON.parse(fs.readFileSync("/Users/hiukim/Desktop/kimDebugData.txt", 'utf8'));
+    debugContent = JSON.parse(fs.readFileSync("/Users/hiukim/Desktop/kimDebugData2.txt", 'utf8'));
   }
 
-  const imagePath = path.join(__dirname, 'card.png');
+  const imagePath = path.join(__dirname, 'card2.png');
   const image = await new Promise((resolve, reject) => {
     Image.load(imagePath).then((image) => {
       //console.log('Width', image.width);
@@ -90,9 +90,8 @@ const exec = async() => {
     const h = greyImage.height * dpiList[i] / dpi;
     imageList.push( resizeImage(greyImage, dpiList[i]/dpi) );
   }
-  console.log("image list: ", imageList.length);
 
-  if (DEBUG) {
+  if (DEBUG && false) {
     // verify image
     let allGood = true;
     for (let i = 0; i < imageList.length; i++) {
@@ -122,7 +121,7 @@ const exec = async() => {
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
 
-    if (DEBUG)  {
+    if (DEBUG && false)  {
       if (debugContent.pyramidImages[i].values.length !== image.data.length) {
         console.log("pyramid original image incorrect: ", i);
       }
@@ -134,9 +133,10 @@ const exec = async() => {
     }
 
     const pyramids = kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i});
+    continue;
 
     for (let j = 0; j < pyramids.length; j++) {
-      debugImageData({filename: "./debug/pyramid_"+i + "_" + j + ".png", data: pyramids[j].imageData, height: pyramids[j].height, width: pyramids[j].width});
+      //debugImageData({filename: "./debug/pyramid_"+i + "_" + j + ".png", data: pyramids[j].imageData, height: pyramids[j].height, width: pyramids[j].width});
     }
 
     if (pyramids.length !== debugContent.pyramids[i].length) {
@@ -161,6 +161,7 @@ const exec = async() => {
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
     const {featureMap, coords} = extract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i]});
+    break;
 
     const featureSet = {};
     featureSet.scale = i;
