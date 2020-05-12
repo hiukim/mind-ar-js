@@ -9,8 +9,30 @@ const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
 const EPSILON = 0.01;
 
+const INPUT_FILE = 'card3';
+
 const DEBUG = true;
 let debugContent = null;
+if (DEBUG) {
+  debugContent = JSON.parse(fs.readFileSync("/Users/hiukim/Desktop/kimDebugData_" + INPUT_FILE + ".txt", 'utf8'));
+}
+
+// image: Imagejs.Image
+const getGreyImage = (image) => {
+  const _greyImage = image.grey({algorithm: "average"});
+
+  const greyImage = {
+    width: _greyImage.width,
+    height: _greyImage.height,
+    data: []
+  };
+
+  for (let i = 0; i < _greyImage.data.length; i++) {
+   // greyImage.data.push( (_greyImage.data[i]+1) / (_greyImage.maxValue+1) * 256 - 1);
+    greyImage.data.push( Math.floor(_greyImage.data[i] / _greyImage.maxValue * 255));
+  }
+  return greyImage;
+}
 
 const resizeImage = (image, ratio) => {
   const width = Math.round(image.width * ratio);
@@ -31,41 +53,42 @@ const resizeImage = (image, ratio) => {
       let count = 0;
       for (let ii = si1; ii <= si2; ii++) {
         for (let jj = sj1; jj <= sj2; jj++) {
-          sum += image.data[jj * image.width + ii];
+          sum += (1.0 * image.data[jj * image.width + ii]);
           count += 1;
         }
       }
-      imageData[j * width + i] = Math.floor(1.0 * sum / count);
+      imageData[j * width + i] = Math.floor(sum / count);
+      //console.log("sum: ", sum, count, imageData[j * width + i]);
     }
   }
+  //console.log("image: ", imageData);
   //debugImageData({filename: "./debug/resize_"+width+".png", data: imageData, height: height, width: width});
-
   return {data: imageData, width: width, height: height};
 }
 
 const exec = async() => {
   var _start = new Date().getTime();
 
-  if (DEBUG) {
-    debugContent = JSON.parse(fs.readFileSync("/Users/hiukim/Desktop/kimDebugData2.txt", 'utf8'));
-  }
-
-  const imagePath = path.join(__dirname, 'card2.png');
+  const imagePath = path.join(__dirname, INPUT_FILE + '.png');
   const image = await new Promise((resolve, reject) => {
     Image.load(imagePath).then((image) => {
-      //console.log('Width', image.width);
-      //console.log('Height', image.height);
-      //console.log('colorModel', image.colorModel);
-      //console.log('components', image.components);
-      //console.log('alpha', image.alpha);
-      //console.log('channels', image.channels);
-      //console.log('bitDepth', image.bitDepth);
-      //console.log('data', image.data.length);
+      console.log('Width', image.width);
+      console.log('Height', image.height);
+      console.log('colorModel', image.colorModel);
+      console.log('components', image.components);
+      console.log('alpha', image.alpha);
+      console.log('channels', image.channels);
+      console.log('bitDepth', image.bitDepth);
+      console.log('maxValue', image.maxValue);
+      console.log('data', image.data.length);
       resolve(image);
     });
   });
+  const greyImage = getGreyImage(image);
 
-  const greyImage = image.grey({algorithm: "average"});
+  //console.log("grey Image: ", greyImage);
+  //debugImageData({filename: "./debug/input_image.png", data: greyImage.data, height: greyImage.height, width: greyImage.width});
+
   const dpi = DEFAULT_DPI;
   const minDpi = Math.floor(1.0 * MIN_IMAGE_PIXEL_SIZE / Math.min(greyImage.width, greyImage.height) * dpi * 1000) / 1000;
 
@@ -74,6 +97,7 @@ const exec = async() => {
   while (true) {
     dpiList.push(c);
     c *= Math.pow(2.0, 1.0/3.0);
+    c = Math.fround(c); // can remove this line in production. trying to reproduce the same result as artoolkit, which use float.
     if (c >= dpi * 0.95) {
       c = dpi;
       break;
@@ -91,70 +115,46 @@ const exec = async() => {
     imageList.push( resizeImage(greyImage, dpiList[i]/dpi) );
   }
 
-  if (DEBUG && false) {
+  if (debugContent) {
     // verify image
+    console.log("[DEBUG] verifying image list....");
     let allGood = true;
     for (let i = 0; i < imageList.length; i++) {
       const image = imageList[i];
+      debugImageData({filename: "./debug/resize_"+image.width+".png", data: image.data, height: image.height, width: image.width});
+
+      if (image.data.length !== debugContent.imageSets[i].length) {
+        console.log("incorrect imageset image size: ", i, image.data.length, debugContent.imageSets[i].length);
+      }
       for (let j = 0; j < image.data.length; j++) {
         if (image.data[j] !== debugContent.imageSets[i][j]) {
-          console.log("[DEBUG] incorrect image pixe: ", i, image.data[j], debugContent.imageSets[i][j]);
+          console.log("[DEBUG] incorrect image pixe: ", i, j, image.data[j], debugContent.imageSets[i][j]);
           allGood = false;
         }
       }
     }
-    if (allGood) console.log("[DEBUG] all image good");
+    if (allGood) console.log("[DEBUG] image list good");
   }
 
-
-
-  if (DEBUG) {
-    for (let i = 0; i < debugContent.pyramids.length; i++) {
-      for (let j = 0; j < debugContent.pyramids[i].length; j++) {
-        const pyramid = debugContent.pyramids[i][j];
-        //console.log("pyramid", i, j, pyramid.width, pyramid.height, pyramid.values.length);
-        //debugImageData({filename: "./debug/target_pyramid_"+i + "_" + j + ".png", data: pyramid.values, height: pyramid.height, width: pyramid.width});
+  if (debugContent) {
+    console.log("[DEBUG] verifying gaussian original images....");
+    let allGood = true;
+    for (let i = 0; i < imageList.length; i++) {
+      const image = imageList[i];
+      for (let j = 0; j < image.data.length; j++) {
+        if (image.data[j] !== debugContent.pyramidOriginalImages[i].values[j]) {
+          console.log("pyramid original image pixel incorrect: ", i, j, image.data[j], debugContent.pyramidOriginalImages[i].values[j]);
+          allGood = false;
+        }
       }
     }
+    if (allGood) console.log("[DEBUG] gaussian original images good");
   }
 
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
 
-    if (DEBUG && false)  {
-      if (debugContent.pyramidImages[i].values.length !== image.data.length) {
-        console.log("pyramid original image incorrect: ", i);
-      }
-      for (let j = 0; j < image.data.length; j++) {
-        if (image.data[j] !== debugContent.pyramidImages[i].values[j]) {
-          console.log("pyramid original image pixel incorrect: ", i, j, image.data[j], debugContent.pyramidImages[i].values[j]);
-        }
-      }
-    }
-
-    const pyramids = kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i});
-    continue;
-
-    for (let j = 0; j < pyramids.length; j++) {
-      //debugImageData({filename: "./debug/pyramid_"+i + "_" + j + ".png", data: pyramids[j].imageData, height: pyramids[j].height, width: pyramids[j].width});
-    }
-
-    if (pyramids.length !== debugContent.pyramids[i].length) {
-      console.log("incorrect pyramid length: ", i, pyramids.length, debugContent.pyramids[i].length);
-    }
-    for (let j = 0; j < pyramids.length; j++) {
-      const pyramid = pyramids[j];
-      const targetPyramid = debugContent.pyramids[i][j];
-
-      if (pyramid.imageData.length !== targetPyramid.values.length) {
-        console.log("incorrect pyramid image size: ", i, j, pyramid.imageData.length, targetPyramid.values.length);
-      }
-      for (let k = 0; k < pyramid.imageData.length; k++) {
-        if (pyramid.imageData[k] !== targetPyramid.values[k]) {
-          console.log('incorrect pyramid image pixel: ', i, j, 'pos', k%image.width, Math.floor(k/image.width), pyramid.imageData[k], targetPyramid.values[k]);
-        }
-      }
-    }
+    kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i, debugContent});
   }
   return;
 
