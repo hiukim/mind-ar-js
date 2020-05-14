@@ -9,7 +9,7 @@ const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
 const EPSILON = 0.01;
 
-const INPUT_FILE = 'card3';
+const INPUT_FILE = 'card2';
 
 const DEBUG = true;
 let debugContent = null;
