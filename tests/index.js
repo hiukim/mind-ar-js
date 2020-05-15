@@ -2,14 +2,14 @@ const fs = require('fs');
 const {Image} = require('image-js');
 const path = require('path');
 const {extract} = require('../lib/features/index.js');
-const {extract: kpmExtract} = require('../lib/features/kpm.js');
+const {kpmExtract} = require('../lib/features/kpm.js');
 const {debugImageData} = require('../lib/utils/debug.js');
 
 const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
 const EPSILON = 0.01;
 
-const INPUT_FILE = 'card2';
+const INPUT_FILE = 'card3';
 
 const DEBUG = true;
 let debugContent = null;
@@ -151,17 +151,89 @@ const exec = async() => {
     if (allGood) console.log("[DEBUG] gaussian original images good");
   }
 
+  const refPoints = [];
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
 
-    kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i, debugContent});
+    const points = kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i, debugContent});
+
+    for (let j = 0; j < points.length; j++) {
+      refPoints.push(points[j]);
+    }
   }
+
+//  console.log(debugContent.freak[1427].samples);
+
+  if (debugContent) {
+    console.log("[DEBUG] fset 3");
+    let allGood = true;
+
+    const pageInfo = debugContent.fSets3.pageInfo[0];
+    if (pageInfo.imageNum !== imageList.length) {
+      console.log("incorrect image num: ", pageInfo.imageNum, 'vs', imageList.length);
+      allGood = false;
+    }
+    for (let i = 0; i < imageList.length; i++) {
+      if (imageList[i].width !== pageInfo.imageInfo[i].width || imageList[i].height !== pageInfo.imageInfo[i].height) {
+        console.log('incorrect image size', i, imageList[i].width, imageList[i].height, 'vs', pageInfo.imageInfo[i].width, pageInfo.imageInfo[i].height);
+        allGood = false;
+      }
+    }
+
+    const debugRefPoints = debugContent.fSets3.refPoint;
+    if (debugRefPoints.length !== refPoints.length) {
+      console.log("incorrect ref points num: ", debugRefPoints.length, 'vs', refPoints.length)
+    }
+    for (let i = 0; i < refPoints.length; i++) {
+      const p1 = refPoints[i];
+      const p2 = debugRefPoints[i];
+
+      if (p1.imageIndex !== p2.refImageNo
+        || Math.abs(p1.x2D - p2.coord2D.x) > EPSILON || Math.abs(p1.y2D - p2.coord2D.y) > EPSILON
+        || Math.abs(p1.x3D - p2.coord3D.x) > EPSILON || Math.abs(p1.y3D - p2.coord3D.y) > EPSILON
+        || Math.abs(p1.angle - p2.angle) > EPSILON || Math.abs(p1.scale - p2.scale) > EPSILON
+        || (!!p1.maxima !== !!p2.featureVec.maxima)
+      ) {
+        console.log("incorrect point propertyes")
+        console.log("ref imagge: ", p1.imageIndex, p2.refImageNo);
+        console.log("point 2D", i, p1.x2D, p1.y2D, p2.coord2D.x, p2.coord2D.y);
+        console.log("point 3D", i, p1.x3D, p1.y3D, p2.coord3D.x, p2.coord3D.y);
+        console.log("feature", i, p1.angle, p1.scale, p1.maxima, p2.featureVec.angle, p2.featureVec.scale, p2.featureVec.maxima);
+        allGood = false;
+      }
+
+      const vs = [];
+      for (let j = 0; j < 96; j++) vs.push(0);
+
+      for (let j = 0; j < p1.descriptors.length; j+=8) {
+        let v = 0;
+        for (let k = 0; k < 8; k++) {
+          if (p1.descriptors[j+k]) {
+            v = v + (1 << k);
+          }
+        }
+        vs[j/8] = v;
+      }
+
+      let dCorrect = true;
+      for (let j = 0; j < p2.featureVec.v.length; j++) {
+        if (p2.featureVec.v[j] !== vs[j]) {
+          console.log("incorrect v: ", j);
+          dCorrect = false;
+        }
+      }
+      if (!dCorrect) {
+        console.log("incorrect desc", i, JSON.stringify(vs), JSON.stringify(p2.featureVec.v));
+        allGood = false;
+      }
+    }
+  }
+
   return;
 
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
     const {featureMap, coords} = extract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i]});
-    break;
 
     const featureSet = {};
     featureSet.scale = i;
