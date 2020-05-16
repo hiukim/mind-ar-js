@@ -9,7 +9,7 @@ const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
 const EPSILON = 0.01;
 
-const INPUT_FILE = 'card3';
+const INPUT_FILE = 'card5';
 
 const DEBUG = true;
 let debugContent = null;
@@ -169,6 +169,7 @@ const exec = async() => {
     let allGood = true;
 
     const pageInfo = debugContent.fSets3.pageInfo[0];
+    console.log("compare image num: ", pageInfo.imageNum, 'vs', imageList.length);
     if (pageInfo.imageNum !== imageList.length) {
       console.log("incorrect image num: ", pageInfo.imageNum, 'vs', imageList.length);
       allGood = false;
@@ -181,12 +182,42 @@ const exec = async() => {
     }
 
     const debugRefPoints = debugContent.fSets3.refPoint;
+    console.log("compare ref points num: ", debugRefPoints.length, 'vs', refPoints.length)
     if (debugRefPoints.length !== refPoints.length) {
       console.log("incorrect ref points num: ", debugRefPoints.length, 'vs', refPoints.length)
     }
+
+    const comp1 = (p1, p2) => {
+      if (p1.imageIndex < p2.imageIndex) return -1;
+      if (p1.imageIndex > p2.imageIndex) return 1;
+      if (p1.x2D < p2.x2D) return -1;
+      if (p1.x2D > p2.x2D) return 1;
+      if (p1.y2D < p2.y2D) return -1;
+      if (p1.y2D > p2.y2D) return 1;
+      if (p1.angle < p2.angle) return -1;
+      if (p2.angle < p1.angle) return 1;
+      return 0;
+    }
+    const comp2 = (p1, p2) => {
+      if (p1.refImageNo < p2.refImageNo) return -1;
+      if (p1.refImageNo > p2.refImageNo) return 1;
+      if (p1.coord2D.x < p2.coord2D.x) return -1;
+      if (p1.coord2D.x > p2.coord2D.x) return 1;
+      if (p1.coord2D.y < p2.coord2D.y) return -1;
+      if (p1.coord2D.y > p2.coord2D.y) return 1;
+      if (p1.featureVec.angle < p2.featureVec.angle) return -1;
+      if (p2.featureVec.angle < p1.featureVec.angle) return 1;
+      return 0;
+    }
+
+    const list1 = JSON.parse(JSON.stringify(refPoints));
+    const list2 = JSON.parse(JSON.stringify(debugRefPoints));
+    list1.sort(comp1);
+    list2.sort(comp2);
+
     for (let i = 0; i < refPoints.length; i++) {
-      const p1 = refPoints[i];
-      const p2 = debugRefPoints[i];
+      const p1 = list1[i];
+      const p2 = list2[i];
 
       if (p1.imageIndex !== p2.refImageNo
         || Math.abs(p1.x2D - p2.coord2D.x) > EPSILON || Math.abs(p1.y2D - p2.coord2D.y) > EPSILON
@@ -224,6 +255,7 @@ const exec = async() => {
       }
       if (!dCorrect) {
         console.log("incorrect desc", i, JSON.stringify(vs), JSON.stringify(p2.featureVec.v));
+       // console.log(JSON.stringify(p1), JSON.stringify(p2));
         allGood = false;
       }
     }
