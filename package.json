@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node ./tests/index.js"
+    "test": "node ./tests/index.js",
+    "test-match": "node ./tests/matching.js"
   },
   "type": "module",
   "author": "",

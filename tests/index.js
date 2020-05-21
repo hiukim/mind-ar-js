@@ -3,13 +3,14 @@ const {Image} = require('image-js');
 const path = require('path');
 const {extract} = require('../lib/features/index.js');
 const {kpmExtract} = require('../lib/features/kpm.js');
+const {build: clusteringBuild} = require('../lib/features/clustering.js');
 const {debugImageData} = require('../lib/utils/debug.js');
 
 const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
 const EPSILON = 0.01;
 
-const INPUT_FILE = 'card5';
+const INPUT_FILE = 'card';
 
 const DEBUG = true;
 let debugContent = null;
@@ -160,6 +161,9 @@ const exec = async() => {
     for (let j = 0; j < points.length; j++) {
       refPoints.push(points[j]);
     }
+
+    const clusters = clusteringBuild({points: points});
+    console.log("cluters", JSON.stringify(clusters));
   }
 
 //  console.log(debugContent.freak[1427].samples);
