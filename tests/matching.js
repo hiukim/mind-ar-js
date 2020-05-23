@@ -2,7 +2,7 @@ const fs = require('fs');
 const {Image} = require('image-js');
 const path = require('path');
 const {kpmExtract} = require('../lib/features/kpm.js');
-const {build: clusteringBuild} = require('../lib/features/clustering.js');
+const {build: clusteringBuild, getDebugAssignments} = require('../lib/features/clustering.js');
 const {debugImageData} = require('../lib/utils/debug.js');
 
 const DEBUG = true;
@@ -99,9 +99,14 @@ const exec = async() => {
     imageList.push( resizeImage(greyImage, dpiList[i]/dpi) );
   }
 
+  const keyframes = [];
+
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
     const points = kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i});
+    const rootNode = clusteringBuild({points: points});
+
+    keyframes.push({points: points, rootNode: rootNode});
 
     console.log('points length', i, points.length, debugContent.refsets[i].points.length);
     for (let j = 0; j < points.length; j++) {
@@ -124,27 +129,55 @@ const exec = async() => {
       //console.log('x:', p1.x2D, p2.x2d, 'y:', p1.y2D, p2.y2d, 'scale:', p1.scale, p2.scale, 'angle:', p1.angle, p2.angle, 'maxima:', p1.maxima, p2.maxima);
     }
 
-    const clusters = clusteringBuild({points: points});
-    console.log(JSON.stringify(clusters));
+    const clusterList = [];
+    const go = (node) => {
+      clusterList.push({
+        leaf: node.leaf,
+        pointIndexes: node.pointIndexes,
+        centerPointIndex: node.centerPointIndex
+      })
+      if (!node.leaf) {
+        for (let i = 0; i < node.children.length; i++) {
+          go(node.children[i]);
+        }
+      }
+    }
+    go(rootNode);
+
+    console.log('cluster length', clusterList.length, debugContent.clusters[i].length);
+    console.log(clusterList);
     console.log(debugContent.clusters[i]);
-    break;
+    for (let j = 0; j < clusterList.length; j++) {
+      if (debugContent.clusters[i][j].reverseIndexes.length > 0) {
+        console.log("point indexes length", j, clusterList[j].pointIndexes.length, debugContent.clusters[i][j].reverseIndexes.length);
+        for (let k = 0; k < clusterList[j].pointIndexes.length; k++) {
+          if (clusterList[j].pointIndexes[k] !== debugContent.clusters[i][j].reverseIndexes[k]) {
+            console.log("incorrect cluster");
+          }
+        }
+      } else {
+        console.log("point indexes length", j, clusterList[j].pointIndexes, debugContent.clusters[i][j].reverseIndexes.length);
+      }
+    }
+
+    //break;
   }
+
+  console.log("test matching");
+  const inputImage = debugContent.inputImage;
+  console.log("inDataSet: ", debugContent.inDataSet);
+  console.log("debug points: ", debugContent.points.length);
+
+  const targetImage = {
+    data: inputImage.values,
+    width: inputImage.width,
+    height: inputImage.height
+  }
+
+  const points = kpmExtract({imageData: targetImage.data, width: targetImage.width, height: targetImage.height, dpi: 72, pageNo: 1, imageNo: 0});
+  console.log("target points: ", points.length);
+  console.log("keyframes: ", keyframes.length);
 }
+
 exec();
 
-return;
-
-console.log("test matching");
-const inputImage = debugContent.inputImage;
-
-console.log("input :", inputImage.width, inputImage.height, inputImage.values.length);
-
-console.log("inDataSet: ", debugContent.inDataSet);
-
-console.log("debug points: ", debugContent.points.length);
-
-const image = {
-  data: inputImage.values,
-  width: inputImage.width,
-  height: inputImage.height
-}
