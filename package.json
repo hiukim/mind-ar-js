@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "image-js": "^0.21.9"
+    "image-js": "^0.21.9",
+    "tinyqueue": "^2.0.3"
   }
 }

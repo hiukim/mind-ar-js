@@ -3,6 +3,7 @@ const {Image} = require('image-js');
 const path = require('path');
 const {kpmExtract} = require('../lib/features/kpm.js');
 const {build: clusteringBuild, getDebugAssignments} = require('../lib/features/clustering.js');
+const {createMatcher} = require('../lib/features/matcher.js');
 const {debugImageData} = require('../lib/utils/debug.js');
 
 const DEBUG = true;
@@ -144,6 +145,7 @@ const exec = async() => {
     }
     go(rootNode);
 
+    /*
     console.log('cluster length', clusterList.length, debugContent.clusters[i].length);
     console.log(clusterList);
     console.log(debugContent.clusters[i]);
@@ -159,8 +161,7 @@ const exec = async() => {
         console.log("point indexes length", j, clusterList[j].pointIndexes, debugContent.clusters[i][j].reverseIndexes.length);
       }
     }
-
-    //break;
+    */
   }
 
   console.log("test matching");
@@ -177,6 +178,21 @@ const exec = async() => {
   const points = kpmExtract({imageData: targetImage.data, width: targetImage.width, height: targetImage.height, dpi: 72, pageNo: 1, imageNo: 0});
   console.log("target points: ", points.length);
   console.log("keyframes: ", keyframes.length);
+
+  const matcher = createMatcher({keyframes});
+  const results = matcher.match({points});
+
+  console.log('matches', results.length, debugContent.matches.length);
+  for (let i = 0; i < debugContent.matches.length; i++) {
+    console.log('compare1', results[i].bestIndex, results[i].bestD1, results[i].bestD2, JSON.stringify(results[i].queryPointIndexes));
+    console.log('compare2', debugContent.matches[i].bestIndex, debugContent.matches[i].firstBest, debugContent.matches[i].secondBest, JSON.stringify(debugContent.matches[i].reverseIndexes));
+    for (let j = 0; j < results[i].queryPointIndexes.length; j++) {
+      if (results[i].queryPointIndexes[j] !== debugContent.matches[i].reverseIndexes[j]) {
+        console.log("INCORRECT");
+      }
+    }
+    //console.log('matches', debugContent.matches[i]);
+  }
 }
 
 exec();
