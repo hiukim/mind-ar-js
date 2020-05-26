@@ -107,7 +107,7 @@ const exec = async() => {
     const points = kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i});
     const rootNode = clusteringBuild({points: points});
 
-    keyframes.push({points: points, rootNode: rootNode});
+    keyframes.push({points: points, rootNode: rootNode, width: image.width, height: image.height});
 
     console.log('points length', i, points.length, debugContent.refsets[i].points.length);
     for (let j = 0; j < points.length; j++) {
@@ -180,14 +180,18 @@ const exec = async() => {
   console.log("keyframes: ", keyframes.length);
 
   const matcher = createMatcher({keyframes});
-  const results = matcher.match({points});
+  const results = matcher.match({querypoints: points, querywidth: targetImage.width, queryheight: targetImage.height});
+
+  for (let i = 0; i < debugContent.querykeyframes.length; i++) {
+    console.log('querykeyframes', debugContent.querykeyframes[i]);
+  }
 
   console.log('matches', results.length, debugContent.matches.length);
   for (let i = 0; i < debugContent.matches.length; i++) {
-    console.log('compare1', results[i].bestIndex, results[i].bestD1, results[i].bestD2, JSON.stringify(results[i].queryPointIndexes));
+    console.log('compare1', results[i].bestIndex, results[i].bestD1, results[i].bestD2, JSON.stringify(results[i].keypointIndexes));
     console.log('compare2', debugContent.matches[i].bestIndex, debugContent.matches[i].firstBest, debugContent.matches[i].secondBest, JSON.stringify(debugContent.matches[i].reverseIndexes));
-    for (let j = 0; j < results[i].queryPointIndexes.length; j++) {
-      if (results[i].queryPointIndexes[j] !== debugContent.matches[i].reverseIndexes[j]) {
+    for (let j = 0; j < results[i].keypointIndexes.length; j++) {
+      if (results[i].keypointIndexes[j] !== debugContent.matches[i].reverseIndexes[j]) {
         console.log("INCORRECT");
       }
     }
