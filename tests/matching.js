@@ -9,7 +9,7 @@ const {debugImageData} = require('../lib/utils/debug.js');
 const DEBUG = true;
 let debugContent = null;
 if (DEBUG) {
-  debugContent = JSON.parse(fs.readFileSync("/Users/hiukim/Downloads/debugMatching.txt", 'utf8'));
+  debugContent = JSON.parse(fs.readFileSync("/Users/hiukim/Downloads/debugMatching2.txt", 'utf8'));
 }
 
 const DEFAULT_DPI = 72;
@@ -109,27 +109,6 @@ const exec = async() => {
 
     keyframes.push({points: points, rootNode: rootNode, width: image.width, height: image.height});
 
-    console.log('points length', i, points.length, debugContent.refsets[i].points.length);
-    for (let j = 0; j < points.length; j++) {
-      const p1 = points[j];
-      const p2 = debugContent.refsets[i].points[j];
-
-      const vs = [];
-      for (let j = 0; j < 96; j++) vs.push(0);
-
-      for (let j = 0; j < p1.descriptors.length; j+=8) {
-        let v = 0;
-        for (let k = 0; k < 8; k++) {
-          if (p1.descriptors[j+k]) {
-            v = v + (1 << k);
-          }
-        }
-        vs[j/8] = v;
-      }
-      //console.log(JSON.stringify(vs), 'vs', JSON.stringify(p2.descriptors));
-      //console.log('x:', p1.x2D, p2.x2d, 'y:', p1.y2D, p2.y2d, 'scale:', p1.scale, p2.scale, 'angle:', p1.angle, p2.angle, 'maxima:', p1.maxima, p2.maxima);
-    }
-
     const clusterList = [];
     const go = (node) => {
       clusterList.push({
@@ -179,12 +158,11 @@ const exec = async() => {
   console.log("target points: ", points.length);
   console.log("keyframes: ", keyframes.length);
 
-  const matcher = createMatcher({keyframes});
+  const matcher = createMatcher({keyframes, debugContent});
   const results = matcher.match({querypoints: points, querywidth: targetImage.width, queryheight: targetImage.height});
 
-  for (let i = 0; i < debugContent.querykeyframes.length; i++) {
-    console.log('querykeyframes', debugContent.querykeyframes[i]);
-  }
+  return;
+
 
   console.log('matches', results.length, debugContent.matches.length);
   for (let i = 0; i < debugContent.matches.length; i++) {
