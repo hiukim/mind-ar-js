@@ -157,9 +157,13 @@ const exec = async() => {
   const points = kpmExtract({imageData: targetImage.data, width: targetImage.width, height: targetImage.height, dpi: 72, pageNo: 1, imageNo: 0});
   console.log("target points: ", points.length);
   console.log("keyframes: ", keyframes.length);
+  //for (let i = 0; i < points.length; i++) {
+  //  if( Math.abs(points[i].x2D - debugContent.points[i].x) > 0.0001) console.log(points[i], debugContent.points[i]);
+  //}
 
   const matcher = createMatcher({keyframes, debugContent});
-  const results = matcher.match({querypoints: points, querywidth: targetImage.width, queryheight: targetImage.height});
+  const result = matcher.match({querypoints: points, querywidth: targetImage.width, queryheight: targetImage.height});
+  console.log("match result: ", result, debugContent.finalH, debugContent.finalMatchId, debugContent.finalMatches);
 
   return;
 
