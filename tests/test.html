@@ -1,0 +1,164 @@
+<html>
+  <head>
+    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+    <script>
+      AFRAME.registerSystem('ar-system', {
+        container: null,
+        video: null,
+
+        start: function() {
+          this.container = this.el.sceneEl.parentNode;
+
+          const proj = [
+             1.9072469771101737,
+             0,
+             0,
+             0,
+             0,
+             2.5324476977165236,
+             0,
+             0,
+             -0.01235651484864042,
+             -0.007905900353927464,
+             -1.0000002000000199,
+             -1,
+             0,
+             0,
+             -0.00020000002000000202,
+             0,
+          ];
+
+          const AR_PROCESS_WIDTH = 640;
+          const AR_PROCESS_HEIGHT = 480;
+
+          const fov = 2 * Math.atan(1/proj[5]) * 180 / Math.PI; // vertical fov
+          const near = proj[14] / (proj[10] - 1.0);
+          const far = proj[14] / (proj[10] + 1.0);
+          const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
+          console.log("loaded proj: ", proj, ". fov: ", fov, ". near: ", near, ". far: ", far, ". ratio: ", ratio);
+          const newRatio = ratio / ((AR_PROCESS_WIDTH/AR_PROCESS_HEIGHT)/(this.container.clientWidth/this.container.clientHeight));
+          const newCam = new AFRAME.THREE.PerspectiveCamera(fov, newRatio, 10, 10000);
+          this.el.sceneEl.camera.el.setObject3D('camera', newCam);
+
+          console.log("elcam", this.el.sceneEl.camera);
+
+          //const camera = document.getElementById('#camera').getObject3D('camera');
+          //camera.projectionMatrix = newCam.projectionMatrix;
+
+          this.img = document.createElement('img');
+          this.img.src = "./test.png";
+          this.img.style.position = 'absolute'
+          this.img.style.top = '0px'
+          this.img.style.left = '0px'
+          this.img.style.width = '100%';
+          this.img.style.height = '100%';
+          this.img.style.zIndex = '-2'
+          this.container.appendChild(this.img);
+        },
+      });
+
+      AFRAME.registerComponent('ar', {
+        dependencies: ['ar-system'],
+
+        schema: {
+          stats: {type: 'boolean', default: "false"}
+        },
+
+        init: function() {
+          const arSystem = this.el.sceneEl.systems['ar-system'];
+          this.el.sceneEl.addEventListener('renderstart', () => {
+            arSystem.start();
+          });
+        }
+      });
+
+      AFRAME.registerComponent('ar-nft-anchor', {
+        dependencies: ['ar-system'],
+
+        postMatrix: null, // rescale the anchor to make width of 1 unit = physical width of card
+
+        init: function() {
+          var root = this.el.object3D;
+          root.matrixAutoUpdate = false;
+
+          this.marker = {
+            width: 674,
+            height: 372,
+            dpi: 144,
+          };
+
+          const markerWidth = this.marker.width / this.marker.dpi * 2.54 * 10; // in mm
+          const markerHeight = this.marker.height / this.marker.dpi * 2.54 * 10; // in mm
+          const position = new AFRAME.THREE.Vector3();
+          const quaternion = new AFRAME.THREE.Quaternion();
+          const scale = new AFRAME.THREE.Vector3();
+          position.x = markerWidth / 2;
+          position.y = markerWidth / 2 + (markerHeight - markerWidth) / 2;
+          scale.x = markerWidth;
+          scale.y = markerWidth;
+          scale.z = markerWidth;
+          this.postMatrix = new AFRAME.THREE.Matrix4();
+          this.postMatrix.compose(position, quaternion, scale);
+
+          var worldMatrix = new AFRAME.THREE.Matrix4();
+          worldMatrix.elements = [
+             0.9340471029281616,
+             0.3497192859649658,
+             -0.07247360795736313,
+             0,
+             -0.3467503488063812,
+             0.9365940690040588,
+             0.05055418983101845,
+             0,
+             0.08555812388658524,
+             -0.022089743986725807,
+             0.9960883259773254,
+             0,
+             40.59442901611328,
+             -92.95201873779297,
+             -207.2033233642578,
+             1,
+          ];
+          worldMatrix.multiply(this.postMatrix);
+          root.matrix = worldMatrix; 
+        },
+
+        tick: function() {
+        }
+      });
+    </script>
+
+    <style>
+      body {
+        margin: 0;
+      }
+      .displayAR-container {
+        overflow: hidden;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="displayAR-container">
+      <a-scene ar embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false">
+        <a-assets>
+          <img id="card" src="./card.png" />
+        </a-assets>
+
+        <!--
+        <a-camera ar-camera id="#camera" position="0 0 0" look-controls="enabled: false"></a-camera>
+        -->
+
+        <a-entity ar-nft-anchor>
+          <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
+          </a-plane>
+          <a-entity rotation="90 0 0">
+            <a-cylinder position="0.5 0.5 0" rotation="0 0 0" radius="0.1" height="1" color="#FFC65D"></a-cylinder>
+          </a-entity>
+        </a-entity>
+      </a-scene>
+    </div>
+  </body>
+</html>

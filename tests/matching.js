@@ -5,6 +5,7 @@ const {kpmExtract} = require('../lib/features/kpm.js');
 const {build: clusteringBuild, getDebugAssignments} = require('../lib/features/clustering.js');
 const {createMatcher} = require('../lib/features/matcher.js');
 const {debugImageData} = require('../lib/utils/debug.js');
+const {matrixInverse33, matrixMul33} = require('../lib/features/geometry.js');
 
 const DEBUG = true;
 let debugContent = null;
@@ -165,20 +166,128 @@ const exec = async() => {
   const result = matcher.match({querypoints: points, querywidth: targetImage.width, queryheight: targetImage.height});
   console.log("match result: ", result, debugContent.finalH, debugContent.finalMatchId, debugContent.finalMatches);
 
-  return;
 
+  console.log("matC", debugContent.matC);
+  console.log("initMatXw2Xc", debugContent.initMatXw2Xc);
+  console.log("camPose", debugContent.camPose);
+  console.log("matXc2U", debugContent.matXc2U);
+  console.log("v", debugContent.v);
+  console.log("t", debugContent.t);
 
-  console.log('matches', results.length, debugContent.matches.length);
-  for (let i = 0; i < debugContent.matches.length; i++) {
-    console.log('compare1', results[i].bestIndex, results[i].bestD1, results[i].bestD2, JSON.stringify(results[i].keypointIndexes));
-    console.log('compare2', debugContent.matches[i].bestIndex, debugContent.matches[i].firstBest, debugContent.matches[i].secondBest, JSON.stringify(debugContent.matches[i].reverseIndexes));
-    for (let j = 0; j < results[i].keypointIndexes.length; j++) {
-      if (results[i].keypointIndexes[j] !== debugContent.matches[i].reverseIndexes[j]) {
-        console.log("INCORRECT");
-      }
-    }
-    //console.log('matches', debugContent.matches[i]);
+  // camera matrix (i.e. debugContent.matXc2U)
+  const K = [
+    [ 304.68270459335025, 0, 161.7239532470703, 0 ],
+    [ 0, 303.2606118015537, 118.80326843261719, 0 ],
+    [ 0, 0, 1.0, 0 ]
+  ];
+  const W = 320.0 - 1;
+  const H = 240.0 - 1;
+  const near = 0.0001;
+  const far = 1000.0;
+
+  const proj = [
+    [2 * K[0][0] / W, 0, -(2 * K[0][2] / W - 1), 0],
+    [0, 2 * K[1][1] / H, -(2 * K[1][2] / H - 1), 0],
+    [0, 0, -(far + near) / (far - near), -2 * far * near / (far - near)],
+    [0, 0, -1, 0]
+  ];
+  console.log('proj', proj);
+
+  const KInv = matrixInverse33([K[0][0], K[0][1], K[0][2], K[1][0], K[1][1], K[1][2], K[2][0], K[2][1], K[2][2]], 0.0001);
+  const KInvH = matrixMul33(KInv, result.H);
+  console.log("kInvH", KInvH);
+
+  const norm1 = Math.sqrt( KInvH[0] * KInvH[0] + KInvH[3] * KInvH[3] + KInvH[6] * KInvH[6]);
+  const norm2 = Math.sqrt( KInvH[1] * KInvH[1] + KInvH[4] * KInvH[4] + KInvH[7] * KInvH[7]);
+  const tnorm = (norm1 + norm2) / 2;
+
+  const rotate = [];
+  rotate[0] = KInvH[0] / norm1;
+  rotate[3] = KInvH[3] / norm1;
+  rotate[6] = KInvH[6] / norm1;
+
+  rotate[1] = KInvH[1] / norm2;
+  rotate[4] = KInvH[4] / norm2;
+  rotate[7] = KInvH[7] / norm2;
+
+  rotate[2] = rotate[3] * rotate[7] - rotate[6] * rotate[4];
+  rotate[5] = rotate[6] * rotate[1] - rotate[0] * rotate[7];
+  rotate[8] = rotate[0] * rotate[4] - rotate[1] * rotate[3];
+
+  const tran = []
+  tran[0] = KInvH[2] / tnorm;
+  tran[1] = KInvH[5] / tnorm;
+  tran[2] = KInvH[8] / tnorm;
+
+  const trans = [
+    rotate[0], rotate[1], rotate[2], tran[0],
+    rotate[3], rotate[4], rotate[5], tran[1],
+    rotate[6], rotate[7], rotate[8], tran[2]
+  ];
+  console.log('trans', trans);
+
+  /*
+  const v = [[], [], []];
+  const t = []
+
+  v[0][2] =  result.H[6];
+  v[0][1] = (result.H[3] - K[1][2] * v[0][2]) / K[1][1];
+  v[0][0] = (result.H[0] - K[0][2] * v[0][2] - K[0][1] * v[0][1]) / K[0][0];
+  v[1][2] =  result.H[7];
+  v[1][1] = (result.H[4] - K[1][2] * v[1][2]) / K[1][1];
+  v[1][0] = (result.H[1] - K[0][2] * v[1][2] - K[0][1] * v[1][1]) / K[0][0];
+  t[2]  =  1.0;
+  t[1]  = (result.H[5] - K[1][2] * t[2]) / K[1][1];
+  t[0]  = (result.H[2] - K[0][2] * t[2] - K[0][1] * t[1]) / K[0][0];
+
+  const l1 = Math.sqrt( v[0][0]*v[0][0] + v[0][1]*v[0][1] + v[0][2]*v[0][2] );
+  const l2 = Math.sqrt( v[1][0]*v[1][0] + v[1][1]*v[1][1] + v[1][2]*v[1][2] );
+  v[0][0] /= l1;
+  v[0][1] /= l1;
+  v[0][2] /= l1;
+  v[1][0] /= l2;
+  v[1][1] /= l2;
+  v[1][2] /= l2;
+  t[0] /= (l1+l2)/2.0;
+  t[1] /= (l1+l2)/2.0;
+  t[2] /= (l1+l2)/2.0;
+  if( t[2] < 0.0 ) {
+      v[0][0] = -v[0][0];
+      v[0][1] = -v[0][1];
+      v[0][2] = -v[0][2];
+      v[1][0] = -v[1][0];
+      v[1][1] = -v[1][1];
+      v[1][2] = -v[1][2];
+      t[0] = -t[0];
+      t[1] = -t[1];
+      t[2] = -t[2];
   }
+  v[2][0] = v[0][1]*v[1][2] - v[0][2]*v[1][1];
+  v[2][1] = v[0][2]*v[1][0] - v[0][0]*v[1][2];
+  v[2][2] = v[0][0]*v[1][1] - v[0][1]*v[1][0];
+  const l3 = Math.sqrt( v[2][0]*v[2][0] + v[2][1]*v[2][1] + v[2][2]*v[2][2] );
+  v[2][0] /= l3;
+  v[2][1] /= l3;
+  v[2][2] /= l3;
+
+  const trans = [[],[],[]];
+  trans[0][0] = v[0][0];
+  trans[1][0] = v[0][1];
+  trans[2][0] = v[0][2];
+  trans[0][1] = v[1][0];
+  trans[1][1] = v[1][1];
+  trans[2][1] = v[1][2];
+  trans[0][2] = v[2][0];
+  trans[1][2] = v[2][1];
+  trans[2][2] = v[2][2];
+  trans[0][3] = t[0];
+  trans[1][3] = t[1];
+  trans[2][3] = t[2];
+
+  console.log("v", v);
+  console.log("t", t);
+  console.log("trans", trans);
+  */
 }
 
 exec();
