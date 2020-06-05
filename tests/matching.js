@@ -187,7 +187,7 @@ const exec = async() => {
   buildProjectionMatrix();
 
   //console.log("matC", debugContent.matC);
-  //console.log("initMatXw2Xc", debugContent.initMatXw2Xc);
+  console.log("initMatXw2Xc", debugContent.initMatXw2Xc);
   //console.log("camPose", debugContent.camPose);
   //console.log("matXc2U", debugContent.matXc2U);
 }
