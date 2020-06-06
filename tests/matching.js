@@ -4,9 +4,11 @@ const path = require('path');
 const {kpmExtract} = require('../lib/features/kpm.js');
 const {build: clusteringBuild, getDebugAssignments} = require('../lib/features/clustering.js');
 const {createMatcher} = require('../lib/features/matcher.js');
+const {createTracker} = require('../lib/features/tracker.js');
 const {debugImageData} = require('../lib/utils/debug.js');
 const {matrixInverse33, matrixMul33} = require('../lib/features/geometry.js');
 const {buildTransforms} = require('../lib/icp/icp.js');
+const {getProjectionTransform} = require('../lib/icp/utils.js');
 
 const DEBUG = true;
 let debugContent = null;
@@ -18,6 +20,8 @@ const DEFAULT_DPI = 72;
 const MIN_IMAGE_PIXEL_SIZE = 28;
 const EPSILON = 0.01;
 const INPUT_FILE = 'card';
+
+const featureSets = JSON.parse(fs.readFileSync("/Users/hiukim/Desktop/featureSets_" + INPUT_FILE + ".txt", 'utf8'));
 
 //console.log("ref data set: ", debugContent.refsets);
 
@@ -184,7 +188,7 @@ const exec = async() => {
     })
   }
 
-  const modelViewTransform = buildTransforms({screenCoords, worldCoords, debugContent});
+  let modelViewTransform = buildTransforms({screenCoords, worldCoords, debugContent});
 
   const openGLWorldMatrix = [
     modelViewTransform[0][0], -modelViewTransform[1][0], -modelViewTransform[2][0], 0,
@@ -197,6 +201,31 @@ const exec = async() => {
   //console.log("matC", debugContent.matC);
   //console.log("matXc2U", debugContent.matXc2U);
   console.log('openGLWorldMatrix', openGLWorldMatrix);
+
+
+  console.log('featuresets', featureSets[0]);
+
+  console.log('trackFeatures', debugContent.trackFeatures);
+  console.log('wTrans1', debugContent.wTrans1);
+
+  // remove this: temporary set to align with debug content
+  modelViewTransform = [ [ 0.9197675585746765,
+    -0.39036545157432556,
+    -0.04052652046084404,
+    91.61624145507812 ],
+  [ -0.38534390926361084,
+    -0.9178342223167419,
+    0.09534380584955215,
+    181.5712890625 ],
+  [ -0.07441555708646774,
+    -0.07207749038934708,
+    -0.9946191310882568,
+    464.1438903808594 ] ]
+
+  const projectionTransform = getProjectionTransform();
+  const tracker = createTracker({targetImage, featureSets, projectionTransform, modelViewTransform, debugContent});
+  tracker.track({modelViewTransform});
+
 }
 
 exec();

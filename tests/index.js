@@ -152,120 +152,7 @@ const exec = async() => {
     if (allGood) console.log("[DEBUG] gaussian original images good");
   }
 
-  const refPoints = [];
-  for (let i = 0; i < imageList.length; i++) {
-    const image = imageList[i];
-
-    const points = kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i, debugContent});
-
-    for (let j = 0; j < points.length; j++) {
-      refPoints.push(points[j]);
-    }
-
-    const clusters = clusteringBuild({points: points});
-    console.log("cluters", JSON.stringify(clusters));
-  }
-
-//  console.log(debugContent.freak[1427].samples);
-
-  if (debugContent) {
-    console.log("[DEBUG] fset 3");
-    let allGood = true;
-
-    const pageInfo = debugContent.fSets3.pageInfo[0];
-    console.log("compare image num: ", pageInfo.imageNum, 'vs', imageList.length);
-    if (pageInfo.imageNum !== imageList.length) {
-      console.log("incorrect image num: ", pageInfo.imageNum, 'vs', imageList.length);
-      allGood = false;
-    }
-    for (let i = 0; i < imageList.length; i++) {
-      if (imageList[i].width !== pageInfo.imageInfo[i].width || imageList[i].height !== pageInfo.imageInfo[i].height) {
-        console.log('incorrect image size', i, imageList[i].width, imageList[i].height, 'vs', pageInfo.imageInfo[i].width, pageInfo.imageInfo[i].height);
-        allGood = false;
-      }
-    }
-
-    const debugRefPoints = debugContent.fSets3.refPoint;
-    console.log("compare ref points num: ", debugRefPoints.length, 'vs', refPoints.length)
-    if (debugRefPoints.length !== refPoints.length) {
-      console.log("incorrect ref points num: ", debugRefPoints.length, 'vs', refPoints.length)
-    }
-
-    const comp1 = (p1, p2) => {
-      if (p1.imageIndex < p2.imageIndex) return -1;
-      if (p1.imageIndex > p2.imageIndex) return 1;
-      if (p1.x2D < p2.x2D) return -1;
-      if (p1.x2D > p2.x2D) return 1;
-      if (p1.y2D < p2.y2D) return -1;
-      if (p1.y2D > p2.y2D) return 1;
-      if (p1.angle < p2.angle) return -1;
-      if (p2.angle < p1.angle) return 1;
-      return 0;
-    }
-    const comp2 = (p1, p2) => {
-      if (p1.refImageNo < p2.refImageNo) return -1;
-      if (p1.refImageNo > p2.refImageNo) return 1;
-      if (p1.coord2D.x < p2.coord2D.x) return -1;
-      if (p1.coord2D.x > p2.coord2D.x) return 1;
-      if (p1.coord2D.y < p2.coord2D.y) return -1;
-      if (p1.coord2D.y > p2.coord2D.y) return 1;
-      if (p1.featureVec.angle < p2.featureVec.angle) return -1;
-      if (p2.featureVec.angle < p1.featureVec.angle) return 1;
-      return 0;
-    }
-
-    const list1 = JSON.parse(JSON.stringify(refPoints));
-    const list2 = JSON.parse(JSON.stringify(debugRefPoints));
-    list1.sort(comp1);
-    list2.sort(comp2);
-
-    for (let i = 0; i < refPoints.length; i++) {
-      const p1 = list1[i];
-      const p2 = list2[i];
-
-      if (p1.imageIndex !== p2.refImageNo
-        || Math.abs(p1.x2D - p2.coord2D.x) > EPSILON || Math.abs(p1.y2D - p2.coord2D.y) > EPSILON
-        || Math.abs(p1.x3D - p2.coord3D.x) > EPSILON || Math.abs(p1.y3D - p2.coord3D.y) > EPSILON
-        || Math.abs(p1.angle - p2.angle) > EPSILON || Math.abs(p1.scale - p2.scale) > EPSILON
-        || (!!p1.maxima !== !!p2.featureVec.maxima)
-      ) {
-        console.log("incorrect point propertyes")
-        console.log("ref imagge: ", p1.imageIndex, p2.refImageNo);
-        console.log("point 2D", i, p1.x2D, p1.y2D, p2.coord2D.x, p2.coord2D.y);
-        console.log("point 3D", i, p1.x3D, p1.y3D, p2.coord3D.x, p2.coord3D.y);
-        console.log("feature", i, p1.angle, p1.scale, p1.maxima, p2.featureVec.angle, p2.featureVec.scale, p2.featureVec.maxima);
-        allGood = false;
-      }
-
-      const vs = [];
-      for (let j = 0; j < 96; j++) vs.push(0);
-
-      for (let j = 0; j < p1.descriptors.length; j+=8) {
-        let v = 0;
-        for (let k = 0; k < 8; k++) {
-          if (p1.descriptors[j+k]) {
-            v = v + (1 << k);
-          }
-        }
-        vs[j/8] = v;
-      }
-
-      let dCorrect = true;
-      for (let j = 0; j < p2.featureVec.v.length; j++) {
-        if (p2.featureVec.v[j] !== vs[j]) {
-          console.log("incorrect v: ", j);
-          dCorrect = false;
-        }
-      }
-      if (!dCorrect) {
-        console.log("incorrect desc", i, JSON.stringify(vs), JSON.stringify(p2.featureVec.v));
-       // console.log(JSON.stringify(p1), JSON.stringify(p2));
-        allGood = false;
-      }
-    }
-  }
-
-  return;
+  const featureSets = [];
 
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
@@ -308,10 +195,14 @@ const exec = async() => {
         }
       }
     }
+
+    featureSets.push(featureSet);
   }
 
   var _end = new Date().getTime();
   console.log('exec time: ', _end - _start);
+
+  fs.writeFileSync("/Users/hiukim/Desktop/featureSets_" + INPUT_FILE + ".txt", JSON.stringify(featureSets), 'utf8');
 }
 
 exec();
