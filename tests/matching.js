@@ -6,7 +6,7 @@ const {build: clusteringBuild, getDebugAssignments} = require('../lib/features/c
 const {createMatcher} = require('../lib/features/matcher.js');
 const {debugImageData} = require('../lib/utils/debug.js');
 const {matrixInverse33, matrixMul33} = require('../lib/features/geometry.js');
-const {buildProjectionMatrix, buildWorldMatrix} = require('../lib/icp/icp.js');
+const {buildTransforms} = require('../lib/icp/icp.js');
 
 const DEBUG = true;
 let debugContent = null;
@@ -183,13 +183,20 @@ const exec = async() => {
       z: 0,
     })
   }
-  buildWorldMatrix({screenCoords, worldCoords});
-  buildProjectionMatrix();
 
+  const modelViewTransform = buildTransforms({screenCoords, worldCoords, debugContent});
+
+  const openGLWorldMatrix = [
+    modelViewTransform[0][0], -modelViewTransform[1][0], -modelViewTransform[2][0], 0,
+    modelViewTransform[0][1], -modelViewTransform[1][1], -modelViewTransform[2][1], 0,
+    modelViewTransform[0][2], -modelViewTransform[1][2], -modelViewTransform[2][2], 0,
+    modelViewTransform[0][3], -modelViewTransform[1][3], -modelViewTransform[2][3], 1
+  ];
+
+  //console.log('tran', trans);
   //console.log("matC", debugContent.matC);
-  console.log("initMatXw2Xc", debugContent.initMatXw2Xc);
-  //console.log("camPose", debugContent.camPose);
   //console.log("matXc2U", debugContent.matXc2U);
+  console.log('openGLWorldMatrix', openGLWorldMatrix);
 }
 
 exec();
