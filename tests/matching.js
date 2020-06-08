@@ -202,11 +202,9 @@ const exec = async() => {
   //console.log("matXc2U", debugContent.matXc2U);
   console.log('openGLWorldMatrix', openGLWorldMatrix);
 
-
-  console.log('featuresets', featureSets[0]);
-
-  console.log('trackFeatures', debugContent.trackFeatures);
-  console.log('wTrans1', debugContent.wTrans1);
+  //console.log('featuresets', featureSets[0]);
+  //console.log('trackFeatures', debugContent.trackFeatures);
+  //console.log('wTrans1', debugContent.wTrans1);
 
   // remove this: temporary set to align with debug content
   modelViewTransform = [ [ 0.9197675585746765,
@@ -223,7 +221,12 @@ const exec = async() => {
     464.1438903808594 ] ]
 
   const projectionTransform = getProjectionTransform();
-  const tracker = createTracker({targetImage, featureSets, projectionTransform, modelViewTransform, debugContent});
+  for (let i = 0; i < projectionTransform.length; i++) {
+    for (let j = 0; j < projectionTransform[i].length; j++) {
+      projectionTransform[i][j] = Math.fround(projectionTransform[i][j]);
+    }
+  }
+  const tracker = createTracker({dpiList, imageList, targetImage, featureSets, projectionTransform, modelViewTransform, debugContent});
   tracker.track({modelViewTransform});
 
 }
