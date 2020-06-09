@@ -160,6 +160,15 @@ const exec = async() => {
     height: inputImage.height
   }
 
+  //console.log("dddd", debugContent.dataPtr);
+  //console.log("dataPtr", debugContent.dataPtr.length, debugContent.dataPtr[0].length, targetImage.height, targetImage.width);
+  for (let j = 0; j < targetImage.height; j++) {
+    for (let i = 0; i < targetImage.width; i++) {
+      //console.log(i, j, debugContent.dataPtr[j][i], (debugContent.dataPtr[j][i][0] + debugContent.dataPtr[j][i][1] + debugContent.dataPtr[j][i][2])/3,  targetImage.data[j*targetImage.width+i]);
+    }
+  }
+  //return;
+
   const points = kpmExtract({imageData: targetImage.data, width: targetImage.width, height: targetImage.height, dpi: 72, pageNo: 1, imageNo: 0});
   console.log("target points: ", points.length);
   console.log("keyframes: ", keyframes.length);
@@ -218,14 +227,22 @@ const exec = async() => {
   [ -0.07441555708646774,
     -0.07207749038934708,
     -0.9946191310882568,
-    464.1438903808594 ] ]
+    464.1438903808594 ] ];
+
+  modelViewTransform = [ [ 0.9265531301498413,
+    -0.3751317262649536,
+    -0.027848180383443832,
+    90.0240249633789 ],
+  [ -0.3739980459213257,
+    -0.9266232252120972,
+    0.038663968443870544,
+    181.0799102783203 ],
+  [ -0.04030885174870491,
+    -0.02540905401110649,
+    -0.9988641142845154,
+    457.211669921875 ] ];
 
   const projectionTransform = getProjectionTransform();
-  for (let i = 0; i < projectionTransform.length; i++) {
-    for (let j = 0; j < projectionTransform[i].length; j++) {
-      projectionTransform[i][j] = Math.fround(projectionTransform[i][j]);
-    }
-  }
   const tracker = createTracker({dpiList, imageList, targetImage, featureSets, projectionTransform, modelViewTransform, debugContent});
   tracker.track({modelViewTransform});
 
