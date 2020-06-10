@@ -244,8 +244,30 @@ const exec = async() => {
 
   const projectionTransform = getProjectionTransform();
   const tracker = createTracker({dpiList, imageList, targetImage, featureSets, projectionTransform, modelViewTransform, debugContent});
-  tracker.track({modelViewTransform});
+  const newModelViewTransform = tracker.track({modelViewTransform});
 
+  /*
+  const newModelViewTransform = [ [ 0.9358950853347778,
+    -0.35104820132255554,
+    0.029421554878354073,
+    87.93341827392578 ],
+  [ -0.351280152797699,
+    -0.936265766620636,
+    0.0029550453182309866,
+    178.6919403076172 ],
+  [ 0.026509026065468788,
+    -0.013100818730890751,
+    -0.999562680721283,
+    447.44122314453125 ] ];
+    */
+
+  const newOpenGLWorldMatrix = [
+    newModelViewTransform[0][0], -newModelViewTransform[1][0], -newModelViewTransform[2][0], 0,
+    newModelViewTransform[0][1], -newModelViewTransform[1][1], -newModelViewTransform[2][1], 0,
+    newModelViewTransform[0][2], -newModelViewTransform[1][2], -newModelViewTransform[2][2], 0,
+    newModelViewTransform[0][3], -newModelViewTransform[1][3], -newModelViewTransform[2][3], 1
+  ];
+  console.log('new openGLWorldMatrix', newOpenGLWorldMatrix);
 }
 
 exec();
