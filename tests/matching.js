@@ -149,25 +149,27 @@ const exec = async() => {
     */
   }
 
-  console.log("test matching");
   const inputImage = debugContent.inputImage;
   console.log("inDataSet: ", debugContent.inDataSet);
   console.log("debug points: ", debugContent.points.length);
 
-  const targetImage = {
-    data: inputImage.values,
-    width: inputImage.width,
-    height: inputImage.height
-  }
-
-  //console.log("dddd", debugContent.dataPtr);
-  //console.log("dataPtr", debugContent.dataPtr.length, debugContent.dataPtr[0].length, targetImage.height, targetImage.width);
-  for (let j = 0; j < targetImage.height; j++) {
-    for (let i = 0; i < targetImage.width; i++) {
-      //console.log(i, j, debugContent.dataPtr[j][i], (debugContent.dataPtr[j][i][0] + debugContent.dataPtr[j][i][1] + debugContent.dataPtr[j][i][2])/3,  targetImage.data[j*targetImage.width+i]);
+  const targetImages = [];
+  for (let n = 0; n < debugContent.dataPtr.length; n++) {
+    const targetImage = {
+      data: [],
+      height: debugContent.dataPtr[n].length,
+      width: debugContent.dataPtr[n][0].length,
     }
+
+    for (let j = 0; j < debugContent.dataPtr[n].length; j++) {
+      for (let i = 0; i < debugContent.dataPtr[n][j].length; i++) {
+        targetImage.data.push(Math.floor((debugContent.dataPtr[n][j][i][0] + debugContent.dataPtr[n][j][i][1] + debugContent.dataPtr[n][j][i][2])/3));
+      }
+    }
+
+    targetImages.push(targetImage);
   }
-  //return;
+  const targetImage = targetImages[0];
 
   const points = kpmExtract({imageData: targetImage.data, width: targetImage.width, height: targetImage.height, dpi: 72, pageNo: 1, imageNo: 0});
   console.log("target points: ", points.length);
@@ -243,8 +245,8 @@ const exec = async() => {
     457.211669921875 ] ];
 
   const projectionTransform = getProjectionTransform();
-  const tracker = createTracker({dpiList, imageList, targetImage, featureSets, projectionTransform, modelViewTransform, debugContent});
-  const newModelViewTransform = tracker.track({modelViewTransform});
+  const tracker = createTracker({dpiList, imageList, featureSets, projectionTransform, modelViewTransform, debugContent});
+  const newModelViewTransform = tracker.track({modelViewTransform, targetImage});
 
   /*
   const newModelViewTransform = [ [ 0.9358950853347778,
