@@ -1,0 +1,68 @@
+<html>
+  <head>
+    <script src="https://www.lactame.com/lib/image-js/0.21.2/image.min.js"></script> 
+    <script src="../dist/mindar.js"></script>
+    <script>
+
+      const getGreyImage = (image) => {
+        const _greyImage = image.grey({algorithm: "average"});
+
+        const greyImage = {
+          width: _greyImage.width,
+          height: _greyImage.height,
+          data: []
+        };
+        for (let i = 0; i < _greyImage.data.length; i++) {
+          greyImage.data.push( Math.floor(_greyImage.data[i] / _greyImage.maxValue * 255));
+        }
+        return greyImage;
+      }
+
+      document.addEventListener('DOMContentLoaded', function(event) {
+        /*
+        //var arr = [];
+        var arr = new Float64Array(100000000);
+        for (let i = 0; i < 100000000; i++) {
+          arr[i] = i;
+        }
+        arr[0] = 1;
+        arr[999999999] = 2;
+        var _start = new Date().getTime();
+        var sum = 0;
+        for (let i = 0; i < 100000000; i++) {
+          arr[i] += arr[i];
+        }
+        var _end = new Date().getTime();
+        console.log('exec time: ', _start, _end, _end - _start);
+        return;
+        */
+
+        async function process() {
+          const targetImage = await IJS.Image.load('./assets/card.png');
+          const queryImage = await IJS.Image.load('./assets/test.png');
+          document.getElementById('target-image').src = targetImage.toDataURL();
+          document.getElementById('test-image').src = queryImage.toDataURL();
+
+          const greyTargetImage = getGreyImage(targetImage);
+          const greyQueryImage = getGreyImage(queryImage);
+
+          var _start = new Date().getTime();
+          var controller = new MINDAR.Controller();
+          controller.addImageTarget(greyTargetImage);
+          var _end = new Date().getTime();
+          console.log('exec time compile Image: ', _start, _end, _end - _start);
+
+          var _start = new Date().getTime();
+          controller.process(queryImage);
+          var _end = new Date().getTime();
+          console.log('exec time process Image: ', _start, _end, _end - _start);
+        }
+        process();
+      });
+    </script>
+  </head>
+  <body>
+    <img id="target-image"/>
+    <img id="test-image"/>
+  </body>
+</html>
