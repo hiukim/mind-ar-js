@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "node ./tests/index.js",
-    "test-match": "node ./tests/matching.js"
+    "test-match": "node ./tests/matching.js",
+    "watch": "webpack --watch",
+    "build": "webpack"
   },
   "type": "module",
   "author": "",
@@ -14,5 +16,9 @@
     "image-js": "^0.21.9",
     "ml-matrix": "^6.5.0",
     "tinyqueue": "^2.0.3"
+  },
+  "devDependencies": {
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11"
   }
 }

@@ -9,9 +9,10 @@ class ImageTarget {
   }
 
   process(queryImage) {
-    const processImage = Object.assign(resize({image: queryImage, ratio: 0.5}), {dpi: 72});
-    console.log("process", processImage);
-    this.matcher.match(processImage);
+    //const processImage = Object.assign(resize({image: queryImage, ratio: 0.5}), {dpi: 72});
+    const processImage = Object.assign(resize({image: queryImage, ratio: 1}), {dpi: 72});
+    const modelViewTransform = this.matcher.match(processImage);
+    return modelViewTransform;
   }
 }
 

@@ -5,7 +5,20 @@
     <script>
 
       const getGreyImage = (image) => {
+        const greyImage = {
+          width: image.width,
+          height: image.height,
+          data: []
+        }
+        for (let i = 0; i < image.data.length; i+=4) {
+          greyImage.data.push( Math.floor((image.data[i] + image.data[i+1] + image.data[i+2]) / 3));
+        }
+        return greyImage;
+      }
+
+      const _getGreyImage = (image) => {
         const _greyImage = image.grey({algorithm: "average"});
+        console.log("_grey", _greyImage);
 
         const greyImage = {
           width: _greyImage.width,
@@ -19,27 +32,16 @@
       }
 
       document.addEventListener('DOMContentLoaded', function(event) {
-        /*
-        //var arr = [];
-        var arr = new Float64Array(100000000);
-        for (let i = 0; i < 100000000; i++) {
-          arr[i] = i;
-        }
-        arr[0] = 1;
-        arr[999999999] = 2;
-        var _start = new Date().getTime();
-        var sum = 0;
-        for (let i = 0; i < 100000000; i++) {
-          arr[i] += arr[i];
-        }
-        var _end = new Date().getTime();
-        console.log('exec time: ', _start, _end, _end - _start);
-        return;
-        */
-
         async function process() {
-          const targetImage = await IJS.Image.load('./assets/card.png');
-          const queryImage = await IJS.Image.load('./assets/test.png');
+          //const pw = 640;
+          //const ph = 480;
+          const pw = 320;
+          const ph = 240;
+
+          let targetImage = await IJS.Image.load('./assets/card.png');
+          let queryImage = await IJS.Image.load('./assets/test.png');
+          queryImage.resize({width: pw, height: ph});
+
           document.getElementById('target-image').src = targetImage.toDataURL();
           document.getElementById('test-image').src = queryImage.toDataURL();
 
@@ -47,13 +49,48 @@
           const greyQueryImage = getGreyImage(queryImage);
 
           var _start = new Date().getTime();
-          var controller = new MINDAR.Controller();
+          var controller = new MINDAR.Controller(pw, ph);
           controller.addImageTarget(greyTargetImage);
           var _end = new Date().getTime();
           console.log('exec time compile Image: ', _start, _end, _end - _start);
 
+          const proj = controller.getProjectionMatrix();
+          console.log("proj", proj);
+
+          const ele = document.getElementById("test-image2");
+          const canvas_process = document.getElementById('canvas');
+          canvas_process.width = pw;
+          canvas_process.height = ph;
+          const context_process = canvas_process.getContext('2d');
+          var w = ele.width;
+          var h = ele.height;
+          console.log("draw", w, h, pw, ph);
+          context_process.drawImage(ele, 0, 0, w, h, 0, 0, pw, ph);
+          var imageData = context_process.getImageData(0, 0, pw, ph);
+          var greyImageData = [];
+          for (let i = 0; i < imageData.data.length; i+=4) {
+            greyImageData.push( Math.floor((imageData.data[i] + imageData.data[i+1] + imageData.data[i+2]) / 3));
+          }
+
+          console.log("data length: ", imageData.data.length, queryImage.data.length, greyImageData.length, greyQueryImage.data.length);
+          for (let i = 0; i < imageData.data.length; i++) {
+            if (imageData.data[i] != queryImage.data[i]) {
+              console.log("INCORRECT color", i, imageData.data[i], queryImage.data[i]);
+              break;
+            }
+          }
+          for (let i = 0; i < greyImageData.length; i++) {
+            if (greyImageData[i] !== greyQueryImage.data[i]) {
+              console.log("INCORRECT grey", i, greyImageData[i], greyQueryImage.data[i]);
+              break;
+            }
+          }
+
           var _start = new Date().getTime();
-          controller.process(queryImage);
+          //controller.process(queryImage);
+          const result = controller.process({data: greyImageData, width: pw, height: ph});
+          console.log("result: ", result);
+          //controller.process(greyQueryImage);
           var _end = new Date().getTime();
           console.log('exec time process Image: ', _start, _end, _end - _start);
         }
@@ -64,5 +101,10 @@
   <body>
     <img id="target-image"/>
     <img id="test-image"/>
+    <img id="test-image2" src="./assets/test.png"/>
+
+    <br/>
+    Canvas
+    <canvas id="canvas"></canvas>
   </body>
 </html>

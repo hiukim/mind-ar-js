@@ -1,0 +1,324 @@
+<html>
+  <head>
+    <script src="https://www.lactame.com/lib/image-js/0.21.2/image.min.js"></script> 
+    <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+    <script src="../dist/mindar.js"></script>
+    <script>
+      const getGreyImage = (image) => {
+        const greyImage = {
+          width: image.width,
+          height: image.height,
+          data: []
+        }
+        for (let i = 0; i < image.data.length; i+=4) {
+          greyImage.data.push( Math.floor((image.data[i] + image.data[i+1] + image.data[i+2]) / 3));
+        }
+        return greyImage;
+      }
+
+      AFRAME.registerSystem('ar-system', {
+        AR_PROCESS_WIDTH: 320,
+        AR_PROCESS_HEIGHT: 240,
+
+        container: null,
+        video: null,
+        processReady: false,
+        processingImage: false,
+
+        init: function() {
+          this.anchorEntities = [];
+        },
+
+        tick: function() {
+          if (this.uiStats) this.uiStats.update();
+
+          if (this.processReady) {
+            if (!this.processingImage) {
+              if (this.workerStats) this.workerStats.update();
+              this.processingImage = true;
+              this._processImage();
+            }
+          }
+        },
+
+        registerAnchor: function(el) {
+          const markerIndex = this.anchorEntities.length;
+          this.anchorEntities.push(el);
+          return markerIndex;
+        },
+
+        start: function() {
+          this.container = this.el.sceneEl.parentNode;
+          this._startVideo();
+        },
+
+        _startVideo: function() {
+          this.video = document.createElement('video');
+
+          this.video.setAttribute('autoplay', '');
+          this.video.setAttribute('muted', '');
+          this.video.setAttribute('playsinline', '');
+          this.video.style.position = 'absolute'
+          this.video.style.top = '0px'
+          this.video.style.left = '0px'
+          this.video.style.zIndex = '-2'
+          this.container.appendChild(this.video);
+
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            // TODO: show unsupported error
+            return;
+          }
+
+          navigator.mediaDevices.getUserMedia({audio: false, video: {facingMode: 'environment'}}).then((stream) => {
+            this.video.srcObject = stream;
+            this.video.addEventListener( 'loadedmetadata', () => {
+              console.log("video ready...", this.video);
+              this._startAR();
+            });
+          });
+        },
+
+        __startVideo: function() {
+          this.img = document.createElement('img');
+          this.img.onload = () => {
+            this.video.videoWidth = this.video.width;
+            this.video.videoHeight = this.video.height;
+            this._startAR();
+          }
+          this.img.src = "./assets/test.png";
+          this.img.style.position = 'absolute'
+          //this.img.style.top = '0px';
+          //this.img.style.left = '0px';
+          //this.img.style.width = '100%';
+          //this.img.style.height = '100%';
+          this.img.style.zIndex = '-2';
+          this.container.appendChild(this.img);
+
+          this.video = this.img;
+        },
+
+        _startAR: async function() {
+          this.controller = new MINDAR.Controller(this.AR_PROCESS_WIDTH, this.AR_PROCESS_HEIGHT);
+
+          const proj = this.controller.getProjectionMatrix();
+          const fov = 2 * Math.atan(1/proj[5]) * 180 / Math.PI; // vertical fov
+          const near = proj[14] / (proj[10] - 1.0);
+          const far = proj[14] / (proj[10] + 1.0);
+          const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
+          console.log("loaded proj: ", proj, ". fov: ", fov, ". near: ", near, ". far: ", far, ". ratio: ", ratio);
+          const newRatio = ratio / ((this.AR_PROCESS_WIDTH/this.AR_PROCESS_HEIGHT)/(this.container.clientWidth/this.container.clientHeight));
+          const newCam = new AFRAME.THREE.PerspectiveCamera(fov, newRatio, 10, 10000);
+          this.el.sceneEl.camera.el.setObject3D('camera', newCam);
+
+          this._computeSizes(this.container, this.video);
+
+          const {vw, vh, pw, ph, cw, ch, cx, cy, sw, sh, sx, sy, tw, th, tx, ty} = this.sizes;
+          this.video.style.top = (-(vh - this.container.clientHeight) / 2) + "px";
+          this.video.style.left = (-(vw - this.container.clientWidth) / 2) + "px";
+          this.video.style.width = vw + "px";
+          this.video.style.height = vh + "px";
+
+          const processCanvas = document.createElement('canvas');
+          this.workerProcessContext = processCanvas.getContext('2d');
+          processCanvas.width = pw;
+          processCanvas.height = ph;
+
+          let targetImage = await IJS.Image.load('./assets/card.png');
+          const greyTargetImage = getGreyImage(targetImage);
+          this.controller.addImageTarget(greyTargetImage);
+
+          this.processReady = true;
+        },
+
+        _processImage() {
+          const {vw, vh, pw, ph, cw, ch, cx, cy, sw, sh, sx, sy, tw, th, tx, ty} = this.sizes;
+
+          const processContext = this.workerProcessContext;
+          processContext.fillStyle = "black";
+          processContext.fillRect(0, 0, pw, ph);
+          processContext.drawImage(this.video, sx, sy, sw, sh, tx, ty, tw, th);
+
+          const imageData = processContext.getImageData(0, 0, pw, ph);
+          const greyImageData = [];
+          for (let i = 0; i < imageData.data.length; i += 4) {
+            greyImageData.push(Math.floor((imageData.data[i]+imageData.data[i+1]+imageData.data[i+2])/3));
+          }
+          console.log("process data", greyImageData);
+
+          var _start = new Date().getTime();
+          const result = this.controller.process({data: greyImageData, width: pw, height: ph});
+          var _end = new Date().getTime();
+          console.log('exec time process Image: ', _start, _end, _end - _start);
+
+          console.log("result: ", result);
+          for (let i = 0; i < this.anchorEntities.length; i++) {
+            this.anchorEntities[i].updateWorldMatrix(result[i].worldMatrix);
+          }
+
+          this.processingImage = false;
+        },
+
+        _computeSizes: function(container, video) {
+          console.log("video video size: ", video.videoWidth, video.videoHeight);
+
+          // clip video is the portion of the video for ar process
+          let vw, vh; // display css width, height
+          let sx, sy; // clip video offset x, y for ar process
+          let sw, sh; // clip video width, height for ar process
+          const videoRatio = video.videoWidth / video.videoHeight;
+          const containerRatio = container.clientWidth / container.clientHeight;
+          if (videoRatio > containerRatio) {
+            vh = container.clientHeight;
+            vw = vh * videoRatio;
+
+            sh = video.videoHeight;
+            sw = sh * containerRatio;
+            sy = 0;
+            sx = (video.videoWidth - sw) / 2;
+          } else {
+            vw = container.clientWidth;
+            vh = vw / videoRatio;
+
+            sw = video.videoWidth;
+            sh = sw / containerRatio;
+            sx = 0;
+            sy = (video.videoHeight - sh) / 2;
+          }
+
+          let pw = this.AR_PROCESS_WIDTH; //640; // predefined width for ar process
+          let ph = this.AR_PROCESS_HEIGHT; //480; // predefined height for ar process
+          let pRatio = pw / ph;
+
+          // fit the clip video source into the ar process size, keeping the ratio
+          const sRatio = sw / sh; // clip ratio (= container ratio)
+          let tw, th; // process context width, height
+          let tx, ty; // process context offset x, y
+          if (sRatio > pRatio) {
+            tw = pw;
+            th = tw / sRatio;
+            tx = 0;
+            ty = (ph - th) / 2;
+          } else {
+            th = ph;
+            tw = th * sRatio;
+            ty = 0;
+            tx = (pw - tw) / 2;
+          }
+
+          let cw, ch; // draw canvas width, height
+          let cx, cy; // draw canvas style offset left, top
+          if (sRatio > pRatio) {
+            cw = container.clientWidth;
+            ch = cw / pRatio;
+            cx = 0;
+            cy = (ch - container.clientHeight) / 2;
+          } else {
+            ch = container.clientHeight;
+            cw = ch * pRatio;
+            cy = 0;
+            cx = (cw - container.clientWidth) / 2;
+          }
+
+
+          const sizes = {
+            vw, vh, pw, ph,
+            cw, ch, cx, cy,
+            sw, sh, sx, sy, tw, th, tx, ty
+          }
+
+          console.log('recompute sizes: ', sizes);
+          this.sizes = sizes;
+        }
+      });
+
+      AFRAME.registerComponent('ar', {
+        dependencies: ['ar-system'],
+
+        schema: {
+          stats: {type: 'boolean', default: "false"}
+        },
+
+        init: function() {
+          const arSystem = this.el.sceneEl.systems['ar-system'];
+          this.el.sceneEl.addEventListener('renderstart', () => {
+            arSystem.start();
+          });
+        }
+      });
+
+      AFRAME.registerComponent('ar-nft-anchor', {
+        dependencies: ['ar-system'],
+
+        postMatrix: null, // rescale the anchor to make width of 1 unit = physical width of card
+
+        init: function() {
+          var root = this.el.object3D;
+          root.matrixAutoUpdate = false;
+
+          this.marker = {
+            width: 674,
+            height: 372,
+            dpi: 72,
+          };
+
+          const arSystem = this.el.sceneEl.systems['ar-system'];
+          this.markerIndex = arSystem.registerAnchor(this);
+
+          const markerWidth = this.marker.width / this.marker.dpi * 2.54 * 10; // in mm
+          const markerHeight = this.marker.height / this.marker.dpi * 2.54 * 10; // in mm
+          const position = new AFRAME.THREE.Vector3();
+          const quaternion = new AFRAME.THREE.Quaternion();
+          const scale = new AFRAME.THREE.Vector3();
+          position.x = markerWidth / 2;
+          position.y = markerWidth / 2 + (markerHeight - markerWidth) / 2;
+          scale.x = markerWidth;
+          scale.y = markerWidth;
+          scale.z = markerWidth;
+          this.postMatrix = new AFRAME.THREE.Matrix4();
+          this.postMatrix.compose(position, quaternion, scale);
+        },
+
+        updateWorldMatrix(worldMatrix) {
+          this.el.object3D.visible = worldMatrix !== null;
+          if (worldMatrix === null) {
+            return;
+          }
+          var m = new AFRAME.THREE.Matrix4();
+          m.elements = worldMatrix; 
+          m.multiply(this.postMatrix);
+
+          this.el.object3D.matrix = m;
+        }
+      });
+    </script>
+
+    <style>
+      body {
+        margin: 0;
+      }
+      .displayAR-container {
+        overflow: hidden;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="displayAR-container">
+      <a-scene ar embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false">
+        <a-assets>
+          <img id="card" src="./assets/card.png" />
+        </a-assets>
+
+        <a-entity ar-nft-anchor>
+          <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
+          </a-plane>
+          <a-entity rotation="90 0 0">
+            <a-cylinder position="0.5 0.5 0" rotation="0 0 0" radius="0.1" height="1" color="#FFC65D"></a-cylinder>
+          </a-entity>
+        </a-entity>
+      </a-scene>
+    </div>
+  </body>
+</html>

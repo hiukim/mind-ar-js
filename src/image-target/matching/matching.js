@@ -1,8 +1,8 @@
-const TinyQueue = require('tinyqueue');
+const TinyQueue = require('tinyqueue').default;
 const {compute: hammingCompute} = require('./hamming-distance.js');
 const {computeHoughMatches} = require('./hough.js');
 const {computeHomography} = require('./homography.js');
-const {multiplyPointHomographyInhomogenous, matrixInverse33} = require('./geometry.js');
+const {multiplyPointHomographyInhomogenous, matrixInverse33} = require('../utils/geometry.js');
 
 const kHomographyInlierThreshold = 3;
 const kMinNumInliers = 8;
@@ -48,16 +48,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
         matches.push({querypointIndex: j, keypointIndex: bestIndex});
       }
     }
-    console.log("matches1 length", matches.length, debugContent.querykeyframes[i].matches1.length);
-    for (let j = 0; j < matches.length; j++) {
-      if (matches[j].querypointIndex !== debugContent.querykeyframes[i].matches1[j].ins
-        || matches[j].keypointIndex !== debugContent.querykeyframes[i].matches1[j].res) {
-        console.log("INCORRECT MATCH", j, matches[j], debugContent.querykeyframes[i].matches1[j]);
-      }
-    }
 
     if (matches.length < kMinNumInliers) {
-      console.log("hough matches", [], debugContent.querykeyframes[i].houghMatches1);
       continue;
     }
 
@@ -69,16 +61,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       querywidth,
       queryheight,
       matches,
-      debugQuerykeyframe: debugContent.querykeyframes[i],
     });
-    console.log("hough matches1 length", houghMatches.length, debugContent.querykeyframes[i].houghMatches1.length);
-    for (let j = 0; j < houghMatches.length; j++) {
-      console.log(houghMatches[j], debugContent.querykeyframes[i].houghMatches1[j]);
-      //if (houghMatches[j].querypointIndex !== debugContent.querykeyframes[i].houghMatches1[j].ins
-      //  || houghMatches[j].keypointIndex !== debugContent.querykeyframes[i].houghMatches1[j].res) {
-      //  console.log("INCORRECT HOUGH MATCH1", j);
-      //}
-    }
+    console.log("hough matches1 length", houghMatches.length, houghMatches);
 
     const srcPoints = [];
     const dstPoints = [];
@@ -93,11 +77,9 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       srcPoints,
       dstPoints,
       keyframe,
-      debugQuerykeyframe: debugContent.querykeyframes[i],
-      startDebugIndex: 0
     });
 
-    console.log("final H", H, debugContent.querykeyframes[i].H1);
+    console.log("final H", H);
 
     if (H === null) continue;
 
@@ -112,11 +94,6 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
 
     if (inlierMatches.length < kMinNumInliers) {
       continue;
-    }
-
-    console.log("inlier matches1 length", inlierMatches.length, debugContent.querykeyframes[i].inlierMatches1.length);
-    for (let j = 0; j < inlierMatches.length; j++) {
-      console.log(inlierMatches[j], debugContent.querykeyframes[i].inlierMatches1[j]);
     }
 
     // do another loop of match using the homography
@@ -156,15 +133,6 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
 
-    console.log("matches2 length", matches2.length, debugContent.querykeyframes[i].matches2.length);
-    for (let j = 0; j < matches2.length; j++) {
-      //console.log("MATCH 2", j, matches2[j], debugContent.querykeyframes[i].matches2[j]);
-      if (matches2[j].querypointIndex !== debugContent.querykeyframes[i].matches2[j].ins
-        || matches2[j].keypointIndex !== debugContent.querykeyframes[i].matches2[j].res) {
-        console.log("INCORRECT MATCH 2", j, matches2[j], debugContent.querykeyframes[i].matches2[j]);
-      }
-    }
-
     const houghMatches2 = computeHoughMatches({
       keypoints: keyframe.points,
       querypoints,
@@ -173,9 +141,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       querywidth,
       queryheight,
       matches: matches2,
-      debugQuerykeyframe: debugContent.querykeyframes[i],
     });
-    //console.log("hough matches2 length", houghMatches2.length, debugContent.querykeyframes[i].houghMatches2.length);
+    console.log("hough matches2 length", houghMatches2.length, houghMatches2);
 
     const srcPoints2 = [];
     const dstPoints2 = [];
@@ -189,10 +156,10 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
     const H2 = computeHomography({
       srcPoints: srcPoints2,
       dstPoints: dstPoints2,
-      keyframe, debugQuerykeyframe: debugContent.querykeyframes[i]
+      keyframe
     });
 
-    console.log("final H2", H2, debugContent.querykeyframes[i].H2);
+    console.log("final H2", H2);
 
     if (H2 === null) continue;
 
@@ -206,11 +173,6 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
 
     if (inlierMatches2.length < kMinNumInliers) {
       continue;
-    }
-
-    console.log("inlier matches2 length", inlierMatches2.length, debugContent.querykeyframes[i].inlierMatches2.length);
-    for (let j = 0; j < inlierMatches2.length; j++) {
-      console.log(inlierMatches2[j], debugContent.querykeyframes[i].inlierMatches2[j]);
     }
 
     if (inlierMatches2.length < kMinNumInliers) {
@@ -229,7 +191,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
   return result;
 };
 
-const _query: = ({node, keypoints, querypoint, queue, keypointIndexes, numPop}) => {
+const _query = ({node, keypoints, querypoint, queue, keypointIndexes, numPop}) => {
   if (node.leaf) {
     for (let i = 0; i < node.pointIndexes.length; i++) {
       keypointIndexes.push(node.pointIndexes[i]);
