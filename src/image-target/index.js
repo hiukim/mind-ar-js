@@ -1,11 +1,29 @@
 const {resize} = require("./utils/images.js");
 const {buildImageList} = require('./image-list.js');
-const {createMatcher} = require('./matching/matcher.js');
+const {Matcher, compileMatching} = require('./matching/matcher.js');
+const {Tracker, compileTracking} = require('./tracking/tracker.js');
 
 class ImageTarget {
-  constructor(targetImage) {
-    const imageList = buildImageList(targetImage);
-    this.matcher = createMatcher(imageList);
+  constructor(options) {
+    let imageList;
+    let targetImage;
+    let matchingData;
+    let trackingData;
+
+    if (options.type === 'compiled') {
+      targetImage = options.input.targetImage;
+      matchingData = options.input.matchingData;
+      trackingData = options.input.trackingData;
+      imageList = buildImageList(targetImage);
+    } else {
+      targetImage = options.input;
+      imageList = buildImageList(targetImage);
+      matchingData = compileMatching({imageList});
+      trackingData = compileTracking({imageList});
+    }
+    console.log("image target consdtructor", imageList, matchingData, trackingData);
+    this.matcher = new Matcher(matchingData);
+    //this.tracker = new Tracker(imageList);
   }
 
   process(queryImage) {
@@ -16,6 +34,14 @@ class ImageTarget {
   }
 }
 
+const compile = (targetImage) => {
+  const imageList = buildImageList(targetImage);
+  const matchingData = compileMatching({imageList});
+  const trackingData = compileTracking({imageList});
+  return {targetImage, matchingData, trackingData};
+}
+
 module.exports = {
-  ImageTarget
+  ImageTarget,
+  compile
 }

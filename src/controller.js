@@ -27,8 +27,8 @@ class Controller {
     return this._projectionMatrix;
   }
 
-  addImageTarget(inputImage) {
-    const imageTarget = new ImageTarget(inputImage);
+  addImageTarget(options) {
+    const imageTarget = new ImageTarget(options);
     this._imageTargets.push(imageTarget);
   }
 

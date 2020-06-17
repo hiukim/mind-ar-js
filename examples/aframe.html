@@ -1,6 +1,7 @@
 <html>
   <head>
     <script src="https://www.lactame.com/lib/image-js/0.21.2/image.min.js"></script> 
+    <script src="https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js"></script>
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="../dist/mindar.js"></script>
     <script>
@@ -19,6 +20,8 @@
       AFRAME.registerSystem('ar-system', {
         AR_PROCESS_WIDTH: 320,
         AR_PROCESS_HEIGHT: 240,
+        //AR_PROCESS_WIDTH: 640,
+        //AR_PROCESS_HEIGHT: 480,
 
         container: null,
         video: null,
@@ -123,11 +126,18 @@
           processCanvas.width = pw;
           processCanvas.height = ph;
 
-          let targetImage = await IJS.Image.load('./assets/card.png');
-          const greyTargetImage = getGreyImage(targetImage);
-          this.controller.addImageTarget(greyTargetImage);
+          //let targetImage = await IJS.Image.load('./assets/card.png');
+          //const greyTargetImage = getGreyImage(targetImage);
+          //this.controller.addImageTarget({type: 'image', input: greyTargetImage});
 
-          this.processReady = true;
+          fetch('./assets/card.msp')
+            .then(response => response.arrayBuffer())
+            .then(buffer => {
+              var compiled = msgpack.decode(new Uint8Array(buffer));
+              console.log("compiled", compiled);
+              this.controller.addImageTarget({type: 'compiled', input: compiled});
+              this.processReady = true;
+            });
         },
 
         _processImage() {
