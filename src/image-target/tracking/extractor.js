@@ -52,13 +52,31 @@ const extract = (options) => {
       }
       dx /= (3 * 256);
       dy /= (3 * 256);
+
+
       dValue[pos] = Math.sqrt( (dx * dx + dy * dy) / 2);
     }
   }
 
+  if (window.DEBUG) {
+    var correct = 0;
+    var ddValues = window.debugContent.dValues[window.debug.extractIndex];
+    for (let j = 0; j < height; j++) {
+      for (let i = 0; i < width; i++) {
+        if (ddValues[j*width+i] !== dValue[j*width+i]) {
+          console.log("INCORRECT d value", i, j, dValue[j * width + i], 'vs', ddValues[j *width+i]);
+          break;
+        } else {
+          correct += 1;
+        }
+      }
+    }
+    console.log("dvalues correct: ", correct);
+  }
+
   // Step 1.2 - select all pixel which is dValue largest than all its neighbour as "potential" candidate
   //  the number of selected points is still too many, so we use the value to further filter (e.g. largest the dValue, the better)
-  const dValueHist = new Uint8Array(1000);
+  const dValueHist = new Uint32Array(1000);
   for (let i = 0; i < 1000; i++) dValueHist[i] = 0;
   const neighbourOffsets = [-1, 1, -width, width];
   let allCount = 0;
@@ -89,6 +107,7 @@ const extract = (options) => {
   while (k >= 0) {
     filteredCount += dValueHist[k];
     if (filteredCount > maxPoints) break;
+    //if ( 1.0*filteredCount/(width*height) >= 0.02) break;
     k--;
   }
 
@@ -116,17 +135,44 @@ const extract = (options) => {
 
       const ret = _makeTemplate({imageData: imageData, width: width, height: height, cx: i, cy: j, templateSize: TEMPLATE_SIZE, sdThresh: TEMPLATE_SD_THRESH});
       if (ret === null) {
+        var t = window.debugContent.featureMapsTemplates[window.debug.extractIndex][j*width+i];
+        if (t !== null && t !== undefined) {
+          console.log("INCORRECT template null", i, j,window.debug.extractIndex, j*width+i, t);
+        }
+
         featureMap[pos] = 1.0;
         continue;
       }
-
       const {template, vlen} = ret;
 
+      if (window.DEBUG) {
+        var t = window.debugContent.featureMapsTemplates[window.debug.extractIndex][j*width+i];
+        if (t === undefined || t === null) console.log("INCORRECT template", i, j, j*width+i, template, vlen);
+        if (Math.abs(t.vlen - vlen) > 0.001) console.log("INCORRECT template vlen", t.vlen, vlen);
+        if (t.template.length !== template.length) console.log("INCORRECT template len");
+        for (let ii = 0; ii < template.length; ii++) {
+          if (Math.abs(t.template[ii] - template[ii]) > 0.00001) {
+            console.log("INCORRECT template val", i, j, ii, t.vlen, vlen, t.template[ii], template[ii]);
+            break;
+          }
+        }
+      }
+
+
       let max = -1.0;
-      for (let ii = -SEARCH_SIZE1; ii <= SEARCH_SIZE1; ii++) {
-        for (let jj = -SEARCH_SIZE1; jj <= SEARCH_SIZE1; jj++) {
+      for (let jj = -SEARCH_SIZE1; jj <= SEARCH_SIZE1; jj++) {
+        for (let ii = -SEARCH_SIZE1; ii <= SEARCH_SIZE1; ii++) {
           if (ii * ii + jj * jj <= SEARCH_SIZE2 * SEARCH_SIZE2) continue;
           const sim = _getSimilarity({imageData, width, height, cx: i+ii, cy: j+jj, templateSize: TEMPLATE_SIZE, vlen: vlen, template: template});
+
+          if (false && window.DEBUG) {
+            var dSims = window.debugContent.featureMapsTemplates[window.debug.extractIndex][j*width+i].sims;
+            var simIndex = (jj + SEARCH_SIZE1) * (SEARCH_SIZE1*2 + 1) + (ii + SEARCH_SIZE1);
+            if (Math.abs(sim - dSims[simIndex]) > 0.00001) {
+              console.log("incorrect sim", simIndex, sim, 'vs', dSims[simIndex]);
+            }
+          }
+
           if (sim === null) continue;
 
           if (sim > max) {
@@ -139,6 +185,17 @@ const extract = (options) => {
       featureMap[pos] = max;
     }
   }
+
+  if (window.DEBUG) {
+    console.log("featuremap", featureMap.length, window.debugContent.featureMaps[window.debug.extractIndex].length);
+    for (let i = 0; i < featureMap.length; i++) {
+      if ( Math.abs(featureMap[i] - window.debugContent.featureMaps[window.debug.extractIndex][i]) > 0.00001) {
+        console.log("incorrect feature map", i, featureMap[i], window.debugContent.featureMaps[window.debug.extractIndex][i]);
+      }
+    }
+  }
+
+  console.log("extract", window.debugContent);
   // debugImageData({filename: "./featureMap_"+width+".png", data: featureMap, height: height, width: width});
 
   // Step 2.2 select feature
@@ -158,7 +215,7 @@ const _selectFeature = (options) => {
   const xDiv = Math.floor(width / divSize);
   const yDiv = Math.floor(height / divSize);
 
-  const maxFeatureNum = Math.floor(width / occSize) * Math.floor(height / occSize) + xDiv * yDiv;
+  let maxFeatureNum = Math.floor(width / occSize) * Math.floor(height / occSize) + xDiv * yDiv;
   console.log("max feature num: ", maxFeatureNum);
 
   const coords = [];
@@ -271,8 +328,13 @@ const _makeTemplate = (options) => {
     }
   }
 
+  if (window.DEBUG && cx === 53 && cy === 156) {
+    console.log("[53, 156]", vlen);
+  }
+
+
   if (vlen == 0) return null;
-  if (vlen / (templateWidth * templateWidth) < sdThresh) return null;
+  if (vlen / (templateWidth * templateWidth) < sdThresh * sdThresh) return null;
   vlen = Math.sqrt(vlen);
 
   return {template: template, vlen: vlen};

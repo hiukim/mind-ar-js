@@ -1,14 +1,34 @@
 const {extract} = require('./extractor');
+const {track} = require('./tracking');
+const {createRandomizer} = require('../utils/randomizer.js');
 
 class Tracker {
-  constructor(imageList, projectionTransform) {
-    this.featureSets = _buildFeatureSets(imageList);
+  constructor(trackingData, imageList, projectionTransform) {
+    console.log("tracking data", trackingData);
+    this.featureSets = trackingData.featureSets;
+    this.imageList = imageList;
+    this.projectionTransform = projectionTransform;
+    this.randomizer = createRandomizer();
+  }
+
+  track(modelViewTransform, targetImage) {
+    const newModelViewTransform = track({
+      projectionTransform: this.projectionTransform,
+      featureSets: this.featureSets,
+      modelViewTransform,
+      targetImage,
+      randomizer: this.randomizer,
+      imageList: this.imageList,
+    });
+    return newModelViewTransform;
   }
 }
 
 const _buildFeatureSets = ({imageList}) => {
   const featureSets = [];
   for (let i = 0; i < imageList.length; i++) {
+    if (window.DEBUG) {window.debug.extractIndex = i};
+
     const image = imageList[i];
     const coords = extract({imageData: image.data, width: image.width, height: image.height, dpi: image.dpi});
 

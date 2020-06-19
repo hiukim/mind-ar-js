@@ -4,8 +4,17 @@
     <script src="https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js"></script>
     <script src="../dist/mindar.js"></script>
     <script>
+      const EPSILON = 0.0001;
+      const cmp = (a, b) => {return Math.abs(a-b) < EPSILON};
+      const cmpObj = (a, b, keys) => {
+        for (let i = 0; i < keys.length; i++) {
+          const key = keys[i];
+          if (!cmp(a[key], b[key])) return false;
+        }
+        return true;
+      };
 
-      const getGreyImage = (image) => {
+      const _getGreyImage = (image) => {
         const greyImage = {
           width: image.width,
           height: image.height,
@@ -17,7 +26,7 @@
         return greyImage;
       }
 
-      const _getGreyImage = (image) => {
+      const getGreyImage = (image) => {
         const _greyImage = image.grey({algorithm: "average"});
         console.log("_grey", _greyImage);
 
@@ -34,6 +43,11 @@
 
       document.addEventListener('DOMContentLoaded', function(event) {
         async function process() {
+          const filename = 'card3';
+          const f = await fetch('./assets/debugGen_' + filename + '.txt');
+          const debugContent = JSON.parse(await f.text());
+          console.log("d", debugContent);
+
           //const pw = 640;
           //const ph = 480;
           const pw = 320;
@@ -43,15 +57,39 @@
           let queryImage = await IJS.Image.load('./assets/test.png');
           queryImage.resize({width: pw, height: ph});
 
-          document.getElementById('target-image').src = targetImage.toDataURL();
+          //document.getElementById('target-image').src = targetImage.toDataURL();
           document.getElementById('test-image').src = queryImage.toDataURL();
 
-          const greyTargetImage = getGreyImage(targetImage);
+          //const greyTargetImage = getGreyImage(targetImage);
           const greyQueryImage = getGreyImage(queryImage);
 
+          const msp = await fetch('./assets/' + filename + '.msp');
+          const buffer = await msp.arrayBuffer();
+          const compiled = msgpack.decode(new Uint8Array(buffer));
+          const featureSets = compiled.trackingData.featureSets;
+
+          console.log("compiled", compiled);
+          console.log("feature set count", featureSets.length, 'vs', debugContent.featureSets.length);
+          for (let i = 0; i < featureSets.length; i++) {
+            const f1 = featureSets[i];
+            const f2 = debugContent.featureSets[i];
+            if (!cmpObj(f1, f2, ['maxdpi', 'mindpi', 'scale'])) {
+              console.log("INCORRECT featureset", f1, f2);
+            }
+            console.log("coords count", f1.coords.length, f2.coords.length);
+            for (let j = 0; j < f1.coords.length; j++) {
+              if (!cmpObj(f1.coords[j], f2.coords[j], ['x', 'y', 'mx', 'my', 'maxSim'])) {
+                console.log("INCORRECT featureset coord", f1.coords[j], f2.coords[j]);
+              }
+              //console.log("featureset coord", f1.coords[j], f2.coords[j]);
+            }
+          }
+
+          return;
           var _start = new Date().getTime();
           var controller = new MINDAR.Controller(pw, ph);
-          controller.addImageTarget(greyTargetImage);
+          //controller.addImageTarget({type: 'image', input: greyTargetImage});
+          controller.addImageTarget({type: 'compiled', input: compiled});
           var _end = new Date().getTime();
           console.log('exec time compile Image: ', _start, _end, _end - _start);
 
@@ -90,8 +128,8 @@
           var _start = new Date().getTime();
           //controller.process(queryImage);
           const result = controller.process({data: greyImageData, width: pw, height: ph});
+          //const result = controller.process(greyQueryImage);
           console.log("result: ", result);
-          //controller.process(greyQueryImage);
           var _end = new Date().getTime();
           console.log('exec time process Image: ', _start, _end, _end - _start);
         }

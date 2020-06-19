@@ -29,6 +29,8 @@ const buildImageList = (inputImage) => {
     imageList.push(Object.assign(resize({image: inputImage, ratio: dpiList[i]/dpi}), {dpi: dpiList[i]}));
   }
 
+  //return [imageList[0]];
+
   return imageList;
 }
 

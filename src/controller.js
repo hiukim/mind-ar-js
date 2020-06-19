@@ -28,7 +28,7 @@ class Controller {
   }
 
   addImageTarget(options) {
-    const imageTarget = new ImageTarget(options);
+    const imageTarget = new ImageTarget(Object.assign({projectionTransform: this._projectionTransform}, options));
     this._imageTargets.push(imageTarget);
   }
 

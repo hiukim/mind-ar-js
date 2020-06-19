@@ -3,9 +3,22 @@
     <script src="https://www.lactame.com/lib/image-js/0.21.2/image.min.js"></script> 
     <script src="https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js"></script>
     <script src="../dist/mindar.js"></script>
-    <script>
 
-      const getGreyImage = (image) => {
+    <script>
+      window.DEBUG = true;
+      window.debug = {};
+
+      const EPSILON = 0.0001;
+      const cmp = (a, b) => {return Math.abs(a-b) < EPSILON};
+      const cmpObj = (a, b, keys) => {
+        for (let i = 0; i < keys.length; i++) {
+          const key = keys[i];
+          if (!cmp(a[key], b[key])) return false;
+        }
+        return true;
+      };
+
+      const _getGreyImage = (image) => {
         const greyImage = {
           width: image.width,
           height: image.height,
@@ -16,20 +29,30 @@
         }
         return greyImage;
       }
+      const getGreyImage = (image) => {
+        const _greyImage = image.grey({algorithm: "average"});
+        const greyImage = {
+          width: _greyImage.width,
+          height: _greyImage.height,
+          data: []
+        };
+        for (let i = 0; i < _greyImage.data.length; i++) {
+          greyImage.data.push( Math.floor(_greyImage.data[i] / _greyImage.maxValue * 255));
+        }
+        return greyImage;
+      }
 
       document.addEventListener('DOMContentLoaded', function(event) {
         async function process() {
-          /*
-          fetch('./assets/data.buf')
-            .then(response => response.arrayBuffer())
-            .then(buffer => {
-              var d = msgpack.decode(new Uint8Array(buffer));
-              console.log("d", d);
-            });
-          */
+          const filename = 'card7';
+          //const f = await fetch('./assets/debugGen_' + filename + '.txt');
+          //const debugContent = JSON.parse(await f.text());
+          const msp = await fetch('./assets/debugGen_' + filename + '.msp');
+          const debugContent = msgpack.decode(new Uint8Array(await msp.arrayBuffer()));
 
+          window.debugContent = debugContent;
 
-          let targetImage = await IJS.Image.load('./assets/card.png');
+          let targetImage = await IJS.Image.load('./assets/' + filename + '.png');
           document.getElementById('target-image').src = targetImage.toDataURL();
           const greyTargetImage = getGreyImage(targetImage);
 
@@ -37,12 +60,42 @@
           var data = MINDAR.Utils.compileImageTarget(greyTargetImage);
           var _end = new Date().getTime();
           console.log('exec time compile Image: ', _start, _end, _end - _start);
+          console.log("d", debugContent, 'vs', data);
+
+          // verify image list
+          const imageList = data.imageList;
+          console.log("image set count", imageList.length, 'vs', debugContent.imageSets.length);
+          for (let i = 0; i < data.imageList.length; i++) {
+            const i1 = data.imageList[i];
+            const i2 = debugContent.imageSets[i];
+            for (let j = 0; j < i1.data.length; j++) {
+              if (i1.data[j] !== i2[j]) console.log("INCORRECT image", i, j, i1.data[j], i2[j]);
+            }
+          }
+          //return;
+
+          const featureSets = data.trackingData.featureSets;
+          console.log("feature set count", featureSets.length, 'vs', debugContent.featureSets.length);
+          for (let i = 0; i < featureSets.length; i++) {
+            const f1 = featureSets[i];
+            const f2 = debugContent.featureSets[i];
+            if (!cmpObj(f1, f2, ['maxdpi', 'mindpi', 'scale'])) {
+              console.log("INCORRECT featureset", f1, f2);
+            }
+            console.log("coords count", f1.coords.length, f2.coords.length);
+            for (let j = 0; j < f1.coords.length; j++) {
+              if (!cmpObj(f1.coords[j], f2.coords[j], ['x', 'y', 'mx', 'my', 'maxSim'])) {
+                console.log("INCORRECT featureset coord", f1.coords[j], f2.coords[j]);
+              }
+              //console.log("featureset coord", f1.coords[j], f2.coords[j]);
+            }
+          }
+          return;
 
           var buffer = msgpack.encode(data);
-          console.log("buf", buffer);
           var blob = new Blob([buffer], {type: 'text/plain'});
           var aLink = window.document.createElement('a');
-          aLink.download = 'card.msp';
+          aLink.download = filename + '.msp';
           aLink.href = window.URL.createObjectURL(blob);
           aLink.click();
           window.URL.revokeObjectURL(aLink.href);
