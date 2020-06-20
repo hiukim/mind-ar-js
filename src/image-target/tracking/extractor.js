@@ -1,10 +1,11 @@
+const {Cumsum} = require('../utils/cumsum');
+
 const SEARCH_SIZE1 = 10;
 const SEARCH_SIZE2 = 2;
-const TEMPLATE_SIZE = 22;
-const MAP_SEARCH_SIZE1 = 10;
-const MAP_SEARCH_SIZE2 = 2;
-const MAX_SIM_THRESH = 0.95;
+
+const TEMPLATE_SIZE = 22
 const TEMPLATE_SD_THRESH = 5.0;
+const MAX_SIM_THRESH = 0.95;
 
 const MAX_THRESH = 0.9;
 const MIN_THRESH = 0.55;
@@ -19,16 +20,16 @@ const OCCUPANCY_SIZE = 24 * 2 / 3;
  * @param {int} options.width image width
  * @param {int} options.height image height
  */
-const extract = (options) => {
-  const {imageData, width, height, dpi} = options;
+const extract = (image) => {
+  const {data: imageData, width, height, dpi} = image;
 
   // Step 1 - filter out interesting points. Interesting points have strong pixel value changed across neighbours
   const isPixelSelected = [width * height];
   for (let i = 0; i < isPixelSelected.length; i++) isPixelSelected[i] = false;
 
   // Step 1.1 consider a pixel at position (x, y). compute:
-  //   dx = ((data[x+1, y-1] - data[x-1, y-1]) + (data[x+1, y] - data[x-1, y]) + (data[x+1, y+1] - data[x-1, y-1])) * 256 / 3
-  //   dy = ((data[x+1, y+1] - data[x+1, y-1]) + (data[x, y+1] - data[x, y-1]) + (data[x-1, y+1] - data[x-1, y-1])) * 256 / 3
+  //   dx = ((data[x+1, y-1] - data[x-1, y-1]) + (data[x+1, y] - data[x-1, y]) + (data[x+1, y+1] - data[x-1, y-1])) / 256 / 3
+  //   dy = ((data[x+1, y+1] - data[x+1, y-1]) + (data[x, y+1] - data[x, y-1]) + (data[x-1, y+1] - data[x-1, y-1])) / 256 / 3
   //   dValue =  sqrt(dx^2 + dy^2) / 2;
   const dValue = new Float32Array(imageData.length);
   for (let i = 0; i < width; i++) {
@@ -52,31 +53,13 @@ const extract = (options) => {
       }
       dx /= (3 * 256);
       dy /= (3 * 256);
-
-
       dValue[pos] = Math.sqrt( (dx * dx + dy * dy) / 2);
     }
   }
 
-  if (window.DEBUG) {
-    var correct = 0;
-    var ddValues = window.debugContent.dValues[window.debug.extractIndex];
-    for (let j = 0; j < height; j++) {
-      for (let i = 0; i < width; i++) {
-        if (ddValues[j*width+i] !== dValue[j*width+i]) {
-          console.log("INCORRECT d value", i, j, dValue[j * width + i], 'vs', ddValues[j *width+i]);
-          break;
-        } else {
-          correct += 1;
-        }
-      }
-    }
-    console.log("dvalues correct: ", correct);
-  }
-
   // Step 1.2 - select all pixel which is dValue largest than all its neighbour as "potential" candidate
   //  the number of selected points is still too many, so we use the value to further filter (e.g. largest the dValue, the better)
-  const dValueHist = new Uint32Array(1000);
+  const dValueHist = new Uint32Array(1000); // histogram of dvalue scaled to [0, 1000)
   for (let i = 0; i < 1000; i++) dValueHist[i] = 0;
   const neighbourOffsets = [-1, 1, -width, width];
   let allCount = 0;
@@ -92,8 +75,8 @@ const extract = (options) => {
       }
       if (isMax) {
         let k = Math.floor(dValue[pos] * 1000);
-        if (k > 999) k = 999;
-        if (k < 0) k = 0;
+        if (k > 999) k = 999; // k>999 should not happen if computaiton is correction
+        if (k < 0) k = 0; // k<0 should not happen if computaiton is correction
         dValueHist[k] += 1;
         allCount += 1;
         isPixelSelected[pos] = true;
@@ -101,19 +84,20 @@ const extract = (options) => {
     }
   }
 
+  // reduce number of points according to dValue.
+  // actually, the whole Step 1. might be better to just sort the dvalues and pick the top (0.02 * width * height) points
   const maxPoints = 0.02 * width * height;
   let k = 999;
   let filteredCount = 0;
   while (k >= 0) {
     filteredCount += dValueHist[k];
     if (filteredCount > maxPoints) break;
-    //if ( 1.0*filteredCount/(width*height) >= 0.02) break;
     k--;
   }
 
-  console.log("image size: ", width * height);
-  console.log("extracted featues: ", allCount);
-  console.log("filtered featues: ", filteredCount);
+  //console.log("image size: ", width * height);
+  //console.log("extracted featues: ", allCount);
+  //console.log("filtered featues: ", filteredCount);
 
   for (let i = 0; i < isPixelSelected.length; i++) {
     if (isPixelSelected[i]) {
@@ -121,10 +105,20 @@ const extract = (options) => {
     }
   }
 
-  console.log("selected count: ", isPixelSelected.reduce((a, b) => {return a + (b?1:0);}, 0));
+  //console.log("selected count: ", isPixelSelected.reduce((a, b) => {return a + (b?1:0);}, 0));
 
   // Step 2
+  // prebuild cumulative sum matrix for fast computation
+  const imageDataSqr = [];
+  for (let i = 0; i < imageData.length; i++) {
+    imageDataSqr[i] = imageData[i] * imageData[i];
+  }
+  const imageDataCumsum = new Cumsum(imageData, width, height);
+  const imageDataSqrCumsum = new Cumsum(imageDataSqr, width, height);
+
+  // holds the max similariliy value computed within SEARCH area of each pixel
   const featureMap = new Float32Array(imageData.length);
+
   for (let i = 0; i < width; i++) {
     for (let j = 0; j < height; j++) {
       const pos = j * width + i;
@@ -133,45 +127,17 @@ const extract = (options) => {
         continue;
       }
 
-      const ret = _makeTemplate({imageData: imageData, width: width, height: height, cx: i, cy: j, templateSize: TEMPLATE_SIZE, sdThresh: TEMPLATE_SD_THRESH});
-      if (ret === null) {
-        var t = window.debugContent.featureMapsTemplates[window.debug.extractIndex][j*width+i];
-        if (t !== null && t !== undefined) {
-          console.log("INCORRECT template null", i, j,window.debug.extractIndex, j*width+i, t);
-        }
-
+      const vlen = _templateVar({image, cx: i, cy: j, sdThresh: TEMPLATE_SD_THRESH, imageDataCumsum, imageDataSqrCumsum});
+      if (vlen === null) {
         featureMap[pos] = 1.0;
         continue;
       }
-      const {template, vlen} = ret;
-
-      if (window.DEBUG) {
-        var t = window.debugContent.featureMapsTemplates[window.debug.extractIndex][j*width+i];
-        if (t === undefined || t === null) console.log("INCORRECT template", i, j, j*width+i, template, vlen);
-        if (Math.abs(t.vlen - vlen) > 0.001) console.log("INCORRECT template vlen", t.vlen, vlen);
-        if (t.template.length !== template.length) console.log("INCORRECT template len");
-        for (let ii = 0; ii < template.length; ii++) {
-          if (Math.abs(t.template[ii] - template[ii]) > 0.00001) {
-            console.log("INCORRECT template val", i, j, ii, t.vlen, vlen, t.template[ii], template[ii]);
-            break;
-          }
-        }
-      }
-
 
       let max = -1.0;
       for (let jj = -SEARCH_SIZE1; jj <= SEARCH_SIZE1; jj++) {
         for (let ii = -SEARCH_SIZE1; ii <= SEARCH_SIZE1; ii++) {
           if (ii * ii + jj * jj <= SEARCH_SIZE2 * SEARCH_SIZE2) continue;
-          const sim = _getSimilarity({imageData, width, height, cx: i+ii, cy: j+jj, templateSize: TEMPLATE_SIZE, vlen: vlen, template: template});
-
-          if (false && window.DEBUG) {
-            var dSims = window.debugContent.featureMapsTemplates[window.debug.extractIndex][j*width+i].sims;
-            var simIndex = (jj + SEARCH_SIZE1) * (SEARCH_SIZE1*2 + 1) + (ii + SEARCH_SIZE1);
-            if (Math.abs(sim - dSims[simIndex]) > 0.00001) {
-              console.log("incorrect sim", simIndex, sim, 'vs', dSims[simIndex]);
-            }
-          }
+          const sim = _getSimilarity({image, cx: i+ii, cy: j+jj, vlen: vlen, tx: i, ty: j, imageDataCumsum, imageDataSqrCumsum});
 
           if (sim === null) continue;
 
@@ -186,28 +152,17 @@ const extract = (options) => {
     }
   }
 
-  if (window.DEBUG) {
-    console.log("featuremap", featureMap.length, window.debugContent.featureMaps[window.debug.extractIndex].length);
-    for (let i = 0; i < featureMap.length; i++) {
-      if ( Math.abs(featureMap[i] - window.debugContent.featureMaps[window.debug.extractIndex][i]) > 0.00001) {
-        console.log("incorrect feature map", i, featureMap[i], window.debugContent.featureMaps[window.debug.extractIndex][i]);
-      }
-    }
-  }
-
-  console.log("extract", window.debugContent);
-  // debugImageData({filename: "./featureMap_"+width+".png", data: featureMap, height: height, width: width});
-
   // Step 2.2 select feature
-  const coords = _selectFeature({imageData, width, height, dpi, featureMap, templateSize: TEMPLATE_SIZE, searchSize: SEARCH_SIZE2, occSize: OCCUPANCY_SIZE, maxSimThresh: MAX_THRESH, minSimThresh: MIN_THRESH, sdThresh: SD_THRESH});
+  const coords = _selectFeature({image, featureMap, templateSize: TEMPLATE_SIZE, searchSize: SEARCH_SIZE2, occSize: OCCUPANCY_SIZE, maxSimThresh: MAX_THRESH, minSimThresh: MIN_THRESH, sdThresh: SD_THRESH, imageDataCumsum, imageDataSqrCumsum});
 
   return coords;
 }
 
 const _selectFeature = (options) => {
-  let {imageData, width, height, dpi, featureMap, templateSize, searchSize, occSize, maxSimThresh, minSimThresh, sdThresh} = options;
+  let {image, featureMap, templateSize, searchSize, occSize, maxSimThresh, minSimThresh, sdThresh, imageDataCumsum, imageDataSqrCumsum} = options;
+  const {data: imageData, width, height, dpi} = image;
 
-  console.log("params: ", templateSize, templateSize, occSize, maxSimThresh, minSimThresh, sdThresh);
+  //console.log("params: ", templateSize, templateSize, occSize, maxSimThresh, minSimThresh, sdThresh);
 
   occSize *= 2;
 
@@ -216,7 +171,7 @@ const _selectFeature = (options) => {
   const yDiv = Math.floor(height / divSize);
 
   let maxFeatureNum = Math.floor(width / occSize) * Math.floor(height / occSize) + xDiv * yDiv;
-  console.log("max feature num: ", maxFeatureNum);
+  //console.log("max feature num: ", maxFeatureNum);
 
   const coords = [];
   const image2 = new Float32Array(imageData.length);
@@ -240,12 +195,11 @@ const _selectFeature = (options) => {
     }
     if (cx === -1) break;
 
-    const ret = _makeTemplate({imageData, width, height, cx, cy, templateSize, sdThresh: 0.0});
-    if (ret === null) {
+    const vlen = _templateVar({image, cx: cx, cy: cy, sdThresh: 0, imageDataCumsum, imageDataSqrCumsum});
+    if (vlen === null) {
       image2[ cy * width + cx ] = 1.0;
       continue;
     }
-    const {template, vlen} = ret;
     if (vlen / (templateSize * 2 + 1) < sdThresh) {
       image2[ cy * width + cx ] = 1.0;
       continue;
@@ -259,7 +213,7 @@ const _selectFeature = (options) => {
         if (i*i + j*j > searchSize * searchSize) continue;
         if (i === 0 && j === 0) continue;
 
-        const sim = _getSimilarity({imageData, width, height, template, vlen, templateSize, cx: cx+i, cy: cy+j});
+        const sim = _getSimilarity({image, vlen, cx: cx+i, cy: cy+j, tx: cx, ty:cy, imageDataCumsum, imageDataSqrCumsum});
         if (sim === null) continue;
 
         if (sim < min) {
@@ -288,8 +242,9 @@ const _selectFeature = (options) => {
     })
 
     num += 1;
-    console.log(num, '(', cx, ',', cy, ')', minSim, 'min = ', min, 'max = ', max, 'sd = ', vlen/(templateSize*2+1));
+    //console.log(num, '(', cx, ',', cy, ')', minSim, 'min = ', min, 'max = ', max, 'sd = ', vlen/(templateSize*2+1));
 
+    // no other feature points within occSize square
     for (let j = -occSize; j <= occSize; j++) {
       for (let i = -occSize; i <= occSize; i++) {
         if (cy + j < 0 || cy + j >= height || cx + i < 0 || cx + i >= width) continue;
@@ -300,78 +255,76 @@ const _selectFeature = (options) => {
   return coords;
 }
 
-const _makeTemplate = (options) => {
-  const {imageData, width, height, cx, cy, templateSize, sdThresh} = options;
+// compute variances of the pixels, centered at (cx, cy)
+const _templateVar = ({image, cx, cy, sdThresh, imageDataCumsum, imageDataSqrCumsum}) => {
+  if (cx - TEMPLATE_SIZE < 0 || cx + TEMPLATE_SIZE >= image.width) return null;
+  if (cy - TEMPLATE_SIZE < 0 || cy + TEMPLATE_SIZE >= image.height) return null;
 
-  if (cx - templateSize < 0 || cx + templateSize >= width) return null;
-  if (cy - templateSize < 0 || cy + templateSize >= height) return null;
+  const templateWidth = 2 * TEMPLATE_SIZE + 1;
+  const nPixels = templateWidth * templateWidth;
 
-  const templateWidth = 2 * templateSize + 1;
+  let average = imageDataCumsum.query(cx - TEMPLATE_SIZE, cy - TEMPLATE_SIZE, cx + TEMPLATE_SIZE, cy+TEMPLATE_SIZE);
+  average /= nPixels;
 
-  let average = 0.0;
-  for (let i = cx - templateSize; i <= cx + templateSize; i++) {
-    for (let j = cy - templateSize; j <= cy + templateSize; j++) {
-      average += imageData[j*width+i];
-    }
-  }
-  average /= (templateWidth * templateWidth);
+  //v = sum((pixel_i - avg)^2) for all pixel i within the template
+  //  = sum(pixel_i^2) - sum(2 * avg * pixel_i) + sum(avg^avg)
 
-  const template = [];
-  let vlen = 0.0;
-  for (let i = cx - templateSize; i <= cx + templateSize; i++) {
-    for (let j = cy - templateSize; j <= cy + templateSize; j++) {
-      const diff = imageData[j*width+i] - average;
-      const templateX = i - (cx - templateSize);
-      const templateY = j - (cy - templateSize);
-      template[templateY * templateWidth + templateX] = diff;
-      vlen += (diff*diff);
-    }
-  }
+  let vlen = imageDataSqrCumsum.query(cx - TEMPLATE_SIZE, cy - TEMPLATE_SIZE, cx + TEMPLATE_SIZE, cy+TEMPLATE_SIZE);
+  vlen -= 2 * average * imageDataCumsum.query(cx - TEMPLATE_SIZE, cy - TEMPLATE_SIZE, cx + TEMPLATE_SIZE, cy+TEMPLATE_SIZE);
+  vlen += nPixels * average * average;
 
-  if (window.DEBUG && cx === 53 && cy === 156) {
-    console.log("[53, 156]", vlen);
-  }
-
-
-  if (vlen == 0) return null;
-  if (vlen / (templateWidth * templateWidth) < sdThresh * sdThresh) return null;
+  if (vlen / nPixels < sdThresh * sdThresh) return null;
   vlen = Math.sqrt(vlen);
-
-  return {template: template, vlen: vlen};
+  return vlen;
 }
 
 const _getSimilarity = (options) => {
-  const {imageData, width, height, cx, cy, template, vlen, templateSize} = options;
+  const {image, cx, cy, vlen, tx, ty, imageDataCumsum, imageDataSqrCumsum} = options;
+  const {data: imageData, width, height} = image;
+  const templateSize = TEMPLATE_SIZE;
 
   if (cx - templateSize < 0 || cx + templateSize >= width) return null;
   if (cy - templateSize < 0 || cy + templateSize >= height) return null;
 
   const templateWidth = 2 * templateSize + 1;
 
-  let sx = 0.0;
-  let sxx = 0.0;
-  let sxy = 0.0;
+  let sx = imageDataCumsum.query(cx-templateSize, cy-templateSize, cx+templateSize, cy+templateSize);
+  let sxx = imageDataSqrCumsum.query(cx-templateSize, cy-templateSize, cx+templateSize, cy+templateSize);
+  let sxy = 0;
 
-  for (let i = cx - templateSize; i <= cx + templateSize; i++) {
-    for (let j = cy - templateSize; j <= cy + templateSize; j++) {
-      const v = imageData[j*width+i];
-      const templateX = i - (cx - templateSize);
-      const templateY = j - (cy - templateSize);
-      sx += v;
-      sxx += v * v;
-      sxy += v * template[templateY * templateWidth + templateX];
+  // !! This loop is the performance bottleneck. Use moving pointers to optimize
+  //
+  //   for (let i = cx - templateSize, i2 = tx - templateSize; i <= cx + templateSize; i++, i2++) {
+  //     for (let j = cy - templateSize, j2 = ty - templateSize; j <= cy + templateSize; j++, j2++) {
+  //       sxy += imageData[j*width + i] * imageData[j2*width + i2];
+  //     }
+  //   }
+  //
+  let p1 = (cy-templateSize) * width + (cx-templateSize);
+  let p2 = (ty-templateSize) * width + (tx-templateSize);
+  let nextRowOffset = width - templateWidth;
+  for (let j = 0; j < templateWidth; j++) {
+    for (let i = 0; i < templateWidth; i++) {
+      sxy += imageData[p1] * imageData[p2];
+      p1 +=1;
+      p2 +=1;
     }
+    p1 += nextRowOffset;
+    p2 += nextRowOffset;
   }
+
+  let templateAverage = imageDataCumsum.query(tx-templateSize, ty-templateSize, tx+templateSize, ty+templateSize);
+  templateAverage /= templateWidth * templateWidth;
+  sxy -= templateAverage * sx;
 
   let vlen2 = sxx - sx*sx / (templateWidth * templateWidth);
   if (vlen2 == 0) return null;
   vlen2 = Math.sqrt(vlen2);
 
-  const sim = sxy / (vlen * vlen2);
+  const sim = 1.0 * sxy / (vlen * vlen2);
   return sim;
 }
 
 module.exports = {
   extract
 };
-

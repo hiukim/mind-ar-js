@@ -73,7 +73,7 @@ const track = ({projectionTransform, featureSets, imageList, modelViewTransform,
       const d2 = (u2.x - u.x) * (u2.x - u.x) + (u2.y - u.y) * (u2.y - u.y);
       const dpi = [];
       if (d1 < d2) {
-        dpi[0] = Math.sqrt(d2) * 2.54;
+        dpi[0] = Math.sqrt(d2) * 2.54; // because mx+10, moved 10. so do 25.4 / 10 = 2.54?
         dpi[1] = Math.sqrt(d1) * 2.54;
       } else {
         dpi[0] = Math.sqrt(d1) * 2.54;

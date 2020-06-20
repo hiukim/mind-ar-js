@@ -30,7 +30,8 @@ const _buildFeatureSets = ({imageList}) => {
     if (window.DEBUG) {window.debug.extractIndex = i};
 
     const image = imageList[i];
-    const coords = extract({imageData: image.data, width: image.width, height: image.height, dpi: image.dpi});
+    //const coords = extract({imageData: image.data, width: image.width, height: image.height, dpi: image.dpi});
+    const coords = extract(image);
 
     const featureSet = {};
     featureSet.scale = i;
