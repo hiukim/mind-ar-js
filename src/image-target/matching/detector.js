@@ -76,6 +76,8 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
 
         if (v*v < laplacianSqrThreshold) continue;
 
+        // Step 1: find maxima/ minima in laplacian images
+
         let isMax = true;
         for (let d = 0; d < neighbours.length; d++) {
           if (v <= image0.data[pos+neighbours[d]]) {isMax = false; break};
@@ -96,8 +98,9 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
         // original y = y*2^n + 2^(n-1) - 0.5
         const originalX = i * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
         const originalY = j * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
-        const sigma = _effectiveSigma({mK, scale, octave});
+        //const sigma = _effectiveSigma({mK, scale, octave});
 
+        /*
         featurePoints.push({
           octave: octave,
           scale: scale,
@@ -106,6 +109,9 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
           y: originalY,
           sigma: sigma,
         })
+        */
+
+        // Step 2: sub-pixel refinement
 
         // Compute spatial derivatives
         const dx = 0.5 * (image1.data[pos + 1] - image1.data[pos - 1]);
@@ -178,6 +184,18 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
       }
     }
   }
+  if (window.DEBUG) {
+    const fps = window.debugContent.featurePoints2[window.debug.keyframeIndex];
+    console.log("featurepoints2", subPixelFeaturePoints.length, 'vs', fps.length);
+    for (let i = 0; i < fps.length; i++) {
+      const fp1 = subPixelFeaturePoints[i];
+      const fp2 = fps[i];
+      if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'spScale', 'edgeScore'])) {
+        console.log("INCORRECT featurepoint2", fp1, fp2);
+      }
+    }
+  }
+
   const prunedFeaturePoints = _pruneFeatures({featurePoints: subPixelFeaturePoints, width: originalWidth, height: originalHeight});
 
   // compute feature orientations

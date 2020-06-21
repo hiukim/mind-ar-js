@@ -8,10 +8,10 @@ const {downsampleBilinear} = require('../utils/images.js');
 //   images: [{data, width, height}, {}, {}] // image at octave i and scale j = images[i * numScalesPerOctaves + j]
 // }
 
-const build = ({image, numScalesPerOctaves, minCoarseSize}) => {
+const build = ({image, numScalesPerOctaves, minSize}) => {
   const {data, width, height} = image;
 
-  const numOctaves = _numOctaves({width, height, minSize: minCoarseSize});
+  const numOctaves = _numOctaves({width, height, minSize: minSize});
 
   const pyramidImages = [];
   for (let i = 0; i < numOctaves; i++) {

@@ -7,8 +7,8 @@ const {match} = require('./matching');
 const {estimateHomography} = require('../icp/estimate_homography.js');
 
 const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;
-const PYRAMID_MIN_COARSE_SIZE = 8;
-const FEATURE_DENSITY = 100;
+const PYRAMID_MIN_SIZE = 8;
+//const FEATURE_DENSITY = 100;
 
 class Matcher {
   constructor(matchingData) {
@@ -46,8 +46,8 @@ class Matcher {
 }
 
 const _extractPoints = ({image}) => {
-  const maxFeatureNum = FEATURE_DENSITY * image.width * image.height / (480.0*360);
-  const gaussianPyramid = buildGaussianPyramid({image, minCoarseSize: PYRAMID_MIN_COARSE_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
+  //const maxFeatureNum = FEATURE_DENSITY * image.width * image.height / (480.0*360);
+  const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
 
   const dogPyramid = buildDoGPyramid({gaussianPyramid: gaussianPyramid});
 
@@ -68,6 +68,39 @@ const _extractPoints = ({image}) => {
       descriptors: descriptors[i]
     })
   }
+
+  if (window.DEBUG) {
+    const dPoints = window.debugContent.refDataSet[window.debug.keyframeIndex];
+    console.log(keypoints.length);
+    console.log("keypoints length", window.debug.keyframeIndex, keypoints.length, 'vs', dPoints.length);
+    for (let i = 0; i < keypoints.length; i++) {
+      if (!window.cmpObj(keypoints[i], dPoints[i], ['x2D', 'y2D', 'x3D', 'y3D', 'scale', 'angle'])
+      //if (!window.cmpObj(keypoints[i], dPoints[i], ['x2D', 'y2D', 'x3D', 'y3D'])
+         || (!!keypoints[i].maxima !== !!dPoints[i].maxima)
+      ) {
+        console.log("INCORRECT keypoint", i, keypoints[i], dPoints[i]);
+      }
+      const dDescriptors = [];
+      for (let j = 0; j < keypoints[i].descriptors.length; j++) {
+        let bit = "";
+        // artoolkit bit ordering [7 6 5 4 3 2 1 0, 15 14 13 12 11 10 9 8, 23 22 21 20 19 18 17 15, ...]
+        for (let k = 0; k < 4; k++) {
+          let v = dPoints[i].descriptors[j*4+k].toString(2).padStart(8, 0).split("").reverse().join("");
+          bit = bit + v;
+        }
+        let dVal = parseInt(bit, 2) >>> 0;
+        dDescriptors.push(dVal);
+      }
+
+      for (let j = 0; j < keypoints[i].descriptors.length-1; j++) { // the last byte has different ordering. don't want to fix
+        if (keypoints[i].descriptors[j] !== dDescriptors[j]) {
+          console.log("INCORRECT keypoint descriptors", i, j, keypoints[i], dPoints[i], dDescriptors);
+          break;
+        }
+      }
+    }
+  }
+
   return keypoints;
 }
 
@@ -75,6 +108,8 @@ const _buildKeyframes = ({imageList}) => {
   const keyframes = [];
 
   for (let i = 0; i < imageList.length; i++) {
+    if (window.DEBUG) window.debug.keyframeIndex = i;
+
     const image = imageList[i];
     const keypoints = _extractPoints({image});
     const pointsCluster = hierarchicalClusteringBuild({points: keypoints});

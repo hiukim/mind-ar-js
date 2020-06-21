@@ -27,10 +27,7 @@ class Tracker {
 const _buildFeatureSets = ({imageList}) => {
   const featureSets = [];
   for (let i = 0; i < imageList.length; i++) {
-    if (window.DEBUG) {window.debug.extractIndex = i};
-
     const image = imageList[i];
-    //const coords = extract({imageData: image.data, width: image.width, height: image.height, dpi: image.dpi});
     const coords = extract(image);
 
     const featureSet = {};

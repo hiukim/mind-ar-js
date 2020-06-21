@@ -58,14 +58,13 @@ const compile = (targetImage) => {
   const imageList = buildImageList(targetImage);
 
   var _start = new Date().getTime();
-  const trackingData = compileTracking({imageList});
+  //const trackingData = compileTracking({imageList});
+  const trackingData = null;
   var _end = new Date().getTime();
   console.log('exec time compile tracking: ', _start, _end, _end - _start);
 
-
-  //const trackingData = null;
-  //const matchingData = compileMatching({imageList});
-  const matchingData = null;
+  const matchingData = compileMatching({imageList});
+  //const matchingData = null;
   return {targetImage, matchingData, trackingData, imageList};
 }
 
