@@ -1,9 +1,9 @@
 const {compute: hammingCompute} = require('./hamming-distance.js');
 const {createRandomizer} = require('../utils/randomizer.js');
 
-const mMinFeaturePerNode = 16;
-const mNumHypotheses =  128;
-const mCenters = 8;
+const MIN_FEATURE_PER_NODE = 16;
+const NUM_ASSIGNMENT_HYPOTHESES =  128;
+const NUM_CENTERS = 8;
 
 // kmedoids clustering of points, with hamming distance of FREAK descriptor
 //
@@ -31,7 +31,7 @@ const _build = (options) => {
 
   let isLeaf = false;
 
-  if (pointIndexes.length <= mCenters || pointIndexes.length <= mMinFeaturePerNode) {
+  if (pointIndexes.length <= NUM_CENTERS || pointIndexes.length <= MIN_FEATURE_PER_NODE) {
     isLeaf = true;
   }
 
@@ -86,14 +86,14 @@ _computeKMedoids = (options) => {
   let bestAssignmentIndex = -1;
 
   const assignments = [];
-  for (let i = 0; i < mNumHypotheses; i++) {
-    randomizer.arrayShuffle({arr: randomPointIndexes, sampleSize: mCenters});
+  for (let i = 0; i < NUM_ASSIGNMENT_HYPOTHESES; i++) {
+    randomizer.arrayShuffle({arr: randomPointIndexes, sampleSize: NUM_CENTERS});
 
     let sumD = 0;
     const assignment = [];
     for (let j = 0; j < pointIndexes.length; j++) {
       let bestD = Number.MAX_SAFE_INTEGER;
-      for (let k = 0; k < mCenters; k++) {
+      for (let k = 0; k < NUM_CENTERS; k++) {
         const centerIndex = pointIndexes[randomPointIndexes[k]];
         const d = hammingCompute({v1: points[pointIndexes[j]].descriptors, v2: points[centerIndex].descriptors});
         if (d < bestD) {

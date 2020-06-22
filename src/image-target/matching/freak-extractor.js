@@ -1,5 +1,4 @@
-const numBytesPerFeature = 96;
-const mExpansionFactor = 7;
+const EXPANSION_FACTOR = 7;
 
 // 37 points = 6 rings x 6 points per ring + 1 center
 const FREAK_RINGS = [
@@ -102,7 +101,7 @@ const extract = (options) => {
     const point = points[p];
 
     // Ensure the scale of the similarity transform is at least "1".
-    const transformScale = Math.max(1, point.sigma * mExpansionFactor);
+    const transformScale = Math.max(1, point.sigma * EXPANSION_FACTOR);
 
     // Transformation from canonical test locations to image
     const S = _similarityMatrix({scale: transformScale, angle: point.angle, x: point.x, y: point.y});

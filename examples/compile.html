@@ -6,6 +6,7 @@
 
     <script>
       window.DEBUG = true;
+      //window.DEBUG = false;
       window.debug = {};
 
       const EPSILON = 0.0001;
@@ -17,6 +18,7 @@
         }
         return true;
       };
+      window.cmpObj = cmpObj;
 
       const _getGreyImage = (image) => {
         const greyImage = {
@@ -44,7 +46,7 @@
 
       document.addEventListener('DOMContentLoaded', function(event) {
         async function process() {
-          const filename = 'card7';
+          const filename = 'card8';
           //const f = await fetch('./assets/debugGen_' + filename + '.txt');
           //const debugContent = JSON.parse(await f.text());
           const msp = await fetch('./assets/debugGen_' + filename + '.msp');
@@ -61,6 +63,8 @@
           var _end = new Date().getTime();
           console.log('exec time compile Image: ', _start, _end, _end - _start);
           console.log("d", debugContent, 'vs', data);
+
+          return;
 
           // verify image list
           const imageList = data.imageList;

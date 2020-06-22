@@ -71,7 +71,6 @@ const _extractPoints = ({image}) => {
 
   if (window.DEBUG) {
     const dPoints = window.debugContent.refDataSet[window.debug.keyframeIndex];
-    console.log(keypoints.length);
     console.log("keypoints length", window.debug.keyframeIndex, keypoints.length, 'vs', dPoints.length);
     for (let i = 0; i < keypoints.length; i++) {
       if (!window.cmpObj(keypoints[i], dPoints[i], ['x2D', 'y2D', 'x3D', 'y3D', 'scale', 'angle'])
@@ -114,7 +113,34 @@ const _buildKeyframes = ({imageList}) => {
     const pointsCluster = hierarchicalClusteringBuild({points: keypoints});
     keyframes.push({points: keypoints, pointsCluster, width: image.width, height: image.height});
 
-    console.log(pointsCluster);
+    if (window.DEBUG) {
+      const dCluster = window.debugContent.clusters[i];
+
+      const goNode = (n1, n2) => {
+        //console.log("node", n1.pointIndexes, n2.pointIndexes);
+        if (!!n1.leaf !== !!n2.isLeaf) {
+          console.log("INCORRECT node leaf", n1, n2);
+        }
+        if (n1.leaf) {
+          if (n1.pointIndexes.length !== n2.pointIndexes.length) {
+            console.log("INCORRECT node pointIndexes", n1, n2);
+          }
+          for (let i = 0; i < n1.pointIndexes.length; i++) {
+            if (n1.pointIndexes[i] !== n2.pointIndexes[i]) {
+              console.log("INCORRECT node pointIndexes", n1, n2);
+            }
+          }
+        } else {
+          if (n1.children.length !== n2.children.length) {
+            console.log("INCORRECT node children length", n1, n2);
+          }
+          for (let i = 0; i < n1.children.length; i++) {
+            goNode(n1.children[i], n2.children[i]);
+          }
+        }
+      }
+      goNode(pointsCluster.rootNode, dCluster);
+    }
   }
   return keyframes;
 }

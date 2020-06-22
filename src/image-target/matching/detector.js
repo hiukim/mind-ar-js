@@ -1,18 +1,17 @@
 const {upsampleBilinear, downsampleBilinear} = require('../utils/images.js');
 
-const mLaplacianThreshold = 3;
-const mMaxSubpixelDistanceSqr = 3 * 3;
-const laplacianSqrThreshold = mLaplacianThreshold * mLaplacianThreshold;
-const mEdgeThreshold = 4.0;
-const hessianThreshold = ((mEdgeThreshold+1) * (mEdgeThreshold+1) / mEdgeThreshold);
-const mMaxNumFeaturePoints = 500;
-const mNumBuckets = 10; // per dimension
+const MAX_SUBPIXEL_DISTANCE_SQR = 3 * 3;
+const LAPLACIAN_SQR_THRESHOLD = 3 * 3;
+const EDGE_THRESHOLD = 4.0;
+const EDGE_HESSIAN_THRESHOLD = ((EDGE_THRESHOLD+1) * (EDGE_THRESHOLD+1) / EDGE_THRESHOLD);
+const MAX_FEATURE_POINTS = 500;
+const PRUNE_FEATURES_NUM_BUCKETS = 10; // per dimension
 
-const mNumBins = 36; // = mOrientationAssignment
-const mGaussianExpansionFactor = 3.0;
-const mSupportRegionExpansionFactor = 1.5;
-const mNumSmoothingIterations = 5;
-const mPeakThreshold = 0.8;
+const ORIENTATION_NUM_BINS = 36;
+const ORIENTATION_GAUSSIAN_EXPANSION_FACTOR = 3.0;
+const ORIENTATION_REGION_EXPANSION_FACTOR = 1.5;
+const ORIENTATION_SMOOTHING_ITERATIONS = 5;
+const ORIENTATION_PEAK_THRESHOLD = 0.8;
 
 const ONE_OVER_2PI = 0.159154943091895;
 
@@ -24,7 +23,6 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
   const mK = Math.pow(2, 1.0 / (gaussianPyramid.numScalesPerOctaves-1));
 
   const featurePoints = [];
-  const subPixelFeaturePoints = [];
 
   for (let k = 1; k < dogPyramid.images.length - 1; k++) {
     let image0 = dogPyramid.images[k-1];
@@ -74,7 +72,7 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
         const pos = j*image1.width + i;
         const v = image1.data[pos];
 
-        if (v*v < laplacianSqrThreshold) continue;
+        if (v*v < LAPLACIAN_SQR_THRESHOLD) continue;
 
         // Step 1: find maxima/ minima in laplacian images
 
@@ -94,24 +92,7 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
 
         if (!isMax && !isMin) continue; // extrema -> feature point
 
-        // original x = x*2^n + 2^(n-1) - 0.5
-        // original y = y*2^n + 2^(n-1) - 0.5
-        const originalX = i * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
-        const originalY = j * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
-        //const sigma = _effectiveSigma({mK, scale, octave});
-
-        /*
-        featurePoints.push({
-          octave: octave,
-          scale: scale,
-          score: v,
-          x: originalX,
-          y: originalY,
-          sigma: sigma,
-        })
-        */
-
-        // Step 2: sub-pixel refinement
+        // Step 2: sub-pixel refinement (I'm not sure what that means. Any educational ref?)
 
         // Compute spatial derivatives
         const dx = 0.5 * (image1.data[pos + 1] - image1.data[pos - 1]);
@@ -145,58 +126,62 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
         if (u === null) continue; // no solution
 
         // If points move too much in the sub-pixel update, then the point probably unstable.
-        if (u[0] * u[0] + u[1] * u[1] > mMaxSubpixelDistanceSqr) continue;
+        if (u[0] * u[0] + u[1] * u[1] > MAX_SUBPIXEL_DISTANCE_SQR) continue;
 
         // compute edge score
         const det = (dxx * dyy) - (dxy * dxy);
         if (det === 0) continue;
 
         const edgeScore = (dxx + dyy) * (dxx + dyy) / det;
-        if (Math.abs(edgeScore) >= hessianThreshold ) continue;
+        if (Math.abs(edgeScore) >= EDGE_HESSIAN_THRESHOLD ) continue;
 
         const score = v - (b[0] * u[0] + b[1] * u[1] + b[2] * u[2]);
-        if (score * score < laplacianSqrThreshold) continue;
+        if (score * score < LAPLACIAN_SQR_THRESHOLD) continue;
+
+        // original x = x*2^n + 2^(n-1) - 0.5
+        // original y = y*2^n + 2^(n-1) - 0.5
+        const originalX = i * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
+        const originalY = j * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
 
         const newX = originalX + u[0] * Math.pow(2, octave);
         const newY = originalY + u[1] * Math.pow(2, octave);
         if (newX < 0 || newX >= originalWidth || newY < 0 || newY >= originalHeight) continue;
 
         const spScale = Math.min(Math.max(0, scale + u[2]), dogPyramid.numScalesPerOctaves);
-        const newSigma = _effectiveSigma({scale: spScale, octave: octave, mK: mK});
+        const newSigma = Math.pow(mK, spScale) * (1 << octave);
 
         let newOctaveX = newX * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
         let newOctaveY = newY * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
         newOctaveX = Math.floor(newOctaveX + 0.5);
         newOctaveY = Math.floor(newOctaveY + 0.5);
 
-        subPixelFeaturePoints.push({
+        featurePoints.push({
           octave: octave,
           scale: scale,
-          spScale: spScale,
-          score: score,
-          edgeScore: edgeScore,
+          octaveX: newOctaveX,
+          octaveY: newOctaveY,
           x: newX,
           y: newY,
           sigma: newSigma,
-          octaveX: newOctaveX,
-          octaveY: newOctaveY
+          score: score,
         })
       }
     }
   }
   if (window.DEBUG) {
     const fps = window.debugContent.featurePoints2[window.debug.keyframeIndex];
-    console.log("featurepoints2", subPixelFeaturePoints.length, 'vs', fps.length);
+    console.log("featurepoints2", featurePoints.length, 'vs', fps.length);
     for (let i = 0; i < fps.length; i++) {
-      const fp1 = subPixelFeaturePoints[i];
+      const fp1 = featurePoints[i];
       const fp2 = fps[i];
-      if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'spScale', 'edgeScore'])) {
+      //if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'spScale', 'edgeScore'])) {
+      if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma'])) {
         console.log("INCORRECT featurepoint2", fp1, fp2);
       }
     }
   }
 
-  const prunedFeaturePoints = _pruneFeatures({featurePoints: subPixelFeaturePoints, width: originalWidth, height: originalHeight});
+  const prunedFeaturePoints = _pruneFeatures({featurePoints: featurePoints, width: originalWidth, height: originalHeight});
 
   console.log("pruned feature points length", prunedFeaturePoints.length);
 
@@ -224,30 +209,27 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
 
   if (window.DEBUG) {
     const fps = window.debugContent.featurePoints4[window.debug.keyframeIndex];
-    console.log("featurepoints2", orientedFeaturePoints.length, 'vs', fps.length);
-    let angleCorrect = 0;
+    console.log("featurepoints4", orientedFeaturePoints.length, 'vs', fps.length);
     for (let i = 0; i < fps.length; i++) {
       const fp1 = orientedFeaturePoints[i];
       const fp2 = fps[i];
-      if (Math.abs(fp1.angle - fp2.angle) < 0.0001) angleCorrect += 1;
-      if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'spScale', 'edgeScore', 'angle'])) {
+      //if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'spScale', 'edgeScore', 'angle'])) {
+      if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'angle'])) {
         console.log("INCORRECT featurepoint4", fp1, fp2);
       }
     }
-    console.log("angle correct", angleCorrect);
   }
 
   return orientedFeaturePoints;
-  //return {featurePoints, subPixelFeaturePoints, prunedFeaturePoints, orientedFeaturePoints};
 }
 
 const _computeOrientation = (options) => {
   const {x, y, sigma, octave, scale, gradient} = options;
 
-  const gwSigma = Math.max(1.0, mGaussianExpansionFactor * sigma);
+  const gwSigma = Math.max(1.0, ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * sigma);
   const gwScale = -1.0 / (2 * gwSigma * gwSigma);
 
-  const radius = mSupportRegionExpansionFactor * gwSigma;
+  const radius = ORIENTATION_REGION_EXPANSION_FACTOR * gwSigma;
   const radius2 = Math.ceil( radius * radius - 0.5);
 
   const x0 = Math.max(0, x - Math.floor(radius + 0.5));
@@ -256,7 +238,6 @@ const _computeOrientation = (options) => {
   const y1 = Math.min(gradient.height-1, y + Math.floor(radius + 0.5));
 
   if (window.DEBUG) {
-    //console.log("orientationComputeIndex", window.debug.orientationComputeIndex);
     const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
     if (Math.floor(o.x + 0.5) !== x || Math.floor(o.y + 0.5) !== y) {
       console.log("INCORRECT orientation input");
@@ -271,7 +252,7 @@ const _computeOrientation = (options) => {
   }
 
   const histogram = [];
-  for (let i = 0; i < mNumBins; i++) {
+  for (let i = 0; i < ORIENTATION_NUM_BINS; i++) {
     histogram.push(0);
   }
 
@@ -303,13 +284,13 @@ const _computeOrientation = (options) => {
 
       const w = _fastExp6({x: r2 * gwScale}); // Compute the gaussian weight based on distance from center of keypoint
 
-      const fbin  = mNumBins * angle * ONE_OVER_2PI;
+      const fbin  = ORIENTATION_NUM_BINS * angle * ONE_OVER_2PI;
 
       const bin = Math.floor(fbin - 0.5);
       const w2 = fbin - bin - 0.5;
       const w1 = (1.0 - w2);
-      const b1 = (bin + mNumBins) % mNumBins;
-      const b2 = (bin + 1) % mNumBins;
+      const b1 = (bin + ORIENTATION_NUM_BINS) % ORIENTATION_NUM_BINS;
+      const b2 = (bin + 1) % ORIENTATION_NUM_BINS;
       const magnitude = w * mag;
 
       if (window.DEBUG) {
@@ -350,7 +331,7 @@ const _computeOrientation = (options) => {
   // The orientation histogram is smoothed with a Gaussian
   // sigma=1
   const kernel = [0.274068619061197, 0.451862761877606, 0.274068619061197];
-  for(let i = 0; i < mNumSmoothingIterations; i++) {
+  for(let i = 0; i < ORIENTATION_SMOOTHING_ITERATIONS; i++) {
     const old = [];
     for (let j = 0; j < histogram.length; j++) {
       old[j] = histogram[j];
@@ -365,7 +346,7 @@ const _computeOrientation = (options) => {
 
   // Find the peak of the histogram.
   let maxHeight = 0;
-  for(let i = 0; i < mNumBins; i++) {
+  for(let i = 0; i < ORIENTATION_NUM_BINS; i++) {
     if(histogram[i] > maxHeight) {
       maxHeight = histogram[i];
     }
@@ -377,11 +358,11 @@ const _computeOrientation = (options) => {
 
   // Find all the peaks.
   const angles = [];
-  for(let i = 0; i < mNumBins; i++) {
+  for(let i = 0; i < ORIENTATION_NUM_BINS; i++) {
     const prev = (i - 1 + histogram.length) % histogram.length;
     const next = (i + 1) % histogram.length;
 
-    if (histogram[i] > mPeakThreshold * maxHeight && histogram[i] > histogram[prev] && histogram[i] > histogram[next]) {
+    if (histogram[i] > ORIENTATION_PEAK_THRESHOLD * maxHeight && histogram[i] > histogram[prev] && histogram[i] > histogram[next]) {
       // The default sub-pixel bin location is the discrete location if the quadratic fitting fails.
       let fbin = i;
 
@@ -400,7 +381,7 @@ const _computeOrientation = (options) => {
         }
       }
 
-      let an =  2.0 * Math.PI * ((fbin + 0.5 + mNumBins) / mNumBins);
+      let an =  2.0 * Math.PI * ((fbin + 0.5 + ORIENTATION_NUM_BINS) / ORIENTATION_NUM_BINS);
       while (an > 2.0 * Math.PI) { // modula
         an -= 2.0 * Math.PI;
       }
@@ -487,38 +468,40 @@ const _computeGradients = (options) => {
   return gradients;
 }
 
+// divide the image into PRUNE_FEATURES_NUM_BUCKETS * PRUNE_FEATURES_NUM_BUCKETS area
+// in each area, sort feature points by score, and return the top N
 const _pruneFeatures = (options) => {
   const {featurePoints, width, height} = options;
 
   // Note: seems not to be a consistent implementation. Might need to remove this line
   //   The feature points are prune per bucket, e.g. if 501 points in bucket 1, turns out only 5 valid
   //   Similarly, if 500 points all in bucket 1, they all passed because globally <= maxNumFeaturePoints
-  if (featurePoints.length <= mMaxNumFeaturePoints) return featurePoints;
+  if (featurePoints.length <= MAX_FEATURE_POINTS) return featurePoints;
 
   const resultFeaturePoints = [];
 
-  const nBuckets = mNumBuckets * mNumBuckets;
-  const nPointsPerBuckets = mMaxNumFeaturePoints / nBuckets;
+  const nBuckets = PRUNE_FEATURES_NUM_BUCKETS * PRUNE_FEATURES_NUM_BUCKETS;
+  const nPointsPerBuckets = MAX_FEATURE_POINTS / nBuckets;
 
   const buckets = [];
   for (let i = 0; i < nBuckets; i++) {
     buckets.push([]);
   }
 
-  const dx = Math.ceil(1.0 * width / mNumBuckets);
-  const dy = Math.ceil(1.0 * height / mNumBuckets);
+  const dx = Math.ceil(1.0 * width / PRUNE_FEATURES_NUM_BUCKETS);
+  const dy = Math.ceil(1.0 * height / PRUNE_FEATURES_NUM_BUCKETS);
 
   for (let i = 0; i < featurePoints.length; i++) {
     const bucketX = Math.floor(featurePoints[i].x / dx);
     const bucketY = Math.floor(featurePoints[i].y / dy);
 
-    const bucketIndex = bucketY * mNumBuckets + bucketX;
+    const bucketIndex = bucketY * PRUNE_FEATURES_NUM_BUCKETS + bucketX;
     buckets[bucketIndex].push(featurePoints[i]);
   }
 
-  for (let i = 0; i < mNumBuckets; i++) {
-    for (let j = 0; j < mNumBuckets; j++) {
-      const bucketIndex = j * mNumBuckets + i;
+  for (let i = 0; i < PRUNE_FEATURES_NUM_BUCKETS; i++) {
+    for (let j = 0; j < PRUNE_FEATURES_NUM_BUCKETS; j++) {
+      const bucketIndex = j * PRUNE_FEATURES_NUM_BUCKETS + i;
       const bucket = buckets[bucketIndex];
       const nSelected = Math.min(bucket.length, nPointsPerBuckets);
 
@@ -533,12 +516,6 @@ const _pruneFeatures = (options) => {
     }
   }
   return resultFeaturePoints;
-}
-
-const _effectiveSigma = (options) => {
-  const {mK, scale, octave} = options;
-  const sigma = Math.pow(mK, scale) * (1 << octave);
-  return sigma;
 }
 
 // solve x = Ab, where A is symmetric
