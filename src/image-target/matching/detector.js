@@ -198,12 +198,17 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
 
   const prunedFeaturePoints = _pruneFeatures({featurePoints: subPixelFeaturePoints, width: originalWidth, height: originalHeight});
 
+  console.log("pruned feature points length", prunedFeaturePoints.length);
+
   // compute feature orientations
   const gradients = _computeGradients({pyramid: gaussianPyramid});
 
-
   const orientedFeaturePoints = [];
   for (let i = 0; i < prunedFeaturePoints.length; i++) {
+    if (window.DEBUG) {
+      window.debug.orientationComputeIndex = i;
+    }
+
     const fp = prunedFeaturePoints[i];
     const octaveSigma = fp.sigma * (1.0 / Math.pow(2, fp.octave));
 
@@ -216,6 +221,22 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
       }, prunedFeaturePoints[i]));
     }
   }
+
+  if (window.DEBUG) {
+    const fps = window.debugContent.featurePoints4[window.debug.keyframeIndex];
+    console.log("featurepoints2", orientedFeaturePoints.length, 'vs', fps.length);
+    let angleCorrect = 0;
+    for (let i = 0; i < fps.length; i++) {
+      const fp1 = orientedFeaturePoints[i];
+      const fp2 = fps[i];
+      if (Math.abs(fp1.angle - fp2.angle) < 0.0001) angleCorrect += 1;
+      if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'spScale', 'edgeScore', 'angle'])) {
+        console.log("INCORRECT featurepoint4", fp1, fp2);
+      }
+    }
+    console.log("angle correct", angleCorrect);
+  }
+
   return orientedFeaturePoints;
   //return {featurePoints, subPixelFeaturePoints, prunedFeaturePoints, orientedFeaturePoints};
 }
@@ -227,13 +248,27 @@ const _computeOrientation = (options) => {
   const gwScale = -1.0 / (2 * gwSigma * gwSigma);
 
   const radius = mSupportRegionExpansionFactor * gwSigma;
-  const radius2 = Math.ceil( radius * radius );
-
+  const radius2 = Math.ceil( radius * radius - 0.5);
 
   const x0 = Math.max(0, x - Math.floor(radius + 0.5));
   const x1 = Math.min(gradient.width-1, x + Math.floor(radius + 0.5));
   const y0 = Math.max(0, y - Math.floor(radius + 0.5));
   const y1 = Math.min(gradient.height-1, y + Math.floor(radius + 0.5));
+
+  if (window.DEBUG) {
+    //console.log("orientationComputeIndex", window.debug.orientationComputeIndex);
+    const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
+    if (Math.floor(o.x + 0.5) !== x || Math.floor(o.y + 0.5) !== y) {
+      console.log("INCORRECT orientation input");
+    }
+    if (x0 !== o.x0 || x1 !== o.x1 || y0 !== o.y0 || y1 !== o.y1) {
+      console.log("INCORRECT xy range");
+    }
+    if (radius2 !== o.radius2) {
+      console.log("INCORRECT radius", radius, radius2, o.radius, o.radius2);
+    }
+    window.debug.fbinIndex = -1;
+  }
 
   const histogram = [];
   for (let i = 0; i < mNumBins; i++) {
@@ -245,11 +280,22 @@ const _computeOrientation = (options) => {
     const dy2 = dy * dy;
 
     for (let xp = x0; xp <= x1; xp++) {
+      if (window.DEBUG) {
+        window.debug.fbinIndex += 1;
+      }
+
       const dx = xp - x;
       const dx2 = dx * dx;
 
       const r2 = dx2 + dy2;
-      if(r2 > radius2) continue; // only use the gradients within the circular window
+      if(r2 > radius2) {
+        const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
+        if (o.fbins[window.debug.fbinIndex] !== null) {
+          console.log("INCORRECT fbin null");
+        }
+        continue; // only use the gradients within the circular window
+      }
+
 
       const gradientValue = gradient.values[ yp * gradient.width + xp ];
       const angle = gradientValue.angle;
@@ -264,11 +310,41 @@ const _computeOrientation = (options) => {
       const w1 = (1.0 - w2);
       const b1 = (bin + mNumBins) % mNumBins;
       const b2 = (bin + 1) % mNumBins;
+      const magnitude = w * mag;
 
-      histogram[b1] += w1 * w * mag;
-      histogram[b2] += w2 * w * mag;
+      if (window.DEBUG) {
+        const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
+        if (Math.abs(fbin - o.fbins[window.debug.fbinIndex]) > 0.001) {
+          console.log("INCORRECT fbin", r2, radius2, fbin, 'vs', o.fbins[window.debug.fbinIndex]);
+        }
+        const details = o.fbinDetails[window.debug.fbinIndex];
+        if (b1 !== details.b1 || b2 !== details.b2) {
+          console.log("INCORRECT b1b2", b1, b2, details.b1, details.b2);
+        }
+        if (Math.abs(w1 - details.w1) > 0.001 || Math.abs(w2 - details.w2) > 0.001) {
+          console.log("INCORRECT w1w2", w1, w2, details.w1, details.w2);
+        }
+        if (Math.abs(details.magnitude - magnitude) > 0.001) {
+          console.log("INCORRECT mag: ", magnitude, details.magnitude);
+        }
+      }
+
+      histogram[b1] += w1 * magnitude;
+      histogram[b2] += w2 * magnitude;
     }
   }
+
+  if (window.DEBUG) {
+    const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
+    for (let i = 0; i < histogram.length; i++) {
+      if (Math.abs(o.histograms[i] - histogram[i]) > 0.001) {
+        console.log("INCORRECT histogram", i, window.debug.orientationComputeIndex, JSON.stringify(o.histograms), JSON.stringify(histogram));
+        console.log(o, 'vs', {x, y, sigma, octave });
+        break;
+      }
+    }
+  }
+
   //console.log("ori: ", x, y, octave, scale, gwSigma, gwScale, radius, radius2, JSON.stringify(histogram));
 
   // The orientation histogram is smoothed with a Gaussian

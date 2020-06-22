@@ -92,8 +92,14 @@ const extract = (options) => {
   const oneOverLogK = 1.0 / Math.log(mK);
 
   const descriptors = [];
-  for (let i = 0; i < points.length; i++) {
-    const point = points[i];
+  for (let p = 0; p < points.length; p++) {
+
+    if (window.DEBUG) {
+      if (window.debugFreakSampleIndex === undefined) window.debugFreakSampleIndex = -1;
+      window.debugFreakSampleIndex += 1;
+    }
+
+    const point = points[p];
 
     // Ensure the scale of the similarity transform is at least "1".
     const transformScale = Math.max(1, point.sigma * mExpansionFactor);
@@ -154,13 +160,37 @@ const extract = (options) => {
                     + (xp-x0) * (yp-y0) * image.data[y1 * image.width + x1];
 
         samples.push(value);
+
+        if (window.DEBUG) {
+          if (window.debug.keyframeIndex === 2 && p === 424) {
+            const sampleIndex = samples.length-1;
+            const dSamples = window.debugContent.freakSamples[window.debugFreakSampleIndex];
+            //console.log("freak sample", window.debug.keyframeIndex, sampleIndex, dSamples[sampleIndex], {xp, yp, value});
+          }
+        }
       }
     }
+
 
     const desc = [];
     for (let i = 0; i < samples.length; i++) {
       for (let j = i+1; j < samples.length; j++) {
-        desc.push(samples[i] < samples[j]);
+        // avoid too senstive to rounding precision
+        //desc.push(samples[i] < samples[j]);
+        desc.push(samples[i] < samples[j] + 0.0001);
+
+        if (window.DEBUG) {
+          //if (window.debug.keyframeIndex === 2 && p === 424) {
+            if (i === 0 && j === 1) window.debugCompareFreakIndex = 0;
+            const dCompare = window.debugContent.compareFreak[window.debugFreakSampleIndex];
+            const dSamples = window.debugContent.freakSamples[window.debugFreakSampleIndex];
+            if (!!desc[desc.length-1] !== !! dCompare[window.debugCompareFreakIndex]) {
+              console.log("INCORRECT freak compare", i, j, desc[desc.length-1], 'vs', dCompare[window.debugCompareFreakIndex]);
+              console.log(samples[i], samples[j], dSamples[i], dSamples[j]);
+            }
+            window.debugCompareFreakIndex += 1;
+          //}
+        }
       }
     }
 
@@ -183,7 +213,6 @@ const extract = (options) => {
     }
     descBit.push(temp);
 
-    //descriptors.push(desc);
     descriptors.push(descBit);
   }
   return descriptors;

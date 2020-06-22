@@ -75,7 +75,6 @@ const _extractPoints = ({image}) => {
     console.log("keypoints length", window.debug.keyframeIndex, keypoints.length, 'vs', dPoints.length);
     for (let i = 0; i < keypoints.length; i++) {
       if (!window.cmpObj(keypoints[i], dPoints[i], ['x2D', 'y2D', 'x3D', 'y3D', 'scale', 'angle'])
-      //if (!window.cmpObj(keypoints[i], dPoints[i], ['x2D', 'y2D', 'x3D', 'y3D'])
          || (!!keypoints[i].maxima !== !!dPoints[i].maxima)
       ) {
         console.log("INCORRECT keypoint", i, keypoints[i], dPoints[i]);
@@ -114,6 +113,8 @@ const _buildKeyframes = ({imageList}) => {
     const keypoints = _extractPoints({image});
     const pointsCluster = hierarchicalClusteringBuild({points: keypoints});
     keyframes.push({points: keypoints, pointsCluster, width: image.width, height: image.height});
+
+    console.log(pointsCluster);
   }
   return keyframes;
 }
