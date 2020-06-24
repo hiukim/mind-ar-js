@@ -17,12 +17,32 @@ class Matcher {
 
   match(targetImage) {
     const querypoints = _extractPoints({image: targetImage});
-    console.log("querypoints", querypoints);
-    console.log("keyframes", this.keyframes);
     const result = match({keyframes: this.keyframes, querypoints: querypoints, querywidth: targetImage.width, queryheight: targetImage.height});
     console.log("result", result);
+
+    if (window.DEBUG_MATCH) {
+      if (!!result !== !!window.debugMatch.finalH) {
+        console.log("INCORRECT match result", result, window.debugMatch.finalH);
+      }
+      if (result !== null) {
+        if (result.keyframeIndex !== window.debugMatch.finalMatchId) {
+
+        }
+        if (!window.cmpArray(result.H, window.debugMatch.finalH)) {
+          console.log("INCORRECT result H", result.H, window.debutMatch.finalH);
+        }
+        console.log("final matches length", result.matches.length, window.debugMatch.finalMatches.length);
+        const dMatches = window.debugMatch.finalMatches;
+        for (let i = 0; i < result.matches.length; i++) {
+          if (result.matches[i].querypointIndex !== dMatches[i].ins || result.matches[i].keypointIndex !== dMatches[i].res) {
+            console.log("INCORRECT final matches", i, result.matches, dMatches);
+            break;
+          }
+        }
+      }
+    }
+
     if (result === null) return null;
-    //const match = ({keyframes, querypoints, querywidth, queryheight}) => {
 
     const screenCoords = [];
     const worldCoords = [];

@@ -115,7 +115,7 @@ const computeHoughMatches = (options) => {
   const binAngle = Math.floor(((maxVoteIndex - binX - (binY * numXBins)) % numXYAngleBins) / numXYBins);
   const binScale = Math.floor((maxVoteIndex - binX - (binY * numXBins) - (binAngle * numXYBins)) / numXYAngleBins);
 
-  console.log("hough voted: ", {binX, binY, binAngle, binScale, maxVoteIndex});
+  //console.log("hough voted: ", {binX, binY, binAngle, binScale, maxVoteIndex});
 
   const houghMatches = [];
   for (let i = 0; i < matches.length; i++) {

@@ -4,7 +4,6 @@ const {createRandomizer} = require('../utils/randomizer.js');
 
 class Tracker {
   constructor(trackingData, imageList, projectionTransform) {
-    console.log("tracking data", trackingData);
     this.featureSets = trackingData.featureSets;
     this.imageList = imageList;
     this.projectionTransform = projectionTransform;

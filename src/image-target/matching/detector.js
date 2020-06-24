@@ -270,13 +270,8 @@ const _computeOrientation = (options) => {
 
       const r2 = dx2 + dy2;
       if(r2 > radius2) {
-        const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
-        if (o.fbins[window.debug.fbinIndex] !== null) {
-          console.log("INCORRECT fbin null");
-        }
         continue; // only use the gradients within the circular window
       }
-
 
       const gradientValue = gradient.values[ yp * gradient.width + xp ];
       const angle = gradientValue.angle;

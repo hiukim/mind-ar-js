@@ -13,9 +13,10 @@ class ImageTarget {
 
     if (type === 'compiled') {
       targetImage = input.targetImage;
+      imageList = input.imageList;
       matchingData = input.matchingData;
       trackingData = input.trackingData;
-      imageList = buildImageList(targetImage);
+      //imageList = buildImageList(targetImage);
     } else {
       targetImage = input;
       imageList = buildImageList(targetImage);
@@ -29,7 +30,9 @@ class ImageTarget {
 
   process(queryImage) {
     //const processImage = Object.assign(resize({image: queryImage, ratio: 0.5}), {dpi: 72});
-    const processImage = Object.assign(resize({image: queryImage, ratio: 1}), {dpi: 72});
+    //const processImage = Object.assign(resize({image: queryImage, ratio: 1}), {dpi: 72});
+    const processImage = Object.assign(queryImage, {dpi: 72});
+
     let modelViewTransform = this.matcher.match(processImage);
     if (modelViewTransform === null) return null;
 
@@ -58,14 +61,15 @@ const compile = (targetImage) => {
   const imageList = buildImageList(targetImage);
 
   var _start = new Date().getTime();
-  //const trackingData = compileTracking({imageList});
-  const trackingData = null;
+  const trackingData = compileTracking({imageList});
+  //const trackingData = null;
   var _end = new Date().getTime();
   console.log('exec time compile tracking: ', _start, _end, _end - _start);
 
   const matchingData = compileMatching({imageList});
   //const matchingData = null;
   return {targetImage, matchingData, trackingData, imageList};
+  //return {matchingData, trackingData};
 }
 
 module.exports = {

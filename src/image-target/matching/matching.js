@@ -4,11 +4,10 @@ const {computeHoughMatches} = require('./hough.js');
 const {computeHomography} = require('./homography.js');
 const {multiplyPointHomographyInhomogenous, matrixInverse33} = require('../utils/geometry.js');
 
-const kHomographyInlierThreshold = 3;
-const kMinNumInliers = 8;
-const mMaxNodesToPop = 8;
-const mThreshold = 0.7;
-const kHoughBinDelta = 1;
+const INLIER_THRESHOLD = 3;
+const MIN_NUM_INLIERS = 8;
+const CLUSTER_MAX_POP = 8;
+const HAMMING_THRESHOLD = 0.7;
 
 // match list of querpoints against pre-built list of keyframes
 const match = ({keyframes, querypoints, querywidth, queryheight}) => {
@@ -17,6 +16,13 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
   for (let i = 0; i < keyframes.length; i++) {
     const keyframe = keyframes[i];
     const keypoints = keyframe.points;
+
+    if (window.DEBUG_MATCH) {
+      window.debug.querykeyframeIndex = i;
+    }
+    if (window.DEBUG_TIME) {
+      var _start = new Date().getTime();
+    }
 
     const matches = [];
     for (let j = 0; j < querypoints.length; j++) {
@@ -44,12 +50,29 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
           bestD2 = d;
         }
       }
-      if (bestIndex !== -1 && (bestD2 === Number.MAX_SAFE_INTEGER || (1.0 * bestD1 / bestD2) < mThreshold)) {
+      if (bestIndex !== -1 && (bestD2 === Number.MAX_SAFE_INTEGER || (1.0 * bestD1 / bestD2) < HAMMING_THRESHOLD)) {
         matches.push({querypointIndex: j, keypointIndex: bestIndex});
       }
     }
 
-    if (matches.length < kMinNumInliers) {
+    if (window.DEBUG_TIME) {
+      console.log('exec time until first match: ', new Date().getTime() - _start);
+    }
+
+    if (window.DEBUG_MATCH) {
+      const dMatches = window.debugMatch.querykeyframes[i].matches1;
+      console.log("matches 1", matches.length, dMatches.length);
+      if (matches.length !== dMatches.length) {
+        console.log("INCORRECT matches1 length");
+      }
+      for (let i = 0; i < matches.length; i++) {
+        if (matches[i].querypointIndex !== dMatches[i].ins || matches[i].keypointIndex !== dMatches[i].res) {
+          console.log("INCORRECT matches1", i, matches[i], dMatches[i]);
+        }
+      }
+    }
+
+    if (matches.length < MIN_NUM_INLIERS) {
       continue;
     }
 
@@ -62,7 +85,23 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       queryheight,
       matches,
     });
-    console.log("hough matches1 length", houghMatches.length, houghMatches);
+
+    if (window.DEBUG_TIME) {
+      console.log('exec time until first hough match: ', new Date().getTime() - _start);
+    }
+
+    if (window.DEBUG_MATCH) {
+      const dMatches = window.debugMatch.querykeyframes[i].houghMatches1;
+      console.log("hough matches 1", houghMatches.length, dMatches.length);
+      if (houghMatches.length !== dMatches.length) {
+        console.log("INCORRECT matches1 length");
+      }
+      for (let i = 0; i < houghMatches.length; i++) {
+        if (houghMatches[i].querypointIndex !== dMatches[i].ins || houghMatches[i].keypointIndex !== dMatches[i].res) {
+          console.log("INCORRECT matches1", i);
+        }
+      }
+    }
 
     const srcPoints = [];
     const dstPoints = [];
@@ -73,13 +112,26 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       dstPoints.push([ querypoint.x2D, querypoint.y2D ]);
     }
 
+    if (window.DEBUG_MATCH) {
+      window.debug.homographyIndex = -1; // +1 at start
+    }
+
     const H = computeHomography({
       srcPoints,
       dstPoints,
       keyframe,
     });
 
-    console.log("final H", H);
+    if (window.DEBUG_TIME) {
+      console.log('exec time until first Homography: ', new Date().getTime() - _start);
+    }
+
+    if (window.DEBUG_MATCH) {
+      const dH = window.debugMatch.querykeyframes[i].H1;
+      if (!window.cmpArray(H, dH, 0.001)) {
+        console.log("INCORRECT H1", i, H, dH);
+      }
+    }
 
     if (H === null) continue;
 
@@ -88,12 +140,28 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       keypoints: keyframe.points,
       H,
       matches: houghMatches,
-      threshold: kHomographyInlierThreshold
+      threshold: INLIER_THRESHOLD
     });
 
+    if (window.DEBUG_TIME) {
+      console.log('exec time until first inlier matches: ', new Date().getTime() - _start);
+    }
 
-    if (inlierMatches.length < kMinNumInliers) {
+    if (inlierMatches.length < MIN_NUM_INLIERS) {
       continue;
+    }
+
+    if (window.DEBUG_MATCH) {
+      const dMatches = window.debugMatch.querykeyframes[i].inlierMatches1;
+      console.log("inlier matches 1", inlierMatches.length, dMatches.length);
+      if (inlierMatches.length !== dMatches.length) {
+        console.log("INCORRECT inlierMatches1 length");
+      }
+      for (let i = 0; i < inlierMatches.length; i++) {
+        if (inlierMatches[i].querypointIndex !== dMatches[i].ins || inlierMatches[i].keypointIndex !== dMatches[i].res) {
+          console.log("INCORRECT inlierMatches1", i);
+        }
+      }
     }
 
     // do another loop of match using the homography
@@ -117,7 +185,6 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
                   + (keypoint.y2D - mapquerypoint[1]) * (keypoint.y2D - mapquerypoint[1]);
         if (d2 > dThreshold2) continue;
 
-        // TODO: optimize, hamming distance might have been computed before. can cache?
         const d = hammingCompute({v1: keypoint.descriptors, v2: querypoint.descriptors});
         if (d < bestD1) {
           bestD2 = bestD1;
@@ -128,8 +195,25 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
         }
       }
 
-      if (bestIndex !== -1 && (bestD2 === Number.MAX_SAFE_INTEGER || (1.0 * bestD1 / bestD2) < mThreshold)) {
+      if (bestIndex !== -1 && (bestD2 === Number.MAX_SAFE_INTEGER || (1.0 * bestD1 / bestD2) < HAMMING_THRESHOLD)) {
         matches2.push({querypointIndex: j, keypointIndex: bestIndex});
+      }
+    }
+
+    if (window.DEBUG_TIME) {
+      console.log('exec time until second matches: ', new Date().getTime() - _start);
+    }
+
+    if (window.DEBUG_MATCH) {
+      const dMatches = window.debugMatch.querykeyframes[i].matches2;
+      console.log("matches 2", matches2.length, dMatches.length);
+      if (matches2.length !== dMatches.length) {
+        console.log("INCORRECT matches2 length");
+      }
+      for (let i = 0; i < matches2.length; i++) {
+        if (matches2[i].querypointIndex !== dMatches[i].ins || matches2[i].keypointIndex !== dMatches[i].res) {
+          console.log("INCORRECT matches2", i);
+        }
       }
     }
 
@@ -142,7 +226,10 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       queryheight,
       matches: matches2,
     });
-    console.log("hough matches2 length", houghMatches2.length, houghMatches2);
+
+    if (window.DEBUG_TIME) {
+      console.log('exec time until second hough matches: ', new Date().getTime() - _start);
+    }
 
     const srcPoints2 = [];
     const dstPoints2 = [];
@@ -159,7 +246,16 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       keyframe
     });
 
-    console.log("final H2", H2);
+    if (window.DEBUG_MATCH) {
+      const dH = window.debugMatch.querykeyframes[i].H2;
+      if (!window.cmpArray(H2, dH, 0.0001)) {
+        console.log("INCORRECT H2", i, H2, dH);
+      }
+    }
+
+    if (window.DEBUG_TIME) {
+      console.log('exec time until second homography: ', new Date().getTime() - _start);
+    }
 
     if (H2 === null) continue;
 
@@ -168,14 +264,27 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       keypoints: keyframe.points,
       H: H2,
       matches: houghMatches2,
-      threshold: kHomographyInlierThreshold
+      threshold: INLIER_THRESHOLD
     });
 
-    if (inlierMatches2.length < kMinNumInliers) {
-      continue;
+    if (window.DEBUG_MATCH) {
+      const dMatches = window.debugMatch.querykeyframes[i].inlierMatches2;
+      console.log("inlier matches 2", inlierMatches2.length, dMatches.length);
+      if (inlierMatches2.length !== dMatches.length) {
+        console.log("INCORRECT inlierMatches2 length");
+      }
+      for (let i = 0; i < inlierMatches2.length; i++) {
+        if (inlierMatches2[i].querypointIndex !== dMatches[i].ins || inlierMatches2[i].keypointIndex !== dMatches[i].res) {
+          console.log("INCORRECT inlierMatches2", i);
+        }
+      }
     }
 
-    if (inlierMatches2.length < kMinNumInliers) {
+    if (window.DEBUG_TIME) {
+      console.log('exec time until second inlier matches: ', new Date().getTime() - _start);
+    }
+
+    if (inlierMatches2.length < MIN_NUM_INLIERS) {
       continue;
     }
 
@@ -223,7 +332,7 @@ const _query = ({node, keypoints, querypoint, queue, keypointIndexes, numPop}) =
     }
   }
 
-  if (numPop < mMaxNodesToPop && queue.length > 0) {
+  if (numPop < CLUSTER_MAX_POP && queue.length > 0) {
     const {node, d} = queue.pop();
     numPop += 1;
     _query({node, keypoints, querypoint, queue, keypointIndexes, numPop});
