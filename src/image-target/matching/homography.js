@@ -113,6 +113,7 @@ const _checkHeuristics = ({H, testPoints, keyframe}) => {
     mp.push(multiplyPointHomographyInhomogenous(testPoints[i], HInv));
   }
   const smallArea = smallestTriangleArea(mp[0], mp[1], mp[2], mp[3]);
+
   if (smallArea < keyframe.width * keyframe.height * 0.0001) return false;
 
   if (!quadrilateralConvex(mp[0], mp[1], mp[2], mp[3])) return false;
@@ -233,7 +234,7 @@ const _solveHomographyFourPoints = ({srcPoints, dstPoints}) => {
       }
     }
     if (!window.cmp(res1.s, s)) {
-      console.log('INCORRECT homography res1 S', window.debug.homographyIndex, i, res1.s, s);
+      console.log('INCORRECT homography res1 S', window.debug.homographyIndex, res1.s, s);
     }
   }
 

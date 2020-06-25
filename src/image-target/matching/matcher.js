@@ -17,6 +17,16 @@ class Matcher {
 
   match(targetImage) {
     const querypoints = _extractPoints({image: targetImage});
+    if (window.DEBUG_MATCH) {
+      if (querypoints.length !== window.debugMatch.points.length) {
+        console.log("INCORRECT querypoints length", querypoints.length, window.debugMatch.points.length);
+      }
+      for (let i = 0; i < querypoints.length; i++) {
+        if (!window.cmp(querypoints[i].x2D, window.debugMatch.points[i].x)) {
+          console.log("INCORRECT query point", i, querypoints[i], window.debugMatch.points[i]);
+        }
+      }
+    }
     const result = match({keyframes: this.keyframes, querypoints: querypoints, querywidth: targetImage.width, queryheight: targetImage.height});
     console.log("result", result);
 
@@ -29,7 +39,7 @@ class Matcher {
 
         }
         if (!window.cmpArray(result.H, window.debugMatch.finalH)) {
-          console.log("INCORRECT result H", result.H, window.debutMatch.finalH);
+          console.log("INCORRECT result H", result.H, window.debugMatch.finalH);
         }
         console.log("final matches length", result.matches.length, window.debugMatch.finalMatches.length);
         const dMatches = window.debugMatch.finalMatches;

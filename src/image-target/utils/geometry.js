@@ -79,11 +79,17 @@ const smallestTriangleArea = (x1, x2, x3, x4) => {
 }
 
 // check if four points form a convex quadrilaternal.
+// all four combinations should have same sign
 const quadrilateralConvex = (x1, x2, x3, x4) => {
-  if (linePointSide(x1, x2, x3) <= 0) return false;
-  if (linePointSide(x2, x3, x4) <= 0) return false;
-  if (linePointSide(x3, x4, x1) <= 0) return false;
-  if (linePointSide(x4, x1, x2) <= 0) return false;
+  const first = linePointSide(x1, x2, x3) <= 0;
+  if ( (linePointSide(x2, x3, x4) <= 0) !== first) return false;
+  if ( (linePointSide(x3, x4, x1) <= 0) !== first) return false;
+  if ( (linePointSide(x4, x1, x2) <= 0) !== first) return false;
+
+  //if (linePointSide(x1, x2, x3) <= 0) return false;
+  //if (linePointSide(x2, x3, x4) <= 0) return false;
+  //if (linePointSide(x3, x4, x1) <= 0) return false;
+  //if (linePointSide(x4, x1, x2) <= 0) return false;
   return true;
 }
 

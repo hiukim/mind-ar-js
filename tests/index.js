@@ -12,7 +12,8 @@ const EPSILON = 0.01;
 
 const INPUT_FILE = 'card';
 
-const DEBUG = true;
+//const DEBUG = true;
+const DEBUG = false;
 let debugContent = null;
 if (DEBUG) {
   debugContent = JSON.parse(fs.readFileSync("/Users/hiukim/Desktop/kimDebugData_" + INPUT_FILE + ".txt", 'utf8'));
@@ -86,6 +87,7 @@ const exec = async() => {
     });
   });
   const greyImage = getGreyImage(image);
+console.log("greyImage", greyImage);
 
   //console.log("grey Image: ", greyImage);
   //debugImageData({filename: "./debug/input_image.png", data: greyImage.data, height: greyImage.height, width: greyImage.width});

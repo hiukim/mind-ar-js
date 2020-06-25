@@ -216,6 +216,7 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
       //if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'spScale', 'edgeScore', 'angle'])) {
       if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'angle'])) {
         console.log("INCORRECT featurepoint4", fp1, fp2);
+        return;
       }
     }
   }
@@ -339,6 +340,16 @@ const _computeOrientation = (options) => {
     }
   }
 
+  if (window.DEBUG) {
+    const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
+    for (let i = 0; i < histogram.length; i++) {
+      if (Math.abs(o.smoothedHistograms[i] - histogram[i]) > 0.001) {
+        console.log("INCORRECT smoothed histogram", i, window.debug.orientationComputeIndex, JSON.stringify(o.smoothedHistograms), JSON.stringify(histogram));
+        break;
+      }
+    }
+  }
+
   // Find the peak of the histogram.
   let maxHeight = 0;
   for(let i = 0; i < ORIENTATION_NUM_BINS; i++) {
@@ -357,7 +368,8 @@ const _computeOrientation = (options) => {
     const prev = (i - 1 + histogram.length) % histogram.length;
     const next = (i + 1) % histogram.length;
 
-    if (histogram[i] > ORIENTATION_PEAK_THRESHOLD * maxHeight && histogram[i] > histogram[prev] && histogram[i] > histogram[next]) {
+    // add 0.0001 in comparison to avoid too sensitive to rounding precision
+    if (histogram[i] > ORIENTATION_PEAK_THRESHOLD * maxHeight && (histogram[i] > histogram[prev] + 0.0001) && (histogram[i] > histogram[next] + 0.0001)) {
       // The default sub-pixel bin location is the discrete location if the quadratic fitting fails.
       let fbin = i;
 
@@ -373,6 +385,14 @@ const _computeOrientation = (options) => {
         // Find the critical point of a quadratic. y = A*x^2 + B*x + C
         if (A != 0) {
           fbin = -B / (2 * A);
+        }
+      }
+
+      if (window.DEBUG) {
+        const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
+        if (!window.cmp(fbin, o.histfbins[i])) {
+          console.log("INCORRECT orientation fbin", i, fbin, 'vs', o.histfbins[i], o.histAs[i], o.histBs[i], o.histCs[i]);
+          console.log("hist", histogram[i], histogram[prev], histogram[next], ORIENTATION_PEAK_THRESHOLD * maxHeight);
         }
       }
 

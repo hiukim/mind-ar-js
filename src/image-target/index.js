@@ -25,7 +25,7 @@ class ImageTarget {
     }
     console.log("image target consdtructor", imageList, matchingData, trackingData);
     this.matcher = new Matcher(matchingData);
-    this.tracker = new Tracker(trackingData, imageList, projectionTransform);
+    //this.tracker = new Tracker(trackingData, imageList, projectionTransform);
   }
 
   process(queryImage) {
@@ -51,8 +51,8 @@ class ImageTarget {
       -0.9988641142845154,
       457.211669921875 ] ];
 
-    modelViewTransform = this.tracker.track(modelViewTransform, processImage);
-    console.log("new model view transform", modelViewTransform);
+    //modelViewTransform = this.tracker.track(modelViewTransform, processImage);
+    //console.log("new model view transform", modelViewTransform);
     return modelViewTransform;
   }
 }
@@ -61,8 +61,8 @@ const compile = (targetImage) => {
   const imageList = buildImageList(targetImage);
 
   var _start = new Date().getTime();
-  const trackingData = compileTracking({imageList});
-  //const trackingData = null;
+  //const trackingData = compileTracking({imageList});
+  const trackingData = null;
   var _end = new Date().getTime();
   console.log('exec time compile tracking: ', _start, _end, _end - _start);
 

@@ -111,6 +111,8 @@ const exec = async() => {
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
     const points = kpmExtract({imageData: image.data, width: image.width, height: image.height, dpi: dpiList[i], pageNo: 1, imageNo: i});
+    console.log("kpmextract point", points.length);
+
     const rootNode = clusteringBuild({points: points});
 
     keyframes.push({points: points, rootNode: rootNode, width: image.width, height: image.height});
@@ -170,6 +172,7 @@ const exec = async() => {
     targetImages.push(targetImage);
   }
   const targetImage = targetImages[0];
+  console.log("targetimage 40013", targetImage.data[40013]);
 
   const points = kpmExtract({imageData: targetImage.data, width: targetImage.width, height: targetImage.height, dpi: 72, pageNo: 1, imageNo: 0});
   console.log("target points: ", points.length);

@@ -53,6 +53,21 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       if (bestIndex !== -1 && (bestD2 === Number.MAX_SAFE_INTEGER || (1.0 * bestD1 / bestD2) < HAMMING_THRESHOLD)) {
         matches.push({querypointIndex: j, keypointIndex: bestIndex});
       }
+
+      if (window.DEBUG_MATCH) {
+        if (!window.debug.queryMatchIndex) window.debug.queryMatchIndex = 0;
+        const dMatch = window.debugMatch.matches[window.debug.queryMatchIndex];
+        if (bestIndex === -1) {
+          if (dMatch && dMatch.bestIndex !== 2147483647) {
+            console.log("INCORRECT query match", bestD1, bestD2, bestIndex, 'vs', dMatch.firstBest, dMatch.secondBest, dMatch.bestIndex);
+          }
+        } else {
+          if (bestIndex !== dMatch.bestIndex) {
+            console.log("INCORRECT query match", bestD1, bestD2, bestIndex, 'vs', dMatch.firstBest, dMatch.secondBest, dMatch.bestIndex);
+          }
+        }
+        window.debug.queryMatchIndex += 1;
+      }
     }
 
     if (window.DEBUG_TIME) {
