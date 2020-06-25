@@ -8,11 +8,18 @@ class Controller {
     //     [fx  s cx]
     // K = [ 0 fx cy]
     //     [ 0  0  1]
+    const cameraWidth = 640.0;
+    const cameraHeight = 480.0;
     this._projectionTransform = [
-      [ 304.68270459335025, 0, 161.7239532470703],
-      [ 0, 303.2606118015537, 118.80326843261719],
-      [ 0, 0, 1.0]
+      [609.3654091867005, 0, 323.4479064941406],
+      [0, 606.5212236031074, 237.60653686523438],
+      [0, 0, 1]
     ];
+
+    for (let i = 0; i < 3; i++) {
+      this._projectionTransform[0][i] *= cameraWidth / inputWidth;
+      this._projectionTransform[1][i] *= cameraHeight / inputHeight;
+    }
 
     this._projectionMatrix = _glProjectionMatrix({
       projectionTransform: this._projectionTransform,
@@ -37,6 +44,8 @@ class Controller {
     this._imageTargets.forEach((imageTarget) => {
       const modelViewTransform = imageTarget.process(queryImage);
       const worldMatrix = modelViewTransform === null? null: _glModelViewMatrix({modelViewTransform});
+
+      console.log("worldMatrix", worldMatrix);
 
       result.push({
         worldMatrix: worldMatrix

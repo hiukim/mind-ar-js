@@ -1,3 +1,4 @@
+/*
 const getProjectionTransform = () => {
   // TODO: non-hardcoded camera matrix?
   //     [fx  s cx]
@@ -10,6 +11,7 @@ const getProjectionTransform = () => {
   ];
   return KData;
 }
+*/
 
 const buildModelViewProjectionTransform = (projectionTransform, modelViewTransform) => {
   const modelViewProjectionTransform = [[],[],[]];
@@ -57,7 +59,7 @@ const screenToMarkerCoordinate = (modelViewProjectionTransform, sx, sy) => {
 
 module.exports = {
   screenToMarkerCoordinate,
-  getProjectionTransform,
+  //getProjectionTransform,
   buildModelViewProjectionTransform,
   applyModelViewProjectionTransform,
   computeScreenCoordiate

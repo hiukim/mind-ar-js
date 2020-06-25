@@ -2,6 +2,7 @@ const {resize} = require("./utils/images.js");
 const {buildImageList} = require('./image-list.js');
 const {Matcher, compileMatching} = require('./matching/matcher.js');
 const {Tracker, compileTracking} = require('./tracking/tracker.js');
+const {estimateHomography} = require('./icp/estimate_homography.js');
 
 class ImageTarget {
   constructor(options) {
@@ -24,6 +25,8 @@ class ImageTarget {
       trackingData = compileTracking({imageList});
     }
     console.log("image target consdtructor", imageList, matchingData, trackingData);
+
+    this.projectionTransform = projectionTransform;
     this.matcher = new Matcher(matchingData);
     //this.tracker = new Tracker(trackingData, imageList, projectionTransform);
   }
@@ -33,10 +36,16 @@ class ImageTarget {
     //const processImage = Object.assign(resize({image: queryImage, ratio: 1}), {dpi: 72});
     const processImage = Object.assign(queryImage, {dpi: 72});
 
-    let modelViewTransform = this.matcher.match(processImage);
-    if (modelViewTransform === null) return null;
+    const matchResult = this.matcher.match(processImage);
+    console.log("match result", matchResult);
+    if (matchResult === null) return null;
 
-    console.log("model view transform", modelViewTransform);
+    const {screenCoords, worldCoords} = matchResult;
+    const modelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
+    console.log("initial matched model view transform", modelViewTransform);
+    return modelViewTransform;
+
+    if (modelViewTransform === null) return null;
 
     modelViewTransform = [ [ 0.9265531301498413,
       -0.3751317262649536,

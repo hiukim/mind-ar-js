@@ -4,7 +4,6 @@ const {build: hierarchicalClusteringBuild} = require('./hierarchical-clustering.
 const {detect} = require('./detector');
 const {extract} = require('./freak-extractor');
 const {match} = require('./matching');
-const {estimateHomography} = require('../icp/estimate_homography.js');
 
 const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;
 const PYRAMID_MIN_SIZE = 8;
@@ -15,6 +14,7 @@ class Matcher {
     this.keyframes = matchingData.keyframes;
   }
 
+  // return a list of screenCoords -> worldCoords pairs
   match(targetImage) {
     const querypoints = _extractPoints({image: targetImage});
     if (window.DEBUG_MATCH) {
@@ -70,8 +70,8 @@ class Matcher {
         z: 0,
       })
     }
-    const modelViewTransform = estimateHomography({screenCoords, worldCoords});
-    return modelViewTransform
+
+    return {screenCoords, worldCoords};
   }
 }
 
