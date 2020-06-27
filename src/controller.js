@@ -8,17 +8,17 @@ class Controller {
     //     [fx  s cx]
     // K = [ 0 fx cy]
     //     [ 0  0  1]
-    const cameraWidth = 640.0;
-    const cameraHeight = 480.0;
-    this._projectionTransform = [
+    const cameraWidth = 640.0; // intrinsic param
+    const cameraHeight = 480.0; // intrinsic param
+    this._projectionTransform = [ // intrinic param
       [609.3654091867005, 0, 323.4479064941406],
       [0, 606.5212236031074, 237.60653686523438],
       [0, 0, 1]
     ];
 
     for (let i = 0; i < 3; i++) {
-      this._projectionTransform[0][i] *= cameraWidth / inputWidth;
-      this._projectionTransform[1][i] *= cameraHeight / inputHeight;
+      this._projectionTransform[0][i] *= inputWidth / cameraWidth;
+      this._projectionTransform[1][i] *= inputHeight / cameraHeight;
     }
 
     this._projectionMatrix = _glProjectionMatrix({

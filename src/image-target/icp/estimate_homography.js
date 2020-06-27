@@ -1,5 +1,4 @@
 const {Matrix, inverse} = require('ml-matrix');
-const {refineHomography} = require('./refine_homography');
 const {applyModelViewProjectionTransform, buildModelViewProjectionTransform, computeScreenCoordiate} = require('./utils.js');
 
 // build world matrix with list of matching worldCoords|screenCoords
@@ -57,7 +56,6 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
         }
       }
     }
-    console.log("mat C", C, window.debugMatch.matC);
     for (let j = 0; j < C.length; j++) {
       if (!window.cmp(C[j], window.debugMatch.matC[j], 0.001)) {
         console.log("INCORRECT C", j, C[j], window.debugMatch.matC[j]);
@@ -70,10 +68,6 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
     [C[3], C[4], C[5]],
     [C[6], C[7], 1]
   ]);
-  //console.log("homography: ", H.toString());
-  //
-  //console.log("matA:", A.toString(), '---vs---', debugContent.matA);
-  //console.log("matC:", H.toString(), '---vs---', debugContent.matC);
 
   const K = new Matrix(projectionTransform);
   const KInv = inverse(K);
@@ -82,7 +76,6 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
   const KInvH = _KInvH.to1DArray();
 
   if (window.DEBUG_MATCH) {
-    console.log("projectionTransform", projectionTransform);
     const dv = window.debugMatch.v;
     const dt = window.debugMatch.t;
     const dKInvH = [
@@ -147,15 +140,7 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
     }
   }
 
-  //return initialModelViewTransform;
-
-  // iterate points to improve the matrix
-  //console.log("initialModelViewTransform", initialModelViewTransform, '---vs---', debugContent.icp_initMatXw2Xc);
-  const {modelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform, worldCoords, screenCoords});
-
-  //console.log("adjusted modelViewTransform", modelViewTransform, '---vs---', debugContent.camPose);
-
-  return modelViewTransform;
+  return initialModelViewTransform;
 };
 
 module.exports = {

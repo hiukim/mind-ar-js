@@ -8,19 +8,27 @@ const ICP_BREAK_LOOP_ERROR_RATIO_THRESH = 0.99;
 const ICP_BREAK_LOOP_ERROR_THRESH2 = 4.0;
 const ICP_INLIER_PROBABILITY = 0.50;
 
-// modelviewTransform Rt 3x4
-const refineHomography = ({initialModelViewTransform, projectionTransform, worldCoords, screenCoords, isRobustMode, inlierProb, debugContent}) => {
+// ICP iteration with points
+// Can someone provide theoretical reference?
+const refineHomography = ({initialModelViewTransform, projectionTransform, worldCoords, screenCoords, isRobustMode, inlierProb}) => {
   let modelViewTransform = initialModelViewTransform;
 
   let err0 = 0.0;
   let err1 = 0.0;
-  for (let l = 0; l <= ICP_MAX_LOOP; l++) {
+  for (let l = 0; l < ICP_MAX_LOOP; l++) {
 
     const modelViewProjectionTransform = buildModelViewProjectionTransform(projectionTransform, modelViewTransform);
-    //console.log("mvp", modelViewProjectionTransform);
-    //console.log("icp matXw2U", l, debugContent.icp_matXw2U[l]);
-    //console.log("icp matXc2U", l, debugContent.icp_matXc2U[l]);
-    //console.log("icp matXw2Xc", l, debugContent.icp_matXw2Xc[l]);
+
+    if (window.DEBUG_MATCH) {
+      //console.log("projectionTransform", projectionTransform);
+      if (!window.cmp2DArray(modelViewTransform, window.debugMatch.icp_matXw2Xc[l])) {
+        console.log("INCORRECT ICP modelViewTransform", l, modelViewTransform, window.debugMatch.icp_matXw2Xc[l]);
+      }
+
+      if (!window.cmp2DArray(modelViewProjectionTransform, window.debugMatch.icp_matXw2U[l])) {
+        console.log("INCORRECT ICP modelViewProjectionTransform", l, modelViewProjectionTransform, window.debugMatch.icp_matXw2U[l]);
+      }
+    }
 
     const E = [];
     const dxs = [];
@@ -66,7 +74,7 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
         continue;
       }
 
-      const J_U_S = _getJ_U_S({modelViewProjectionTransform, modelViewTransform, projectionTransform, worldCoord: worldCoords[n], debugContent});
+      const J_U_S = _getJ_U_S({modelViewProjectionTransform, modelViewTransform, projectionTransform, worldCoord: worldCoords[n]});
 
       if (isRobustMode) {
         const W = (1.0 - E[n]/K2)*(1.0 - E[n]/K2);
@@ -88,8 +96,31 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
       }
     }
 
+    if (window.DEBUG_MATCH) {
+      if (!window.cmpArray(dU, window.debugMatch.icp_dU[l], 0.001)) {
+        console.log("INCORRECT ICP dU", l, dU, window.debugMatch.icp_dU[l]);
+      }
+    }
+    if (window.DEBUG_MATCH) {
+      const dJUS = [];
+      for (let i = 0; i < window.debugMatch.icp_J_U_S[l].length; i++) {
+        dJUS.push(window.debugMatch.icp_J_U_S[l][i][0]);
+        dJUS.push(window.debugMatch.icp_J_U_S[l][i][1]);
+      }
+
+      if (!window.cmp2DArray(allJ_U_S, dJUS, 0.001)) {
+        console.log("INCORRECT ICP J_U_S", l, allJ_U_S, dJUS);
+      }
+    }
+
     const dS = _getDeltaS({dU, J_U_S: allJ_U_S});
-    if (dS === null) continue;
+    if (window.DEBUG_MATCH) {
+      if (!window.cmpArray(dS, window.debugMatch.icp_dS[l], 0.001)) {
+        console.log("INCORRECT ICP dS", l, dS, window.debugMatch.icp_dS[l]);
+      }
+    }
+
+    if (dS === null) break;
     modelViewTransform = _updateModelViewTransform({modelViewTransform, dS});
   }
   return {modelViewTransform, err: err1};
@@ -113,7 +144,6 @@ _updateModelViewTransform = ({modelViewTransform, dS}) => {
   q[4] = dS[3];
   q[5] = dS[4];
   q[6] = dS[5];
-
 
   const cra = Math.cos(q[3]);
   const one_cra = 1.0 - cra;
@@ -164,7 +194,7 @@ _getDeltaS = ({dU, J_U_S}) => {
   return S.to1DArray();
 }
 
-_getJ_U_S = ({modelViewProjectionTransform, modelViewTransform, projectionTransform, worldCoord, debugContent}) => {
+_getJ_U_S = ({modelViewProjectionTransform, modelViewTransform, projectionTransform, worldCoord}) => {
   const T = modelViewTransform;
   const {x, y, z} = worldCoord;
 

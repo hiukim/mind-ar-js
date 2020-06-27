@@ -3,6 +3,7 @@ const {buildImageList} = require('./image-list.js');
 const {Matcher, compileMatching} = require('./matching/matcher.js');
 const {Tracker, compileTracking} = require('./tracking/tracker.js');
 const {estimateHomography} = require('./icp/estimate_homography.js');
+const {refineHomography} = require('./icp/refine_homography');
 
 class ImageTarget {
   constructor(options) {
@@ -40,29 +41,27 @@ class ImageTarget {
     console.log("match result", matchResult);
     if (matchResult === null) return null;
 
+    if (window.DEBUG_MATCH) {
+      console.log("projection transform", this.projectionTransform, window.debugMatch.matXc2U);
+    }
+
     const {screenCoords, worldCoords} = matchResult;
-    const modelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
-    console.log("initial matched model view transform", modelViewTransform);
-    return modelViewTransform;
+    const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
+    console.log("initial matched model view transform", initialModelViewTransform);
+    if (initialModelViewTransform === null) return null;
 
-    if (modelViewTransform === null) return null;
+    // TODO: maybe don't this this refineHomography. result seems worse.
+    const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
 
-    modelViewTransform = [ [ 0.9265531301498413,
-      -0.3751317262649536,
-      -0.027848180383443832,
-      90.0240249633789 ],
-    [ -0.3739980459213257,
-      -0.9266232252120972,
-      0.038663968443870544,
-      181.0799102783203 ],
-    [ -0.04030885174870491,
-      -0.02540905401110649,
-      -0.9988641142845154,
-      457.211669921875 ] ];
+    if (window.DEBUG_MATCH) {
+      console.log("refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
+      if (!window.cmp2DArray(refinedModelViewTransform, window.debugMatch.camPose, 0.0001)) {
+        console.log("INCORRECT ICP refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
+      }
+    }
 
-    //modelViewTransform = this.tracker.track(modelViewTransform, processImage);
-    //console.log("new model view transform", modelViewTransform);
-    return modelViewTransform;
+    return initialModelViewTransform;
+    return refinedModelViewTransform;
   }
 }
 
