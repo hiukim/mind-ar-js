@@ -1,12 +1,14 @@
 const {Matrix, inverse} = require('ml-matrix');
 const {getProjectionTransform, applyModelViewProjectionTransform, buildModelViewProjectionTransform, computeScreenCoordiate} = require('./utils.js');
 
+// TODO: the error computation seems problematic. should it be relative to the size of detection?
+//       now the values are hardcoded, e.g. K2_Factor = 4
+
 const K2_FACTOR = 4.0;
 const ICP_MAX_LOOP = 10;
 const ICP_BREAK_LOOP_ERROR_THRESH = 0.1;
 const ICP_BREAK_LOOP_ERROR_RATIO_THRESH = 0.99;
 const ICP_BREAK_LOOP_ERROR_THRESH2 = 4.0;
-const ICP_INLIER_PROBABILITY = 0.50;
 
 // ICP iteration with points
 // Can someone provide theoretical reference?
@@ -15,7 +17,7 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
 
   let err0 = 0.0;
   let err1 = 0.0;
-  for (let l = 0; l < ICP_MAX_LOOP; l++) {
+  for (let l = 0; l <= ICP_MAX_LOOP; l++) {
 
     const modelViewProjectionTransform = buildModelViewProjectionTransform(projectionTransform, modelViewTransform);
 
@@ -42,6 +44,11 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
       E.push(dx * dx + dy * dy);
     }
 
+    if (window.DEBUG_TRACK && isRobustMode) {
+      const dr = window.debugMatch.icp_robust[window.debug.icprobustIndex][l];
+      //console.log("icp E", E, dr.E);
+    }
+
     let K2; // robust mode only
     err1 = 0.0;
     if (isRobustMode) {
@@ -50,7 +57,13 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
       for (let n = 0; n < worldCoords.length; n++) {
         E2.push(E[n]);
       }
-      E2.sort();
+      E2.sort((a, b) => {return a-b;});
+
+      if (window.DEBUG_TRACK && isRobustMode) {
+        const dr = window.debugMatch.icp_robust[window.debug.icprobustIndex][l];
+        //console.log("icp E", E2, dr.E2);
+      }
+
       K2 = Math.max(E2[inlierNum] * K2_FACTOR, 16.0);
       for (let n = 0; n < worldCoords.length; n++) {
         if (E2[n] > K2) err1 += K2/ 6;
@@ -61,10 +74,19 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
         err1 += E[n];
       }
     }
+    //console.log("err1 before", err1, err1/worldCoords.length);
     err1 /= worldCoords.length;
+
+    if (window.DEBUG_MATCH) {
+      //if (!window.cmp(err1, window.debugMatch.icp_err1[l])) {
+      //  console.log("INCORRECT ICP err1", l, err1, window.debugMatch.icp_err1[l]);
+      //}
+    }
 
     if (err1 < ICP_BREAK_LOOP_ERROR_THRESH) break;
     if (l > 0 && err1 < ICP_BREAK_LOOP_ERROR_THRESH2 && err1/err0 > ICP_BREAK_LOOP_ERROR_RATIO_THRESH) break;
+    if (l === ICP_MAX_LOOP) break;
+
     err0 = err1;
 
     const dU = [];
@@ -78,6 +100,12 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
 
       if (isRobustMode) {
         const W = (1.0 - E[n]/K2)*(1.0 - E[n]/K2);
+
+        if (window.DEBUG_TRACK && isRobustMode) {
+          const dr = window.debugMatch.icp_robust[window.debug.icprobustIndex][l];
+          //console.log("icp W", W, dr.W);
+        }
+
         for (let j = 0; j < 2; j++) {
           for (let i = 0; i < 6; i++) {
             J_U_S[j][i] *= W;
@@ -94,6 +122,11 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
       for (let i = 0; i < J_U_S.length; i++) {
         allJ_U_S.push(J_U_S[i]);
       }
+    }
+
+    if (window.DEBUG_TRACK && isRobustMode) {
+      const dr = window.debugMatch.icp_robust[window.debug.icprobustIndex][l];
+      //console.log("icp du", dU, dr.dU);
     }
 
     if (window.DEBUG_MATCH) {

@@ -29,7 +29,7 @@ class ImageTarget {
 
     this.projectionTransform = projectionTransform;
     this.matcher = new Matcher(matchingData);
-    //this.tracker = new Tracker(trackingData, imageList, projectionTransform);
+    this.tracker = new Tracker(trackingData, imageList, projectionTransform);
   }
 
   process(queryImage) {
@@ -50,17 +50,24 @@ class ImageTarget {
     console.log("initial matched model view transform", initialModelViewTransform);
     if (initialModelViewTransform === null) return null;
 
-    // TODO: maybe don't this this refineHomography. result seems worse.
+    // TODO: maybe don't this this refineHomography. result seems worse when the detected size is big
     const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
 
     if (window.DEBUG_MATCH) {
+      console.log("refine err", err);
       console.log("refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
       if (!window.cmp2DArray(refinedModelViewTransform, window.debugMatch.camPose, 0.0001)) {
         console.log("INCORRECT ICP refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
       }
     }
 
-    return initialModelViewTransform;
+    console.log("initial refined model view transform", refinedModelViewTransform);
+
+    const updatedModelViewTransform = this.tracker.track(refinedModelViewTransform, processImage);
+    console.log("initial tracking updated model view transform", updatedModelViewTransform);
+
+    //return updatedModelViewTransform;
+    //return initialModelViewTransform;
     return refinedModelViewTransform;
   }
 }
@@ -69,8 +76,8 @@ const compile = (targetImage) => {
   const imageList = buildImageList(targetImage);
 
   var _start = new Date().getTime();
-  //const trackingData = compileTracking({imageList});
-  const trackingData = null;
+  const trackingData = compileTracking({imageList});
+  //const trackingData = null;
   var _end = new Date().getTime();
   console.log('exec time compile tracking: ', _start, _end, _end - _start);
 
