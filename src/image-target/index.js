@@ -30,45 +30,49 @@ class ImageTarget {
     this.projectionTransform = projectionTransform;
     this.matcher = new Matcher(matchingData);
     this.tracker = new Tracker(trackingData, imageList, projectionTransform);
+
+    this.isTracking = false;
   }
 
   process(queryImage) {
-    //const processImage = Object.assign(resize({image: queryImage, ratio: 0.5}), {dpi: 72});
-    //const processImage = Object.assign(resize({image: queryImage, ratio: 1}), {dpi: 72});
     const processImage = Object.assign(queryImage, {dpi: 72});
 
-    const matchResult = this.matcher.match(processImage);
-    console.log("match result", matchResult);
-    if (matchResult === null) return null;
+    if (!this.isTracking) {
+      const matchResult = this.matcher.match(processImage);
+      console.log("match result", matchResult);
+      if (matchResult === null) return null;
 
-    if (window.DEBUG_MATCH) {
-      console.log("projection transform", this.projectionTransform, window.debugMatch.matXc2U);
-    }
+      const {screenCoords, worldCoords} = matchResult;
+      const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
+      console.log("initial matched model view transform", initialModelViewTransform);
+      if (initialModelViewTransform === null) return null;
 
-    const {screenCoords, worldCoords} = matchResult;
-    const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
-    console.log("initial matched model view transform", initialModelViewTransform);
-    if (initialModelViewTransform === null) return null;
+      // TODO: maybe don't this refineHomography. result seems worse when the detected size is big
+      const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
 
-    // TODO: maybe don't this this refineHomography. result seems worse when the detected size is big
-    const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
-
-    if (window.DEBUG_MATCH) {
-      console.log("refine err", err);
-      console.log("refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
-      if (!window.cmp2DArray(refinedModelViewTransform, window.debugMatch.camPose, 0.0001)) {
-        console.log("INCORRECT ICP refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
+      if (window.DEBUG_MATCH) {
+        console.log("refine err", err);
+        console.log("refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
+        if (!window.cmp2DArray(refinedModelViewTransform, window.debugMatch.camPose, 0.0001)) {
+          console.log("INCORRECT ICP refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
+        }
       }
+      console.log("initial refined model view transform", refinedModelViewTransform);
+
+      this.isTracking = true;
+      this.tracker.detected(refinedModelViewTransform);
     }
 
-    console.log("initial refined model view transform", refinedModelViewTransform);
+    if (this.isTracking) {
+      this.tracker.track(processImage);
+    }
 
-    const updatedModelViewTransform = this.tracker.track(refinedModelViewTransform, processImage);
-    console.log("initial tracking updated model view transform", updatedModelViewTransform);
+    const updatedModelViewTransform = this.tracker.getLatest();
+    console.log("tracking updated model view transform", updatedModelViewTransform);
 
-    //return updatedModelViewTransform;
+    return updatedModelViewTransform;
     //return initialModelViewTransform;
-    return refinedModelViewTransform;
+    //return refinedModelViewTransform;
   }
 }
 

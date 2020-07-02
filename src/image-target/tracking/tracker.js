@@ -8,24 +8,46 @@ class Tracker {
     this.imageList = imageList;
     this.projectionTransform = projectionTransform;
     this.randomizer = createRandomizer();
+    this.prevResults = [];
   }
 
-  track(modelViewTransform, targetImage) {
-    const newModelViewTransform = track({
+  detected(modelViewTransform) {
+    this.prevResults = [{
+      modelViewTransform: modelViewTransform,
+      selectedFeatures: []
+    }];
+  }
+
+  track(targetImage) {
+    const {modelViewTransform, selectedFeatures} = track({
       projectionTransform: this.projectionTransform,
       featureSets: this.featureSets,
-      modelViewTransform,
-      targetImage,
+      prevResults: this.prevResults,
       randomizer: this.randomizer,
       imageList: this.imageList,
+      targetImage,
     });
-    return newModelViewTransform;
+
+    this.prevResults.push({
+      modelViewTransform: modelViewTransform,
+      selectedFeatures: selectedFeatures
+    });
+
+    if (this.prevResults.length > 3) {
+      this.prevResults.shift();
+    }
+  }
+
+  getLatest() {
+    return this.prevResults[this.prevResults.length-1].modelViewTransform;
   }
 }
 
 const _buildFeatureSets = ({imageList}) => {
   const featureSets = [];
   for (let i = 0; i < imageList.length; i++) {
+    if (window.DEBUG) {window.debug.extractIndex = i};
+
     const image = imageList[i];
     const coords = extract(image);
 

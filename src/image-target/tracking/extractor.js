@@ -152,6 +152,15 @@ const extract = (image) => {
     }
   }
 
+  if (window.DEBUG) {
+    console.log("featuremap", featureMap.length, window.debugContent.featureMaps[window.debug.extractIndex].length);
+    for (let i = 0; i < featureMap.length; i++) {
+      if ( Math.abs(featureMap[i] - window.debugContent.featureMaps[window.debug.extractIndex][i]) > 0.00001) {
+        console.log("incorrect feature map", i, featureMap[i], window.debugContent.featureMaps[window.debug.extractIndex][i]);
+      }
+    }
+  }
+
   // Step 2.2 select feature
   const coords = _selectFeature({image, featureMap, templateSize: TEMPLATE_SIZE, searchSize: SEARCH_SIZE2, occSize: OCCUPANCY_SIZE, maxSimThresh: MAX_THRESH, minSimThresh: MIN_THRESH, sdThresh: SD_THRESH, imageDataCumsum, imageDataSqrCumsum});
 

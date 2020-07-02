@@ -16,10 +16,30 @@ const AR2_SEARCH_SIZE = 6;
 const SKIP_INTERVAL = 3;
 const KEEP_NUM = 3;
 
-const track = ({projectionTransform, featureSets, imageList, modelViewTransform, targetImage, randomizer}) => {
-  const modelViewProjectionTransform = buildModelViewProjectionTransform(projectionTransform, modelViewTransform);
+const track = ({projectionTransform, featureSets, imageList, prevResults, targetImage, randomizer}) => {
+  const prevModelViewProjectionTransforms = [];
+  for (let i = 0;  i < prevResults.length; i++) {
+    const t = buildModelViewProjectionTransform(projectionTransform, prevResults[i].modelViewTransform);
+    prevModelViewProjectionTransforms.push(t);
+  }
 
-  const selectedFeatures = [];
+  if (window.DEBUG_TRACK) {
+    /*
+    const wTran1 = prevResults[prevModelViewProjectionTransforms.length-1].modelViewTransform;
+    if(!window.cmp2DArray(wTran1, window.debugMatch.wTrans1[0])) {
+      console.log("INCORRECT wtran1", wTran1, window.debugMatch.wTrans1[0]);
+    }
+    if (prevModelViewProjectionTransforms.length > 1) {
+      const wTran2 = prevResults[prevModelViewProjectionTransforms.length-2].modelViewTransform;
+      if(!window.cmp2DArray(wTran2, window.debugMatch.wTrans2[0])) {
+        console.log("INCORRECT wtran2", wTran2, window.debugMatch.wTrans2[0]);
+      }
+    }
+    */
+  }
+
+  const modelViewTransform = prevResults[prevResults.length-1].modelViewTransform;
+  const modelViewProjectionTransform = prevModelViewProjectionTransforms[prevModelViewProjectionTransforms.length-1];
 
   if (window.DEBUG_TRACK) {
     window.debug.trackFeatureIndex = -1;
@@ -33,13 +53,13 @@ const track = ({projectionTransform, featureSets, imageList, modelViewTransform,
     const maxdpi = featureSets[j].maxdpi;
     const mindpi = featureSets[j].mindpi;
     for (let k = 0; k < featureSets[j].coords.length; k++) {
-      if (window.DEBUG_TRACK) {
-        window.debug.trackFeatureIndex += 1;
-      }
-
       const {mx, my} = featureSets[j].coords[k];
       const u = computeScreenCoordiate(modelViewProjectionTransform, mx, my, 0);
       if (u === null) continue;
+
+      if (window.DEBUG_TRACK) {
+        window.debug.trackFeatureIndex += 1;
+      }
 
       const {x: sx, y: sy} = u;
 
@@ -135,10 +155,11 @@ const track = ({projectionTransform, featureSets, imageList, modelViewTransform,
   let pos = [null, null, null, null];
   let candidates = candidates1;
   let fromCandidates1 = true;
-  let prevFeatures = [];
+  const selectedFeatures = [];
+  const prevSelectedFeatures = prevResults[prevResults.length-1].selectedFeatures;
 
   while (i < AR2_DEFAULT_SEARCH_FEATURE_NUM) {
-    let k = _selectTemplate({pos, prevFeatures, candidates, num, xsize: targetImage.width, ysize: targetImage.height, randomizer: randomizer});
+    let k = _selectTemplate({pos, prevSelectedFeatures, candidates, num, xsize: targetImage.width, ysize: targetImage.height, randomizer: randomizer});
     //console.log("selected: ", num, k);
     if (k < 0 && fromCandidates1) {
       fromCandidates1 = false;
@@ -153,7 +174,7 @@ const track = ({projectionTransform, featureSets, imageList, modelViewTransform,
 
     pos[num] = [candidates[k].sx, candidates[k].sy];
 
-    const result = _tracking2dSub({targetImage, imageList, modelViewTransform, modelViewProjectionTransform, candidate: candidates[k]});
+    const result = _tracking2dSub({targetImage, imageList, modelViewTransform, modelViewProjectionTransform, candidate: candidates[k], prevModelViewProjectionTransforms});
 
     if (window.DEBUG_TRACK) {
       const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
@@ -163,20 +184,23 @@ const track = ({projectionTransform, featureSets, imageList, modelViewTransform,
           console.log("INCORRECT best match", result, t2.bestMatched);
         }
       } else {
-        if (result.pos2D.x !== t2.bestMatched[0].pos2d[0] || result.pos2D.y !== t2.bestMatched[0].pos2d[1]) {
-          console.log("INCORRECT best match pos2D", result, t2.bestMatched);
-        }
-        if (!window.cmp(result.pos3D.x, t2.bestMatched[0].pos3d[0]) || !window.cmp(result.pos3D.y, t2.bestMatched[0].pos3d[1])) {
-          console.log("INCORRECT best match pos3D", result, t2.bestMatched);
+        if (t2.bestMatched.length === 0) {
+          console.log("INCORRECT best match", result, t2.bestMatched);
+        } else {
+          if (result.pos2D.x !== t2.bestMatched[0].pos2d[0] || result.pos2D.y !== t2.bestMatched[0].pos2d[1]) {
+            console.log("INCORRECT best match pos2D", result, t2.bestMatched);
+          }
+          if (!window.cmp(result.pos3D.x, t2.bestMatched[0].pos3d[0]) || !window.cmp(result.pos3D.y, t2.bestMatched[0].pos3d[1])) {
+            console.log("INCORRECT best match pos3D", result, t2.bestMatched);
+          }
         }
       }
-
     }
 
     if (result === null) continue;
     if (result.sim <= AR2_SIM_THRESH) continue;
 
-    selectedFeatures.push(result);
+    selectedFeatures.push(Object.assign({level: candidates[k].level, num: candidates[k].num}, result));
 
     num += 1;
     //if (num === 5) num = 0;
@@ -196,14 +220,9 @@ const track = ({projectionTransform, featureSets, imageList, modelViewTransform,
     }
   }
 
-  // remember selected features for next frame
-  // TODO handle
-  //tracker.prevFeatures = [];
-  for (let i = 0; i < selectedFeatures.length; i++) {
-  //  tracker.prevFeatures.push(selectedFeatures[i]);
+  if (selectedFeatures.length < 4) {
+    return {modelViewTransform, selectedFeatures};
   }
-
-  if (selectedFeatures.length < 4) return modelViewTransform;
 
   const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
   let err = null;
@@ -234,7 +253,11 @@ const track = ({projectionTransform, featureSets, imageList, modelViewTransform,
       break;
     }
   }
-  return finalModelViewTransform;
+
+  return {
+    modelViewTransform: finalModelViewTransform,
+    selectedFeatures
+  }
 };
 
 const _computeUpdatedTran = ({modelViewTransform, projectionTransform, selectedFeatures, inlierProb}) => {
@@ -288,7 +311,7 @@ const _computeUpdatedTran = ({modelViewTransform, projectionTransform, selectedF
   return {err: ret.err, newModelViewTransform};
 };
 
-const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewProjectionTransform, candidate}) => {
+const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewProjectionTransform, candidate, prevModelViewProjectionTransforms}) => {
   if (window.DEBUG_TRACK) {
     window.debug.trackingSubIndex += 1;
     window.debug.trackingMatchingSumIndex = -1;
@@ -297,7 +320,10 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
   if (window.DEBUG_TRACK) {
     const t1 = {level: candidate.level, num: candidate.num, candidate};
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
-    console.log("tracking2d", t1, t2);
+    //console.log("tracking2d", t1, t2);
+    if (!window.cmp(t1.candidate.sx, t2.sx) || !window.cmp(t1.candidate.sy, t2.sy)) {
+      console.log("INCORRECT tracking 2dsub candidate", t1.candidate, t2);
+    }
   }
 
   const image = imageList[candidate.level];
@@ -324,20 +350,42 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
   if (templateVlen * templateVlen < tsize * tsize * AR2_DEFAULT_TRACKING_SD_THRESH * AR2_DEFAULT_TRACKING_SD_THRESH) return;
 
   // search points
+  const us = [];
   const search = [];
-  const u = computeScreenCoordiate(modelViewProjectionTransform, mx, my, 0);
-  const sx = u.x;
-  const sy = u.y;
-  search.push([ Math.floor(sx), Math.floor(sy)]);
+  for (let i = 0; i < prevModelViewProjectionTransforms.length; i++) {
+    const u = computeScreenCoordiate(prevModelViewProjectionTransforms[i], mx, my, 0);
+    us.push([u.x, u.y]);
+  }
+  for (let i = prevModelViewProjectionTransforms.length-1; i >= 0; i--) {
+    if (i + 2 < prevModelViewProjectionTransforms.length) {
+      const p1 = us[i+2];
+      const p2 = us[i+1];
+      const p = us[i];
+      search.push([
+        Math.floor(3 * p1[0] - 3 * p2[0] + p[0]),
+        Math.floor(3 * p1[1] - 3 * p2[1] + p[1]),
+      ]);
+    } else if (i + 1 < prevModelViewProjectionTransforms.length) {
+      const p1 = us[i+1];
+      const p = us[i];
+      search.push([
+        Math.floor(2 * p1[0] - p[0]),
+        Math.floor(2 * p1[1] - p[1]),
+      ]);
+
+    } else {
+      const p = us[i];
+      search.push([
+        Math.floor(p[0]),
+        Math.floor(p[1])
+      ]);
+    }
+  }
 
   if (window.DEBUG_TRACK) {
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
-    console.log("search 0", search[0], t2.search);
+    console.log("search", mx, my, search, t2.search);
   }
-
-
-  // TODO previous two frames
-  //console.log("search point", search, debugSub.search);
 
   // get best matching
   const mfImage = [];
@@ -597,7 +645,7 @@ const _setTemplate = ({image, dpi, modelViewProjectionTransform, mx, my}) => {
   }
 }
 
-const _selectTemplate = ({pos, prevFeatures, candidates, num, xsize, ysize, randomizer}) => {
+const _selectTemplate = ({pos, prevSelectedFeatures, candidates, num, xsize, ysize, randomizer}) => {
   if (num === 0) {
     let dmax = 0.0;
     let index = -1;
@@ -705,13 +753,12 @@ const _selectTemplate = ({pos, prevFeatures, candidates, num, xsize, ysize, rand
     return index;
   }
   else {
-    for (let i = 0; i < prevFeatures.length; i++) {
+    for (let i = 0; i < prevSelectedFeatures.length; i++) {
       for (let j = 0; j < candidates.length; j++) {
         if (candidates[j].flag) continue;
 
-        if (prevFeatures[i].snum === candidates[j].snum
-          && prevFeatures[i].level === candidates[j].level
-          && prevFeatures[i].num === candidates[j].num) {
+        if (prevSelectedFeatures[i].level === candidates[j].level
+          && prevSelectedFeatures[i].num === candidates[j].num) {
           return j;
         }
       }

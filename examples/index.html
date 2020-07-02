@@ -4,32 +4,63 @@
     <script src="https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js"></script>
     <script src="../dist/mindar.js"></script>
     <script>
+      window.DEBUG_MATCH = true;
+      //window.DEBUG_TIME = true;
+      window.DEBUG_MATCH = false;
+      window.DEBUG_TRACK = true;
+      //window.DEBUG_TRACK = false;
+      window.debug = {};
+
       const EPSILON = 0.0001;
-      const cmp = (a, b) => {return Math.abs(a-b) < EPSILON};
+      const cmp = (a, b, ep) => {
+        if (ep) return Math.abs(a-b) < ep;
+        if (a === 0 && b === 0) return true;
+        return Math.abs(a-b) / Math.abs(a) < 0.01; // 1% error
+        //return Math.abs(a-b) < (ep? ep: EPSILON)
+      };
       const cmpObj = (a, b, keys) => {
+        if (!!a !== !!b) return false;
         for (let i = 0; i < keys.length; i++) {
           const key = keys[i];
-          if (!cmp(a[key], b[key])) return false;
+          if (!cmp(a[key], b[key])) {
+            console.log("cmp obj false", key);
+            return false;
+          }
         }
         return true;
       };
-
-      const _getGreyImage = (image) => {
-        const greyImage = {
-          width: image.width,
-          height: image.height,
-          data: []
+      const cmp2DArray = (a, b, ep) => {
+        if (!!a !== !!b) return false;
+        if (!!a) {
+          if (a.length !== b.length) return false;
+          for (let i = 0; i < a.length; i++) {
+            if (a[i] === null && b[i] === null) continue;
+            if (!cmpArray(a[i], b[i], ep)) return false;
+          }
         }
-        for (let i = 0; i < image.data.length; i+=4) {
-          greyImage.data.push( Math.floor((image.data[i] + image.data[i+1] + image.data[i+2]) / 3));
+        return true;
+      };
+      const cmpArray = (a, b, ep) => {
+        if (!!a !== !!b) return false;
+        if (!!a) {
+          if (a.length !== b.length) return false;
+          for (let i = 0; i < a.length; i++) {
+            if (a[i] === null && b[i] === null) continue;
+            if (!cmp(a[i], b[i], ep)) {
+              console.log("cmp array false", i);
+              return false;
+            }
+          }
         }
-        return greyImage;
+        return true;
       }
+      window.cmp = cmp;
+      window.cmpObj = cmpObj;
+      window.cmpArray = cmpArray;
+      window.cmp2DArray = cmp2DArray;
 
       const getGreyImage = (image) => {
         const _greyImage = image.grey({algorithm: "average"});
-        console.log("_grey", _greyImage);
-
         const greyImage = {
           width: _greyImage.width,
           height: _greyImage.height,
@@ -41,34 +72,69 @@
         return greyImage;
       }
 
+      //const pw = 320;
+      //const ph = 240;
+      const pw = 640;
+      const ph = 480;
+      //const pw = 800;
+      //const ph = 1001;
+
       document.addEventListener('DOMContentLoaded', function(event) {
         async function process() {
-          const filename = 'card3';
-          const f = await fetch('./assets/debugGen_' + filename + '.txt');
-          const debugContent = JSON.parse(await f.text());
-          console.log("d", debugContent);
+          const queryfilename = 'card7_2';
+          const queryfilename2 = 'card7_2';
+          const msp = await fetch('./assets/debugMatch_' + queryfilename + '_' + ph + '_p1.msp');
+          const msp2 = await fetch('./assets/debugMatch_' + queryfilename + '_' + ph + '_p2.msp');
+          const msp3 = await fetch('./assets/debugMatch_' + queryfilename + '_' + ph + '_p3.msp');
+          const msp4 = await fetch('./assets/debugMatch_' + queryfilename + '_' + ph + '_p4.msp');
+          const msp5 = await fetch('./assets/debugMatch_' + queryfilename + '_' + ph + '_p5.msp');
+          const debugMatch = msgpack.decode(new Uint8Array(await msp.arrayBuffer()));
+          const debugMatch2 = msgpack.decode(new Uint8Array(await msp2.arrayBuffer()));
+          const debugMatch3 = msgpack.decode(new Uint8Array(await msp3.arrayBuffer()));
+          const debugMatch4 = msgpack.decode(new Uint8Array(await msp4.arrayBuffer()));
+          const debugMatch5 = msgpack.decode(new Uint8Array(await msp5.arrayBuffer()));
+          window.allDebugMatches = [debugMatch, debugMatch2, debugMatch3, debugMatch4, debugMatch5];
+          window.debugMatch = debugMatch;
 
-          //const pw = 640;
-          //const ph = 480;
-          const pw = 320;
-          const ph = 240;
+          const filename = 'card7';
+          const compiledMSP = await fetch('./assets/' + filename + '.msp');
+          const compiled = msgpack.decode(new Uint8Array(await compiledMSP.arrayBuffer()));
 
-          let targetImage = await IJS.Image.load('./assets/card.png');
-          let queryImage = await IJS.Image.load('./assets/test.png');
-          queryImage.resize({width: pw, height: ph});
+          var controller = new MINDAR.Controller(pw, ph);
+          controller.addImageTarget({type: 'compiled', input: compiled});
 
-          //document.getElementById('target-image').src = targetImage.toDataURL();
-          document.getElementById('test-image').src = queryImage.toDataURL();
-
-          //const greyTargetImage = getGreyImage(targetImage);
+          let queryImage = await IJS.Image.load('./assets/' + queryfilename + '.png');
+          queryImage = queryImage.resize({width: pw, height: ph});
+          document.getElementById('query-image').src = queryImage.toDataURL();
           const greyQueryImage = getGreyImage(queryImage);
 
-          const msp = await fetch('./assets/' + filename + '.msp');
-          const buffer = await msp.arrayBuffer();
-          const compiled = msgpack.decode(new Uint8Array(buffer));
-          const featureSets = compiled.trackingData.featureSets;
+          let queryImage2 = await IJS.Image.load('./assets/' + queryfilename2 + '.png');
+          queryImage2 = queryImage.resize({width: pw, height: ph});
+          document.getElementById('query-image').src = queryImage2.toDataURL();
+          const greyQueryImage2 = getGreyImage(queryImage2);
 
-          console.log("compiled", compiled);
+          var _start = new Date().getTime();
+          const res = controller.process(greyQueryImage);
+          var _end = new Date().getTime();
+          console.log('exec time compile Image: ', _start, _end, _end - _start);
+
+          console.log("2 AR PROCESS....");
+          window.debugMatch = debugMatch2;
+          const res2 = controller.process(greyQueryImage2);
+
+          console.log("3 AR PROCESS....");
+          window.debugMatch = debugMatch3;
+          const res3 = controller.process(greyQueryImage);
+
+          console.log("4 AR PROCESS....");
+          window.debugMatch = debugMatch4;
+          const res4 = controller.process(greyQueryImage2);
+
+          console.log("5 AR PROCESS....");
+          window.debugMatch = debugMatch5;
+          const res5 = controller.process(greyQueryImage);
+          return;
+
           console.log("feature set count", featureSets.length, 'vs', debugContent.featureSets.length);
           for (let i = 0; i < featureSets.length; i++) {
             const f1 = featureSets[i];
@@ -138,12 +204,6 @@
     </script>
   </head>
   <body>
-    <img id="target-image"/>
-    <img id="test-image"/>
-    <img id="test-image2" src="./assets/test.png"/>
-
-    <br/>
-    Canvas
-    <canvas id="canvas"></canvas>
+    <img id="query-image"/>
   </body>
 </html>

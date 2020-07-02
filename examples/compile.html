@@ -19,18 +19,8 @@
         return true;
       };
       window.cmpObj = cmpObj;
+      window.cmp = cmp;
 
-      const _getGreyImage = (image) => {
-        const greyImage = {
-          width: image.width,
-          height: image.height,
-          data: []
-        }
-        for (let i = 0; i < image.data.length; i+=4) {
-          greyImage.data.push( Math.floor((image.data[i] + image.data[i+1] + image.data[i+2]) / 3));
-        }
-        return greyImage;
-      }
       const getGreyImage = (image) => {
         const _greyImage = image.grey({algorithm: "average"});
         const greyImage = {
@@ -46,15 +36,13 @@
 
       document.addEventListener('DOMContentLoaded', function(event) {
         async function process() {
-          const filename = 'card8';
-          //const f = await fetch('./assets/debugGen_' + filename + '.txt');
-          //const debugContent = JSON.parse(await f.text());
+          const filename = 'card2';
           const msp = await fetch('./assets/debugGen_' + filename + '.msp');
           const debugContent = msgpack.decode(new Uint8Array(await msp.arrayBuffer()));
-
           window.debugContent = debugContent;
 
           let targetImage = await IJS.Image.load('./assets/' + filename + '.png');
+          //targetImage = targetImage.resize({width: 640, height: 480});
           document.getElementById('target-image').src = targetImage.toDataURL();
           const greyTargetImage = getGreyImage(targetImage);
 
@@ -62,22 +50,19 @@
           var data = MINDAR.Utils.compileImageTarget(greyTargetImage);
           var _end = new Date().getTime();
           console.log('exec time compile Image: ', _start, _end, _end - _start);
-          console.log("d", debugContent, 'vs', data);
 
-          return;
-
-          // verify image list
-          const imageList = data.imageList;
-          console.log("image set count", imageList.length, 'vs', debugContent.imageSets.length);
           for (let i = 0; i < data.imageList.length; i++) {
-            const i1 = data.imageList[i];
-            const i2 = debugContent.imageSets[i];
-            for (let j = 0; j < i1.data.length; j++) {
-              if (i1.data[j] !== i2[j]) console.log("INCORRECT image", i, j, i1.data[j], i2[j]);
+            const i1 = data.imageList[i].data;
+            const i2 = window.debugContent.imageSets[i];
+            console.log("image size", i, i1.length, i2.length);
+            for (let j = 0; j < i1.length; j++) {
+              if (i1[j] !== i2[j]) {
+                console.log("INCORRECT image pixel", i, j, i1[j], i2[j]);
+              }
             }
           }
-          //return;
 
+          /*
           const featureSets = data.trackingData.featureSets;
           console.log("feature set count", featureSets.length, 'vs', debugContent.featureSets.length);
           for (let i = 0; i < featureSets.length; i++) {
@@ -94,7 +79,9 @@
               //console.log("featureset coord", f1.coords[j], f2.coords[j]);
             }
           }
-          return;
+          */
+          console.log("compiled data", data);
+          //return;
 
           var buffer = msgpack.encode(data);
           var blob = new Blob([buffer], {type: 'text/plain'});
