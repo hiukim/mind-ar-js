@@ -1,8 +1,10 @@
 <html>
   <head>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
     <script src="https://www.lactame.com/lib/image-js/0.21.2/image.min.js"></script> 
     <script src="https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js"></script>
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
     <script src="../dist/mindar.js"></script>
     <script>
       const getGreyImage = (image) => {
@@ -33,7 +35,7 @@
         },
 
         tick: function() {
-          if (this.uiStats) this.uiStats.update();
+          if (this.mainStats) this.mainStats.update();
 
           if (this.processReady) {
             if (!this.processingImage) {
@@ -52,7 +54,21 @@
 
         start: function() {
           this.container = this.el.sceneEl.parentNode;
+          this.mainStats = new Stats();
+          this.mainStats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+          this.mainStats.domElement.style.cssText = 'position:absolute;top:0px;left:0px;z-index:999';
+          this.workerStats = new Stats();
+          this.workerStats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+          this.workerStats.domElement.style.cssText = 'position:absolute;top:0px;left:80px;z-index:999';
+
+          this.container.appendChild(this.mainStats.domElement);
+          this.container.appendChild(this.workerStats.domElement);
+
           this._startVideo();
+        },
+        stop: function() {
+          this.processReady = false;
+          this.video.pause();
         },
 
         _startVideo: function() {
@@ -101,7 +117,9 @@
         },
 
         _startAR: async function() {
-          this.controller = new MINDAR.Controller(this.AR_PROCESS_WIDTH, this.AR_PROCESS_HEIGHT);
+          this.controller = new MINDAR.Controller({});
+          //this.controller = new MINDAR.Controller({useworker: false});
+          await this.controller.setup(this.AR_PROCESS_WIDTH, this.AR_PROCESS_HEIGHT);
 
           const proj = this.controller.getProjectionMatrix();
           const fov = 2 * Math.atan(1/proj[5]) * 180 / Math.PI; // vertical fov
@@ -126,21 +144,13 @@
           processCanvas.width = pw;
           processCanvas.height = ph;
 
-          //let targetImage = await IJS.Image.load('./assets/card.png');
-          //const greyTargetImage = getGreyImage(targetImage);
-          //this.controller.addImageTarget({type: 'image', input: greyTargetImage});
-
-          fetch('./assets/card.msp')
-            .then(response => response.arrayBuffer())
-            .then(buffer => {
-              var compiled = msgpack.decode(new Uint8Array(buffer));
-              console.log("compiled", compiled);
-              this.controller.addImageTarget({type: 'compiled', input: compiled});
-              this.processReady = true;
-            });
+          const compiledMSP = await fetch('./assets/card1.msp');
+          const compiled = msgpack.decode(new Uint8Array(await compiledMSP.arrayBuffer()));
+          await this.controller.addImageTarget({type: 'compiled', input: compiled});
+          this.processReady = true;
         },
 
-        _processImage() {
+        _processImage: async function() {
           const {vw, vh, pw, ph, cw, ch, cx, cy, sw, sh, sx, sy, tw, th, tx, ty} = this.sizes;
 
           const processContext = this.workerProcessContext;
@@ -153,14 +163,14 @@
           for (let i = 0; i < imageData.data.length; i += 4) {
             greyImageData.push(Math.floor((imageData.data[i]+imageData.data[i+1]+imageData.data[i+2])/3));
           }
-          console.log("process data", greyImageData);
+          //console.log("process data", greyImageData);
 
           var _start = new Date().getTime();
-          const result = this.controller.process({data: greyImageData, width: pw, height: ph});
+          const result = await this.controller.process({data: greyImageData, width: pw, height: ph});
           var _end = new Date().getTime();
           console.log('exec time process Image: ', _start, _end, _end - _start);
 
-          console.log("result: ", result);
+          //console.log("result: ", result);
           for (let i = 0; i < this.anchorEntities.length; i++) {
             this.anchorEntities[i].updateWorldMatrix(result[i].worldMatrix);
           }
@@ -229,14 +239,13 @@
             cx = (cw - container.clientWidth) / 2;
           }
 
-
           const sizes = {
             vw, vh, pw, ph,
             cw, ch, cx, cy,
             sw, sh, sx, sy, tw, th, tx, ty
           }
 
-          console.log('recompute sizes: ', sizes);
+          //console.log('recompute sizes: ', sizes);
           this.sizes = sizes;
         }
       });
@@ -251,7 +260,7 @@
         init: function() {
           const arSystem = this.el.sceneEl.systems['ar-system'];
           this.el.sceneEl.addEventListener('renderstart', () => {
-            arSystem.start();
+            // arSystem.start();
           });
         }
       });
@@ -302,6 +311,22 @@
       });
     </script>
 
+    <script>
+      $(document).ready(function() {
+        let started = false;
+        $("#playButton").click(() => {
+          const sceneEl = document.querySelector('a-scene');
+          const arSystem = sceneEl.systems['ar-system'];
+          if (!started) {
+            arSystem.start();
+            started = true;
+          } else {
+            arSystem.stop();
+          }
+        });
+      });
+    </script>
+
     <style>
       body {
         margin: 0;
@@ -315,10 +340,11 @@
     </style>
   </head>
   <body>
+    <button id="playButton">Play</button>
     <div class="displayAR-container">
       <a-scene ar embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false">
         <a-assets>
-          <img id="card" src="./assets/card.png" />
+          <img id="card" src="./assets/card1.png" />
         </a-assets>
 
         <a-entity ar-nft-anchor>

@@ -206,7 +206,7 @@ const _condition4Points2d = ({x1, x2, x3, x4}) => {
 }
 
 const _solveHomographyFourPoints = ({srcPoints, dstPoints}) => {
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     window.debug.homographyIndex += 1;
     const dHomography = window.debugMatch.querykeyframes[window.debug.querykeyframeIndex].homography[window.debug.homographyIndex];
     const {x1, x2, x3, x4, xp1, xp2, xp3, xp4} = dHomography;
@@ -223,7 +223,7 @@ const _solveHomographyFourPoints = ({srcPoints, dstPoints}) => {
 
   if (res1 === null) return null;
 
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     const dHomography = window.debugMatch.querykeyframes[window.debug.querykeyframeIndex].homography[window.debug.homographyIndex];
     const {x1p, x2p, x3p, x4p, t, s} = dHomography;
     const l1 = [res1.xp1, res1.xp2, res1.xp3, res1.xp4, res1.t];
@@ -241,7 +241,7 @@ const _solveHomographyFourPoints = ({srcPoints, dstPoints}) => {
   const res2 = _condition4Points2d({x1: dstPoints[0], x2: dstPoints[1], x3: dstPoints[2], x4: dstPoints[3]});
   if (res2 === null) return null;
 
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     const dHomography = window.debugMatch.querykeyframes[window.debug.querykeyframeIndex].homography[window.debug.homographyIndex];
     const {xp1p, xp2p, xp3p, xp4p, tp, sp} = dHomography;
     const l1 = [res2.xp1, res2.xp2, res2.xp3, res2.xp4, res2.t];
@@ -265,7 +265,7 @@ const _solveHomographyFourPoints = ({srcPoints, dstPoints}) => {
 
   if (Math.abs(determinant(Hn)) < 0.00001) return null;
 
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     const dHomography = window.debugMatch.querykeyframes[window.debug.querykeyframeIndex].homography[window.debug.homographyIndex];
     const dHn = dHomography.Hn;
     if (!window.cmpArray(Hn, dHn, 0.001)) {
@@ -348,7 +348,7 @@ const _solveHomography4PointsInhomogenous = ({x1, x2, x3, x4, xp1, xp2, xp3, xp4
     A[offset+17] = xp[1];
   }
 
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     const dA = window.debugMatch.querykeyframes[window.debug.querykeyframeIndex].homography[window.debug.homographyIndex].A;
     if (!window.cmpArray(A, dA)) {
       console.log("INCORRECT A", window.debug.querykeyframeIndex, window.debug.homographyIndex, A, dA);
@@ -413,7 +413,7 @@ const _solveHomography4PointsInhomogenous = ({x1, x2, x3, x4, xp1, xp2, xp3, xp4
     }
   }
 
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     const dQ = window.debugMatch.querykeyframes[window.debug.querykeyframeIndex].homography[window.debug.homographyIndex].Q8;
     if (!window.cmpArray(Q, dQ, 0.001)) {
       console.log("INCORRECT Q8", window.debug.querykeyframeIndex, window.debug.homographyIndex, Q, dQ);
@@ -450,7 +450,7 @@ const _solveHomography4PointsInhomogenous = ({x1, x2, x3, x4, xp1, xp2, xp3, xp4
     }
   }
 
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     const dX = window.debugMatch.querykeyframes[window.debug.querykeyframeIndex].homography[window.debug.homographyIndex].X;
     const dw = window.debugMatch.querykeyframes[window.debug.querykeyframeIndex].homography[window.debug.homographyIndex].w;
     if (!window.cmpArray(X, dX, 0.01)) {

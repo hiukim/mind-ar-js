@@ -19,7 +19,7 @@ class Tracker {
   }
 
   track(targetImage) {
-    const {modelViewTransform, selectedFeatures} = track({
+    const result = track({
       projectionTransform: this.projectionTransform,
       featureSets: this.featureSets,
       prevResults: this.prevResults,
@@ -28,17 +28,19 @@ class Tracker {
       targetImage,
     });
 
-    this.prevResults.push({
-      modelViewTransform: modelViewTransform,
-      selectedFeatures: selectedFeatures
-    });
-
-    if (this.prevResults.length > 3) {
-      this.prevResults.shift();
+    if (result !== null) {
+      this.prevResults.push(result);
+      if (this.prevResults.length > 3) {
+        this.prevResults.shift();
+      }
+    } else {
+      this.prevResults = [];
     }
   }
 
   getLatest() {
+    if (this.prevResults.length === 0) return null;
+
     return this.prevResults[this.prevResults.length-1].modelViewTransform;
   }
 }

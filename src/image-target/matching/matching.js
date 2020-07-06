@@ -17,10 +17,10 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
     const keyframe = keyframes[i];
     const keypoints = keyframe.points;
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       window.debug.querykeyframeIndex = i;
     }
-    if (window.DEBUG_TIME) {
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       var _start = new Date().getTime();
     }
 
@@ -54,7 +54,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
         matches.push({querypointIndex: j, keypointIndex: bestIndex});
       }
 
-      if (window.DEBUG_MATCH) {
+      if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
         if (!window.debug.queryMatchIndex) window.debug.queryMatchIndex = 0;
         const dMatch = window.debugMatch.matches[window.debug.queryMatchIndex];
         if (bestIndex === -1) {
@@ -70,11 +70,11 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
 
-    if (window.DEBUG_TIME) {
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until first match: ', new Date().getTime() - _start);
     }
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       const dMatches = window.debugMatch.querykeyframes[i].matches1;
       console.log("matches 1", matches.length, dMatches.length);
       if (matches.length !== dMatches.length) {
@@ -101,11 +101,11 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       matches,
     });
 
-    if (window.DEBUG_TIME) {
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until first hough match: ', new Date().getTime() - _start);
     }
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       const dMatches = window.debugMatch.querykeyframes[i].houghMatches1;
       console.log("hough matches 1", houghMatches.length, dMatches.length);
       if (houghMatches.length !== dMatches.length) {
@@ -127,7 +127,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       dstPoints.push([ querypoint.x2D, querypoint.y2D ]);
     }
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       window.debug.homographyIndex = -1; // +1 at start
     }
 
@@ -137,11 +137,11 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       keyframe,
     });
 
-    if (window.DEBUG_TIME) {
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until first Homography: ', new Date().getTime() - _start);
     }
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       const dH = window.debugMatch.querykeyframes[i].H1;
       if (!window.cmpArray(H, dH, 0.001)) {
         console.log("INCORRECT H1", i, H, dH);
@@ -158,7 +158,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       threshold: INLIER_THRESHOLD
     });
 
-    if (window.DEBUG_TIME) {
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until first inlier matches: ', new Date().getTime() - _start);
     }
 
@@ -166,7 +166,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       continue;
     }
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       const dMatches = window.debugMatch.querykeyframes[i].inlierMatches1;
       console.log("inlier matches 1", inlierMatches.length, dMatches.length);
       if (inlierMatches.length !== dMatches.length) {
@@ -215,11 +215,11 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
 
-    if (window.DEBUG_TIME) {
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until second matches: ', new Date().getTime() - _start);
     }
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       const dMatches = window.debugMatch.querykeyframes[i].matches2;
       console.log("matches 2", matches2.length, dMatches.length);
       if (matches2.length !== dMatches.length) {
@@ -242,7 +242,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       matches: matches2,
     });
 
-    if (window.DEBUG_TIME) {
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until second hough matches: ', new Date().getTime() - _start);
     }
 
@@ -261,14 +261,14 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       keyframe
     });
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       const dH = window.debugMatch.querykeyframes[i].H2;
       if (!window.cmpArray(H2, dH, 0.0001)) {
         console.log("INCORRECT H2", i, H2, dH);
       }
     }
 
-    if (window.DEBUG_TIME) {
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until second homography: ', new Date().getTime() - _start);
     }
 
@@ -282,7 +282,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       threshold: INLIER_THRESHOLD
     });
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       const dMatches = window.debugMatch.querykeyframes[i].inlierMatches2;
       console.log("inlier matches 2", inlierMatches2.length, dMatches.length);
       if (inlierMatches2.length !== dMatches.length) {
@@ -295,7 +295,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
 
-    if (window.DEBUG_TIME) {
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until second inlier matches: ', new Date().getTime() - _start);
     }
 

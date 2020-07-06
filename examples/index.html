@@ -100,8 +100,13 @@
           const compiledMSP = await fetch('./assets/' + filename + '.msp');
           const compiled = msgpack.decode(new Uint8Array(await compiledMSP.arrayBuffer()));
 
-          var controller = new MINDAR.Controller(pw, ph);
-          controller.addImageTarget({type: 'compiled', input: compiled});
+          console.log("create controller");
+          var controller = new MINDAR.Controller({useworker: true});
+          console.log("controller", controller);
+          await controller.setup(pw, ph);
+          console.log("controller setup");
+
+          await controller.addImageTarget({type: 'compiled', input: compiled});
 
           let queryImage = await IJS.Image.load('./assets/' + queryfilename + '.png');
           queryImage = queryImage.resize({width: pw, height: ph});
@@ -114,25 +119,39 @@
           const greyQueryImage2 = getGreyImage(queryImage2);
 
           var _start = new Date().getTime();
-          const res = controller.process(greyQueryImage);
+          const res = await controller.process(greyQueryImage);
           var _end = new Date().getTime();
-          console.log('exec time compile Image: ', _start, _end, _end - _start);
+          console.log('exec time process 1: ', _start, _end, _end - _start);
 
+          return;
+
+          var _start = new Date().getTime();
           console.log("2 AR PROCESS....");
           window.debugMatch = debugMatch2;
           const res2 = controller.process(greyQueryImage2);
+          var _end = new Date().getTime();
+          console.log('exec time process 2: ', _start, _end, _end - _start);
 
+          var _start = new Date().getTime();
           console.log("3 AR PROCESS....");
           window.debugMatch = debugMatch3;
           const res3 = controller.process(greyQueryImage);
+          var _end = new Date().getTime();
+          console.log('exec time process 3: ', _start, _end, _end - _start);
 
+          var _start = new Date().getTime();
           console.log("4 AR PROCESS....");
           window.debugMatch = debugMatch4;
           const res4 = controller.process(greyQueryImage2);
+          var _end = new Date().getTime();
+          console.log('exec time process 4: ', _start, _end, _end - _start);
 
+          var _start = new Date().getTime();
           console.log("5 AR PROCESS....");
           window.debugMatch = debugMatch5;
           const res5 = controller.process(greyQueryImage);
+          var _end = new Date().getTime();
+          console.log('exec time process 5: ', _start, _end, _end - _start);
           return;
 
           console.log("feature set count", featureSets.length, 'vs', debugContent.featureSets.length);

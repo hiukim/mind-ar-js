@@ -48,7 +48,7 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
   const ATAInv = inverse(ATA);
   const C = ATAInv.mmul(ATB).to1DArray();
 
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     for (let j = 0; j < A.data.length; j++) {
       for (let i = 0; i < A.data[j].length; i++) {
         if (!window.cmp(A.data[j][i], window.debugMatch.matA[j][i], 0.1)) {
@@ -75,7 +75,7 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
   const _KInvH = KInv.mmul(H);
   const KInvH = _KInvH.to1DArray();
 
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     const dv = window.debugMatch.v;
     const dt = window.debugMatch.t;
     const dKInvH = [
@@ -129,7 +129,7 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
     [rotate[6], rotate[7], rotate[8], tran[2]]
   ];
 
-  if (window.DEBUG_MATCH) {
+  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
     console.log("initialModelViewTransform", initialModelViewTransform, window.debugMatch.initMatXw2Xc);
     for (let j = 0; j < initialModelViewTransform.length; j++) {
       for (let i = 0; i < initialModelViewTransform[j].length; i++) {

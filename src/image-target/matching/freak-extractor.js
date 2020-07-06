@@ -93,7 +93,7 @@ const extract = (options) => {
   const descriptors = [];
   for (let p = 0; p < points.length; p++) {
 
-    if (window.DEBUG) {
+    if (typeof window !== 'undefined' && window.DEBUG) {
       if (window.debugFreakSampleIndex === undefined) window.debugFreakSampleIndex = -1;
       window.debugFreakSampleIndex += 1;
     }
@@ -160,7 +160,7 @@ const extract = (options) => {
 
         samples.push(value);
 
-        if (window.DEBUG) {
+        if (typeof window !== 'undefined' && window.DEBUG) {
           if (window.debug.keyframeIndex === 2 && p === 424) {
             const sampleIndex = samples.length-1;
             const dSamples = window.debugContent.freakSamples[window.debugFreakSampleIndex];
@@ -178,7 +178,7 @@ const extract = (options) => {
         //desc.push(samples[i] < samples[j]);
         desc.push(samples[i] < samples[j] + 0.0001);
 
-        if (window.DEBUG) {
+        if (typeof window !== 'undefined' && window.DEBUG) {
           //if (window.debug.keyframeIndex === 2 && p === 424) {
             if (i === 0 && j === 1) window.debugCompareFreakIndex = 0;
             const dCompare = window.debugContent.compareFreak[window.debugFreakSampleIndex];

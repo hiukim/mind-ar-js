@@ -7,5 +7,18 @@ module.exports = {
   output: {
     filename: 'mindar.js',
     path: path.resolve(__dirname, 'dist'),
+    publicPath: '/~hiukim/projects/WebCards/mind-ar-js/dist/'
   },
+  module: {
+    rules: [
+      {
+        test: /\.worker\.js$/,
+        use: {
+          loader: 'worker-loader',
+          options: { name: 'worker.js' },
+        },
+        //options: { name: 'WorkerName.[hash].js' },
+      },
+    ],
+  }
 };

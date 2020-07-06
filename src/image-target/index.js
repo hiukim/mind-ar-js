@@ -39,25 +39,25 @@ class ImageTarget {
 
     if (!this.isTracking) {
       const matchResult = this.matcher.match(processImage);
-      console.log("match result", matchResult);
+      //console.log("match result", matchResult);
       if (matchResult === null) return null;
 
       const {screenCoords, worldCoords} = matchResult;
       const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
-      console.log("initial matched model view transform", initialModelViewTransform);
+      //console.log("initial matched model view transform", initialModelViewTransform);
       if (initialModelViewTransform === null) return null;
 
       // TODO: maybe don't this refineHomography. result seems worse when the detected size is big
       const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
 
-      if (window.DEBUG_MATCH) {
+      if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
         console.log("refine err", err);
         console.log("refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
         if (!window.cmp2DArray(refinedModelViewTransform, window.debugMatch.camPose, 0.0001)) {
           console.log("INCORRECT ICP refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
         }
       }
-      console.log("initial refined model view transform", refinedModelViewTransform);
+      //console.log("initial refined model view transform", refinedModelViewTransform);
 
       this.isTracking = true;
       this.tracker.detected(refinedModelViewTransform);
@@ -68,7 +68,10 @@ class ImageTarget {
     }
 
     const updatedModelViewTransform = this.tracker.getLatest();
-    console.log("tracking updated model view transform", updatedModelViewTransform);
+    //console.log("tracking updated model view transform", updatedModelViewTransform);
+    if (updatedModelViewTransform === null) {
+      this.isTracking = false;
+    }
 
     return updatedModelViewTransform;
     //return initialModelViewTransform;

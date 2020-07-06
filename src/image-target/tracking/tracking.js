@@ -23,25 +23,10 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     prevModelViewProjectionTransforms.push(t);
   }
 
-  if (window.DEBUG_TRACK) {
-    /*
-    const wTran1 = prevResults[prevModelViewProjectionTransforms.length-1].modelViewTransform;
-    if(!window.cmp2DArray(wTran1, window.debugMatch.wTrans1[0])) {
-      console.log("INCORRECT wtran1", wTran1, window.debugMatch.wTrans1[0]);
-    }
-    if (prevModelViewProjectionTransforms.length > 1) {
-      const wTran2 = prevResults[prevModelViewProjectionTransforms.length-2].modelViewTransform;
-      if(!window.cmp2DArray(wTran2, window.debugMatch.wTrans2[0])) {
-        console.log("INCORRECT wtran2", wTran2, window.debugMatch.wTrans2[0]);
-      }
-    }
-    */
-  }
-
   const modelViewTransform = prevResults[prevResults.length-1].modelViewTransform;
   const modelViewProjectionTransform = prevModelViewProjectionTransforms[prevModelViewProjectionTransforms.length-1];
 
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     window.debug.trackFeatureIndex = -1;
     window.debug.trackingSubIndex = -1;
     window.debug.templateComputeIndex = -1;
@@ -57,13 +42,13 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       const u = computeScreenCoordiate(modelViewProjectionTransform, mx, my, 0);
       if (u === null) continue;
 
-      if (window.DEBUG_TRACK) {
+      if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         window.debug.trackFeatureIndex += 1;
       }
 
       const {x: sx, y: sy} = u;
 
-      if (window.DEBUG_TRACK) {
+      if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         const f1 = {mx, my, sx, sy, maxdpi, mindpi};
         const f2 = window.debugMatch.trackFeatures[window.debug.trackFeatureIndex];
         if (!window.cmpObj(f1, f2, ['mx', 'my', 'sx', 'sy', 'maxdpi', 'mindpi'])) {
@@ -90,7 +75,7 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       vdir[2] /= vlen;
       const vdirValue = vdir[0]*modelViewTransform[0][2] + vdir[1]*modelViewTransform[1][2] + vdir[2]*modelViewProjectionTransform[2][2];
 
-      if (window.DEBUG_TRACK) {
+      if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         const v1 = [vdir[0], vdir[1], vdir[2], vdirValue];
         const v2 = window.debugMatch.trackFeatures[window.debug.trackFeatureIndex].vdir;
         if (!window.cmpArray(v1, v2)) {
@@ -113,7 +98,7 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
         dpi[1] = Math.sqrt(d2) * 2.54;
       }
 
-      if (window.DEBUG_TRACK) {
+      if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         const v1 = [dpi[0], dpi[1]];
         const v2 = window.debugMatch.trackFeatures[window.debug.trackFeatureIndex].w;
         if (!window.cmpArray(v1, v2)) {
@@ -135,7 +120,7 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     }
   }
 
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     console.log("candidates1: ", candidates1.length, window.debugMatch.candidates1.length);
     for (let i = 0; i < candidates1.length; i++) {
       if (!window.cmpObj(candidates1[i], window.debugMatch.candidates1[i], ['level', 'num', 'sx', 'sy'])) {
@@ -176,7 +161,7 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
 
     const result = _tracking2dSub({targetImage, imageList, modelViewTransform, modelViewProjectionTransform, candidate: candidates[k], prevModelViewProjectionTransforms});
 
-    if (window.DEBUG_TRACK) {
+    if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
       const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
       console.log("best match", result, t2.bestMatched);
       if (result === null) {
@@ -206,7 +191,7 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     //if (num === 5) num = 0;
   }
 
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     console.log("selected features", selectedFeatures.length, window.debugMatch.selectedFeatures.length);
     for (let i = 0; i < selectedFeatures.length; i++) {
       const f1 = selectedFeatures[i];
@@ -221,7 +206,8 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
   }
 
   if (selectedFeatures.length < 4) {
-    return {modelViewTransform, selectedFeatures};
+    return null;
+    //return {modelViewTransform, selectedFeatures};
   }
 
   const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
@@ -229,14 +215,14 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
   let newModelViewTransform = modelViewTransform;
   let finalModelViewTransform = null;
   for (let i = 0; i < inlierProbs.length; i++) {
-    if (window.DEBUG_TRACK) {
+    if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
       window.debug.icprobustIndex = i-1;
     }
     let ret = _computeUpdatedTran({modelViewTransform: newModelViewTransform, selectedFeatures, projectionTransform, inlierProb: inlierProbs[i]});
     err = ret.err;
     newModelViewTransform = ret.newModelViewTransform;
 
-    if (window.DEBUG_TRACK) {
+    if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
       console.log("tracker icp point", i, newModelViewTransform, err);
       const dErr = window.debugMatch['getTransMat'+(i+1)+'Err'];
       const dMat = window.debugMatch['getTransMat'+(i+1)];
@@ -253,6 +239,8 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       break;
     }
   }
+
+  if (finalModelViewTransform === null) return null;
 
   return {
     modelViewTransform: finalModelViewTransform,
@@ -312,12 +300,12 @@ const _computeUpdatedTran = ({modelViewTransform, projectionTransform, selectedF
 };
 
 const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewProjectionTransform, candidate, prevModelViewProjectionTransforms}) => {
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     window.debug.trackingSubIndex += 1;
     window.debug.trackingMatchingSumIndex = -1;
     window.debug.skipMatchingSum = false;
   }
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     const t1 = {level: candidate.level, num: candidate.num, candidate};
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
     //console.log("tracking2d", t1, t2);
@@ -334,7 +322,7 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
   const tsize = AR2_DEFAULT_TS * 2 + 1;
   const {template, validNum: templateValidNum, vlen: templateVlen, sum: templateSum} = _setTemplate({image, dpi, modelViewProjectionTransform, mx, my});
 
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
     for (let i = 0; i < t2.template.length; i++) {
       if (t2.template[i] === 4096) t2.template[i] = null;
@@ -382,7 +370,7 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
     }
   }
 
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
     console.log("search", mx, my, search, t2.search);
   }
@@ -449,7 +437,7 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
     }
   }
 
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
     console.log("keep candidates length", keepCandidates.length, t2.matchingCompute.length);
     for (let i = 0; i < keepCandidates.length; i++) {
@@ -467,7 +455,7 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
   keepCandidates.sort((c1, c2) => {return c2.wval - c1.wval});
   keepCandidates.splice(KEEP_NUM);
 
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     window.debug.skipMatchingSum = true;
   }
 
@@ -523,7 +511,7 @@ const _computePointVal = ({i, j, tsize, xsize, targetImage, template, templateVl
         sum2 += targetImage.data[index] * targetImage.data[index];
         sum3 += targetImage.data[index] * template[templateIndex];
 
-        if (window.DEBUG_TRACK && !window.debug.skipMatchingSum) {
+        if (typeof window !== 'undefined' && window.DEBUG_TRACK && !window.debug.skipMatchingSum) {
           window.debug.trackingMatchingSumIndex += 1;
           const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex].matchingComputeSum[window.debug.trackingMatchingSumIndex];
           if (!t2 || sum1 !== t2.sum1 || sum2 !== t2.sum2 || sum3 !== t2.sum3) {
@@ -539,7 +527,7 @@ const _computePointVal = ({i, j, tsize, xsize, targetImage, template, templateVl
     }
   }
 
-  if (window.DEBUG_TRACK && !window.debug.skipMatchingSum) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK && !window.debug.skipMatchingSum) {
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex].matchingComputeSum[window.debug.trackingMatchingSumIndex];
     //console.log("done", window.debug.trackingSubIndex, sum1, sum2, sum3, t2);
     //console.log("matching sum", t2);
@@ -554,7 +542,7 @@ const _computePointVal = ({i, j, tsize, xsize, targetImage, template, templateVl
     //console.log("wval", wval, templateVlen, vlen, templateValidNum);
   }
 
-  if (window.DEBUG_TRACK && !window.debug.skipMatchingSum) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK && !window.debug.skipMatchingSum) {
     //console.log("done", window.debug.trackingSubIndex, sum3, vlen, templateVlen, wval);
   }
 
@@ -579,7 +567,7 @@ const _setTemplate = ({image, dpi, modelViewProjectionTransform, mx, my}) => {
     }
   }
   */
-  if (window.DEBUG_TRACK) {
+  if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     window.debug.templateComputeIndex = -1;
   }
 
@@ -594,7 +582,7 @@ const _setTemplate = ({image, dpi, modelViewProjectionTransform, mx, my}) => {
       const {x: mx2, y: my2} = screenToMarkerCoordinate(modelViewProjectionTransform, sx2, sy2);
 
       let ix = Math.floor(mx2 * dpi / 25.4 + 0.5);
-      if (window.DEBUG_TRACK) {
+      if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         // crazy hack for debugging....
         if (ix ===  163 &&  Math.abs(mx2-81.74991690104808)<0.000000001) ix = 164;
         //if (ix === -1 && mx2 === -1.0571840521437157) ix = 0;
@@ -613,7 +601,7 @@ const _setTemplate = ({image, dpi, modelViewProjectionTransform, mx, my}) => {
 
       const pixel = image.data[iy * image.width + ix];
 
-      if (window.DEBUG_TRACK) {
+      if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         window.debug.templateComputeIndex += 1;
         const d1 = {ix, iy, sx: sx2, sy: sy2, mx: mx2, my: my2, pixel};
         const d2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex].templateCompute[window.debug.templateComputeIndex];
@@ -806,7 +794,6 @@ const _getTriangleArea = (p1, p2, p3) => {
   const s = 1.0 * (x1 * y2 - x2 * y1) / 2.0;
   return Math.abs(s);
 }
-
 
 module.exports = {
   track

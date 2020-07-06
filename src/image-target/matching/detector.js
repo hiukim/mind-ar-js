@@ -168,7 +168,7 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
       }
     }
   }
-  if (window.DEBUG) {
+  if (typeof window !== 'undefined' && window.DEBUG) {
     const fps = window.debugContent.featurePoints2[window.debug.keyframeIndex];
     console.log("featurepoints2", featurePoints.length, 'vs', fps.length);
     for (let i = 0; i < fps.length; i++) {
@@ -183,14 +183,14 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
 
   const prunedFeaturePoints = _pruneFeatures({featurePoints: featurePoints, width: originalWidth, height: originalHeight});
 
-  console.log("pruned feature points length", prunedFeaturePoints.length);
+  // console.log("pruned feature points length", prunedFeaturePoints.length);
 
   // compute feature orientations
   const gradients = _computeGradients({pyramid: gaussianPyramid});
 
   const orientedFeaturePoints = [];
   for (let i = 0; i < prunedFeaturePoints.length; i++) {
-    if (window.DEBUG) {
+    if (typeof window !== 'undefined' && window.DEBUG) {
       window.debug.orientationComputeIndex = i;
     }
 
@@ -207,7 +207,7 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
     }
   }
 
-  if (window.DEBUG) {
+  if (typeof window !== 'undefined' && window.DEBUG) {
     const fps = window.debugContent.featurePoints4[window.debug.keyframeIndex];
     console.log("featurepoints4", orientedFeaturePoints.length, 'vs', fps.length);
     for (let i = 0; i < fps.length; i++) {
@@ -238,7 +238,7 @@ const _computeOrientation = (options) => {
   const y0 = Math.max(0, y - Math.floor(radius + 0.5));
   const y1 = Math.min(gradient.height-1, y + Math.floor(radius + 0.5));
 
-  if (window.DEBUG) {
+  if (typeof window !== 'undefined' && window.DEBUG) {
     const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
     if (Math.floor(o.x + 0.5) !== x || Math.floor(o.y + 0.5) !== y) {
       console.log("INCORRECT orientation input");
@@ -262,7 +262,7 @@ const _computeOrientation = (options) => {
     const dy2 = dy * dy;
 
     for (let xp = x0; xp <= x1; xp++) {
-      if (window.DEBUG) {
+      if (typeof window !== 'undefined' && window.DEBUG) {
         window.debug.fbinIndex += 1;
       }
 
@@ -289,7 +289,7 @@ const _computeOrientation = (options) => {
       const b2 = (bin + 1) % ORIENTATION_NUM_BINS;
       const magnitude = w * mag;
 
-      if (window.DEBUG) {
+      if (typeof window !== 'undefined' && window.DEBUG) {
         const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
         if (Math.abs(fbin - o.fbins[window.debug.fbinIndex]) > 0.001) {
           console.log("INCORRECT fbin", r2, radius2, fbin, 'vs', o.fbins[window.debug.fbinIndex]);
@@ -311,7 +311,7 @@ const _computeOrientation = (options) => {
     }
   }
 
-  if (window.DEBUG) {
+  if (typeof window !== 'undefined' && window.DEBUG) {
     const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
     for (let i = 0; i < histogram.length; i++) {
       if (Math.abs(o.histograms[i] - histogram[i]) > 0.001) {
@@ -340,7 +340,7 @@ const _computeOrientation = (options) => {
     }
   }
 
-  if (window.DEBUG) {
+  if (typeof window !== 'undefined' && window.DEBUG) {
     const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
     for (let i = 0; i < histogram.length; i++) {
       if (Math.abs(o.smoothedHistograms[i] - histogram[i]) > 0.001) {
@@ -388,7 +388,7 @@ const _computeOrientation = (options) => {
         }
       }
 
-      if (window.DEBUG) {
+      if (typeof window !== 'undefined' && window.DEBUG) {
         const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
         if (!window.cmp(fbin, o.histfbins[i])) {
           console.log("INCORRECT orientation fbin", i, fbin, 'vs', o.histfbins[i], o.histAs[i], o.histBs[i], o.histCs[i]);

@@ -21,7 +21,7 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
 
     const modelViewProjectionTransform = buildModelViewProjectionTransform(projectionTransform, modelViewTransform);
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       //console.log("projectionTransform", projectionTransform);
       if (!window.cmp2DArray(modelViewTransform, window.debugMatch.icp_matXw2Xc[l])) {
         console.log("INCORRECT ICP modelViewTransform", l, modelViewTransform, window.debugMatch.icp_matXw2Xc[l]);
@@ -44,7 +44,7 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
       E.push(dx * dx + dy * dy);
     }
 
-    if (window.DEBUG_TRACK && isRobustMode) {
+    if (typeof window !== 'undefined' && window.DEBUG_TRACK && isRobustMode) {
       const dr = window.debugMatch.icp_robust[window.debug.icprobustIndex][l];
       //console.log("icp E", E, dr.E);
     }
@@ -59,7 +59,7 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
       }
       E2.sort((a, b) => {return a-b;});
 
-      if (window.DEBUG_TRACK && isRobustMode) {
+      if (typeof window !== 'undefined' && window.DEBUG_TRACK && isRobustMode) {
         const dr = window.debugMatch.icp_robust[window.debug.icprobustIndex][l];
         //console.log("icp E", E2, dr.E2);
       }
@@ -77,7 +77,7 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
     //console.log("err1 before", err1, err1/worldCoords.length);
     err1 /= worldCoords.length;
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       //if (!window.cmp(err1, window.debugMatch.icp_err1[l])) {
       //  console.log("INCORRECT ICP err1", l, err1, window.debugMatch.icp_err1[l]);
       //}
@@ -101,7 +101,7 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
       if (isRobustMode) {
         const W = (1.0 - E[n]/K2)*(1.0 - E[n]/K2);
 
-        if (window.DEBUG_TRACK && isRobustMode) {
+        if (typeof window !== 'undefined' && window.DEBUG_TRACK && isRobustMode) {
           const dr = window.debugMatch.icp_robust[window.debug.icprobustIndex][l];
           //console.log("icp W", W, dr.W);
         }
@@ -124,17 +124,17 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
       }
     }
 
-    if (window.DEBUG_TRACK && isRobustMode) {
+    if (typeof window !== 'undefined' && window.DEBUG_TRACK && isRobustMode) {
       const dr = window.debugMatch.icp_robust[window.debug.icprobustIndex][l];
       //console.log("icp du", dU, dr.dU);
     }
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       if (!window.cmpArray(dU, window.debugMatch.icp_dU[l], 0.001)) {
         console.log("INCORRECT ICP dU", l, dU, window.debugMatch.icp_dU[l]);
       }
     }
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       const dJUS = [];
       for (let i = 0; i < window.debugMatch.icp_J_U_S[l].length; i++) {
         dJUS.push(window.debugMatch.icp_J_U_S[l][i][0]);
@@ -147,7 +147,7 @@ const refineHomography = ({initialModelViewTransform, projectionTransform, world
     }
 
     const dS = _getDeltaS({dU, J_U_S: allJ_U_S});
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       if (!window.cmpArray(dS, window.debugMatch.icp_dS[l], 0.001)) {
         console.log("INCORRECT ICP dS", l, dS, window.debugMatch.icp_dS[l]);
       }

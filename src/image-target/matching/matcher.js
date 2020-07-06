@@ -17,7 +17,7 @@ class Matcher {
   // return a list of screenCoords -> worldCoords pairs
   match(targetImage) {
     const querypoints = _extractPoints({image: targetImage});
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       if (querypoints.length !== window.debugMatch.points.length) {
         console.log("INCORRECT querypoints length", querypoints.length, window.debugMatch.points.length);
       }
@@ -28,9 +28,9 @@ class Matcher {
       }
     }
     const result = match({keyframes: this.keyframes, querypoints: querypoints, querywidth: targetImage.width, queryheight: targetImage.height});
-    console.log("result", result);
 
-    if (window.DEBUG_MATCH) {
+    if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
+      console.log("result", result);
       if (!!result !== !!window.debugMatch.finalH) {
         console.log("INCORRECT match result", result, window.debugMatch.finalH);
       }
@@ -99,7 +99,7 @@ const _extractPoints = ({image}) => {
     })
   }
 
-  if (window.DEBUG) {
+  if (typeof window !== 'undefined' && window.DEBUG) {
     const dPoints = window.debugContent.refDataSet[window.debug.keyframeIndex];
     console.log("keypoints length", window.debug.keyframeIndex, keypoints.length, 'vs', dPoints.length);
     for (let i = 0; i < keypoints.length; i++) {
@@ -136,14 +136,16 @@ const _buildKeyframes = ({imageList}) => {
   const keyframes = [];
 
   for (let i = 0; i < imageList.length; i++) {
-    if (window.DEBUG) window.debug.keyframeIndex = i;
+    if (typeof window !== 'undefined' && window.DEBUG) {
+      window.debug.keyframeIndex = i;
+    }
 
     const image = imageList[i];
     const keypoints = _extractPoints({image});
     const pointsCluster = hierarchicalClusteringBuild({points: keypoints});
     keyframes.push({points: keypoints, pointsCluster, width: image.width, height: image.height});
 
-    if (window.DEBUG) {
+    if (typeof window !== 'undefined' && window.DEBUG) {
       const dCluster = window.debugContent.clusters[i];
 
       const goNode = (n1, n2) => {
