@@ -57,16 +57,16 @@ class Controller {
     });
   }
 
-  process(queryImage) {
+  process(queryImageData) {
     if (!this.useworker) {
-      return this.engine.process(queryImage);
+      return this.engine.process(queryImageData);
     }
 
-    this.worker.postMessage({type: 'process', options: {queryImage: queryImage}});
+    this.worker.postMessage({type: 'process', options: {queryImageData: queryImageData}}, [queryImageData.buffer]);
+    //this.worker.postMessage({type: 'process', options: {queryImageData: queryImageData}});
 
     return new Promise((resolve, reject) => {
       this.subscribers['processDone'] = (e) => {
-        // console.log("process done result: ", e);
         const result = e.data.result;
         resolve(result);
       };

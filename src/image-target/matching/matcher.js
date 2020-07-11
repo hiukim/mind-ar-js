@@ -17,6 +17,7 @@ class Matcher {
   // return a list of screenCoords -> worldCoords pairs
   match(targetImage) {
     const querypoints = _extractPoints({image: targetImage});
+
     if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
       if (querypoints.length !== window.debugMatch.points.length) {
         console.log("INCORRECT querypoints length", querypoints.length, window.debugMatch.points.length);
@@ -76,14 +77,34 @@ class Matcher {
 }
 
 const _extractPoints = ({image}) => {
+  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+    var _start = new Date().getTime();
+  }
+
   //const maxFeatureNum = FEATURE_DENSITY * image.width * image.height / (480.0*360);
   const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
 
+  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+    console.log('exec time extract points until gaussian: ', new Date().getTime() - _start);
+  }
+
   const dogPyramid = buildDoGPyramid({gaussianPyramid: gaussianPyramid});
+
+  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+    console.log('exec time extract points until dog ', new Date().getTime() - _start);
+  }
 
   const featurePoints = detect({gaussianPyramid, dogPyramid});
 
+  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+    console.log('exec time extract points until detect', new Date().getTime() - _start);
+  }
+
   const descriptors = extract({pyramid: gaussianPyramid, points: featurePoints});
+
+  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+    console.log('exec time extract points until extract', new Date().getTime() - _start);
+  }
 
   const keypoints = [];
   for (let i = 0; i < featurePoints.length; i++) {

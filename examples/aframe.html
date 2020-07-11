@@ -1,5 +1,7 @@
 <html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
     <script src="https://www.lactame.com/lib/image-js/0.21.2/image.min.js"></script> 
     <script src="https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js"></script>
@@ -20,8 +22,8 @@
       }
 
       AFRAME.registerSystem('ar-system', {
-        AR_PROCESS_WIDTH: 320,
-        AR_PROCESS_HEIGHT: 240,
+        //AR_PROCESS_WIDTH: 320,
+        //AR_PROCESS_HEIGHT: 240,
         //AR_PROCESS_WIDTH: 640,
         //AR_PROCESS_HEIGHT: 480,
 
@@ -54,6 +56,7 @@
 
         start: function() {
           this.container = this.el.sceneEl.parentNode;
+
           this.mainStats = new Stats();
           this.mainStats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
           this.mainStats.domElement.style.cssText = 'position:absolute;top:0px;left:0px;z-index:999';
@@ -88,7 +91,11 @@
             return;
           }
 
-          navigator.mediaDevices.getUserMedia({audio: false, video: {facingMode: 'environment'}}).then((stream) => {
+          navigator.mediaDevices.getUserMedia({audio: false, video: {
+            facingMode: 'environment',
+            //width: {ideal: 480},
+            //height: {ideal: 640},
+          }}).then((stream) => {
             this.video.srcObject = stream;
             this.video.addEventListener( 'loadedmetadata', () => {
               console.log("video ready...", this.video);
@@ -119,21 +126,40 @@
         _startAR: async function() {
           this.controller = new MINDAR.Controller({});
           //this.controller = new MINDAR.Controller({useworker: false});
-          await this.controller.setup(this.AR_PROCESS_WIDTH, this.AR_PROCESS_HEIGHT);
-
-          const proj = this.controller.getProjectionMatrix();
-          const fov = 2 * Math.atan(1/proj[5]) * 180 / Math.PI; // vertical fov
-          const near = proj[14] / (proj[10] - 1.0);
-          const far = proj[14] / (proj[10] + 1.0);
-          const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
-          console.log("loaded proj: ", proj, ". fov: ", fov, ". near: ", near, ". far: ", far, ". ratio: ", ratio);
-          const newRatio = ratio / ((this.AR_PROCESS_WIDTH/this.AR_PROCESS_HEIGHT)/(this.container.clientWidth/this.container.clientHeight));
-          const newCam = new AFRAME.THREE.PerspectiveCamera(fov, newRatio, 10, 10000);
-          this.el.sceneEl.camera.el.setObject3D('camera', newCam);
+          //await this.controller.setup(this.AR_PROCESS_WIDTH, this.AR_PROCESS_HEIGHT);
 
           this._computeSizes(this.container, this.video);
 
           const {vw, vh, pw, ph, cw, ch, cx, cy, sw, sh, sx, sy, tw, th, tx, ty} = this.sizes;
+          await this.controller.setup(pw, ph);
+
+          const proj = this.controller.getProjectionMatrix();
+          //const fov = 2 * Math.atan(1/proj[5]) * 180 / Math.PI; // vertical fov
+          //const fov = 2 * Math.atan(1/proj[5] * ph / vh / vh * this.container.clientHeight ) * 180 / Math.PI; // vertical fov
+          //const fov = 2 * Math.atan(1/proj[5] / vh * this.container.clientHeight ) * 180 / Math.PI; // vertical fov
+          const fov = 2 * Math.atan(1/proj[5] / vh * this.container.clientHeight ) * 180 / Math.PI; // vertical fov
+          const near = proj[14] / (proj[10] - 1.0);
+          const far = proj[14] / (proj[10] + 1.0);
+          const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
+          console.log("loaded proj: ", proj, ". fov: ", fov, ". near: ", near, ". far: ", far, ". ratio: ", ratio);
+          //const newRatio = ratio / ((this.AR_PROCESS_WIDTH/this.AR_PROCESS_HEIGHT)/(this.container.clientWidth/this.container.clientHeight));
+          const newRatio = ratio / ((pw/ph)/(this.container.clientWidth/this.container.clientHeight));
+
+          //const newRatio = ratio;
+          const newFov = fov;
+          //const focal = (this.AR_PROCESS_HEIGHT/2) / Math.tan(fov/2 * Math.PI / 180);
+          //const newFov = 2 * Math.atan( (this.container.clientHeight/2) / focal) * 180 / Math.PI;
+
+          //const newCam = new AFRAME.THREE.PerspectiveCamera(fov, ratio, 10, 10000);
+          console.log("newCam", newFov, newRatio);
+          const newCam = new AFRAME.THREE.PerspectiveCamera(newFov, newRatio, 10, 10000);
+
+          const camera = this.container.getElementsByTagName("a-camera")[0];
+          camera.getObject3D('camera').projectionMatrix = newCam.projectionMatrix;
+          //camera.setObject3D('camera', newCam);
+          //document.getElementById('#camera').getObject3D('camera');
+          //this.el.sceneEl.camera.el.setObject3D('camera', newCam);
+
           this.video.style.top = (-(vh - this.container.clientHeight) / 2) + "px";
           this.video.style.left = (-(vw - this.container.clientWidth) / 2) + "px";
           this.video.style.width = vw + "px";
@@ -143,6 +169,11 @@
           this.workerProcessContext = processCanvas.getContext('2d');
           processCanvas.width = pw;
           processCanvas.height = ph;
+          processCanvas.style.position = "absolute";
+          processCanvas.style.left = 0;
+          processCanvas.style.bottom = 0;
+          processCanvas.style.width = '200px';
+          this.container.appendChild(processCanvas);
 
           const compiledMSP = await fetch('./assets/card1.msp');
           const compiled = msgpack.decode(new Uint8Array(await compiledMSP.arrayBuffer()));
@@ -154,21 +185,25 @@
           const {vw, vh, pw, ph, cw, ch, cx, cy, sw, sh, sx, sy, tw, th, tx, ty} = this.sizes;
 
           const processContext = this.workerProcessContext;
-          processContext.fillStyle = "black";
-          processContext.fillRect(0, 0, pw, ph);
-          processContext.drawImage(this.video, sx, sy, sw, sh, tx, ty, tw, th);
+          //processContext.fillStyle = "black";
+          //processContext.fillRect(0, 0, pw, ph);
+          //processContext.drawImage(this.video, sx, sy, sw, sh, tx, ty, tw, th);
+          processContext.drawImage(this.video, 0, 0, pw, ph);
 
           const imageData = processContext.getImageData(0, 0, pw, ph);
-          const greyImageData = [];
+          //const greyImageData = [];
+          const greyImageData = new Uint8Array(imageData.data.length / 4);
           for (let i = 0; i < imageData.data.length; i += 4) {
-            greyImageData.push(Math.floor((imageData.data[i]+imageData.data[i+1]+imageData.data[i+2])/3));
+            //greyImageData.push(Math.floor((imageData.data[i]+imageData.data[i+1]+imageData.data[i+2])/3));
+            greyImageData[i/4] = Math.floor((imageData.data[i]+imageData.data[i+1]+imageData.data[i+2])/3);
           }
           //console.log("process data", greyImageData);
 
           var _start = new Date().getTime();
-          const result = await this.controller.process({data: greyImageData, width: pw, height: ph});
+          const result = await this.controller.process(greyImageData);
           var _end = new Date().getTime();
           console.log('exec time process Image: ', _start, _end, _end - _start);
+          $("#debug").html("<span>process time: " + (_end - _start)+ "</span>");
 
           //console.log("result: ", result);
           for (let i = 0; i < this.anchorEntities.length; i++) {
@@ -179,6 +214,7 @@
         },
 
         _computeSizes: function(container, video) {
+          $("#debug").html("<span>video size: " + video.videoWidth + ", " + video.videoHeight + "</span>");
           console.log("video video size: ", video.videoWidth, video.videoHeight);
 
           // clip video is the portion of the video for ar process
@@ -205,8 +241,8 @@
             sy = (video.videoHeight - sh) / 2;
           }
 
-          let pw = this.AR_PROCESS_WIDTH; //640; // predefined width for ar process
-          let ph = this.AR_PROCESS_HEIGHT; //480; // predefined height for ar process
+          let pw = video.videoWidth / 2;
+          let ph = video.videoHeight /2;
           let pRatio = pw / ph;
 
           // fit the clip video source into the ar process size, keeping the ratio
@@ -341,11 +377,14 @@
   </head>
   <body>
     <button id="playButton">Play</button>
+    <span id="debug"></span>
     <div class="displayAR-container">
       <a-scene ar embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false">
         <a-assets>
           <img id="card" src="./assets/card1.png" />
         </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity ar-nft-anchor>
           <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">

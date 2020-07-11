@@ -19,7 +19,7 @@ onmessage = (msg) => {
   }
   else if (data.type === 'process') {
     const {options} = data;
-    const result = _engine.process(options.queryImage);
+    const result = _engine.process(options.queryImageData);
     postMessage({
       type: 'processDone',
       result: result

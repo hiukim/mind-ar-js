@@ -44,7 +44,8 @@ class ImageTarget {
 
       const {screenCoords, worldCoords} = matchResult;
       const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
-      //console.log("initial matched model view transform", initialModelViewTransform);
+      console.log("initial matched model view transform", initialModelViewTransform);
+
       if (initialModelViewTransform === null) return null;
 
       // TODO: maybe don't this refineHomography. result seems worse when the detected size is big

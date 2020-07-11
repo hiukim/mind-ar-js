@@ -2,31 +2,30 @@ const {ImageTarget} = require('./image-target/index.js');
 
 class Engine {
   constructor(inputWidth, inputHeight) {
+    this.inputWidth = inputWidth;
+    this.inputHeight = inputHeight;
     this._imageTargets = [];
 
-    // TODO: non-hardcoded camera matrix?
+    const near = 10;
+    const far = 1000;
+    const fovy = 45.0 * Math.PI / 180; // 45 in radian. field of view vertical
+    const f = (inputHeight/2) / Math.tan(fovy/2);
     //     [fx  s cx]
     // K = [ 0 fx cy]
     //     [ 0  0  1]
-    const cameraWidth = 640.0; // intrinsic param
-    const cameraHeight = 480.0; // intrinsic param
-    this._projectionTransform = [ // intrinic param
-      [609.3654091867005, 0, 323.4479064941406],
-      [0, 606.5212236031074, 237.60653686523438],
+    this._projectionTransform = [
+      [f, 0, inputWidth / 2],
+      [0, f, inputHeight / 2],
       [0, 0, 1]
     ];
-
-    for (let i = 0; i < 3; i++) {
-      this._projectionTransform[0][i] *= inputWidth / cameraWidth;
-      this._projectionTransform[1][i] *= inputHeight / cameraHeight;
-    }
+    console.log("project transform", JSON.stringify(this._projectionTransform));
 
     this._projectionMatrix = _glProjectionMatrix({
       projectionTransform: this._projectionTransform,
       width: inputWidth - 1, // -1 is not necessary?
       height: inputHeight - 1,
-      near: 0.0001,
-      far: 1000.0
+      near: near,
+      far: far,
     });
   }
 
@@ -39,7 +38,8 @@ class Engine {
     this._imageTargets.push(imageTarget);
   }
 
-  process(queryImage) {
+  process(queryImageData) {
+    const queryImage = {data: queryImageData, width: this.inputWidth, height: this.inputHeight};
     const result = [];
     this._imageTargets.forEach((imageTarget) => {
       const modelViewTransform = imageTarget.process(queryImage);

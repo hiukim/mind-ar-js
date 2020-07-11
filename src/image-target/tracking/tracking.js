@@ -335,7 +335,7 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
     if (!window.cmp(templateValidNum, t2.validNum)) console.log("INCORRECT validNum", templateValidNum, t2.validNum);
   }
 
-  if (templateVlen * templateVlen < tsize * tsize * AR2_DEFAULT_TRACKING_SD_THRESH * AR2_DEFAULT_TRACKING_SD_THRESH) return;
+  if (templateVlen * templateVlen < tsize * tsize * AR2_DEFAULT_TRACKING_SD_THRESH * AR2_DEFAULT_TRACKING_SD_THRESH) return null;
 
   // search points
   const us = [];
