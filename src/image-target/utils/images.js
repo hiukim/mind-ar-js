@@ -1,4 +1,27 @@
+// simpler version of upsampling. better performance
 const upsampleBilinear = ({image, padOneWidth, padOneHeight}) => {
+  const {width, height, data} = image;
+  const dstWidth = image.width * 2 + (padOneWidth?1:0);
+  const dstHeight = image.height * 2 + (padOneHeight?1:0);
+  const temp = new Float32Array(dstWidth * dstHeight);
+
+  for (let i = 0; i < width; i++) {
+    for (let j = 0; j < height; j++) {
+      const v = 0.25 * data[j * width + i];
+      const ii = Math.floor(i/2);
+      const jj = Math.floor(j/2);
+      const pos = Math.floor(j/2) * dstWidth + Math.floor(i/2);
+      temp[pos] += v;
+      temp[pos+1] += v;
+      temp[pos+dstWidth] += v;
+      temp[pos+dstWidth+1] += v;
+    }
+  }
+  return {data: temp, width: dstWidth, height: dstHeight};
+}
+
+// artoolkit version. slower. is it necessary?
+const _upsampleBilinear = ({image, padOneWidth, padOneHeight}) => {
   const {width, height, data} = image;
 
   const dstWidth = image.width * 2 + (padOneWidth?1:0);
@@ -39,10 +62,10 @@ const downsampleBilinear = ({image}) => {
 
   const temp = new Float32Array(dstWidth * dstHeight);
   const offsets = [0, 1, width, width+1];
+
   for (let j = 0; j < dstHeight; j++) {
     for (let i = 0; i < dstWidth; i++) {
       let srcPos = j*2 * width + i*2;
-
       let value = 0.0;
       for (let d = 0; d < offsets.length; d++) {
         value += data[srcPos+ offsets[d]];

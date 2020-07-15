@@ -6,7 +6,7 @@ onmessage = (msg) => {
   const {data} = msg;
   if (data.type === 'setup') {
     const {options} = data;
-    _engine = new Engine(options.inputWidth, options.inputHeight);
+    _engine = new Engine(options);
     postMessage({
       type: 'setupDone',
       projectionMatrix: _engine.getProjectionMatrix()

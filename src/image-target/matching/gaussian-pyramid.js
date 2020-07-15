@@ -13,23 +13,35 @@ const build = ({image, numScalesPerOctaves, minSize}) => {
 
   const numOctaves = _numOctaves({width, height, minSize: minSize});
 
+  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+    var _start = new Date().getTime();
+  }
+
   const pyramidImages = [];
   for (let i = 0; i < numOctaves; i++) {
     if (i === 0) {
-      pyramidImages.push(_applyFilter({image}));
+      pyramidImages.push(_applyFilter(image));
     } else {
       // first image of each octave, downsample from previous
       pyramidImages.push(downsampleBilinear({image: pyramidImages[pyramidImages.length-1]}));
     }
 
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+      console.log('exec time Gaussian', i, 0, new Date().getTime() - _start);
+    }
+
     // remaining images of octave, 4th order binomail from previous
     for (let j = 0; j < numScalesPerOctaves - 1; j++) {
       if (j === 0) {
-        pyramidImages.push(_applyFilter({image: pyramidImages[pyramidImages.length-1]}));
+        pyramidImages.push(_applyFilter(pyramidImages[pyramidImages.length-1]));
       } else {
-        // FIX ME?
         // in artoolkit, it apply filter twice....  is it a bug?
-        pyramidImages.push(_applyFilter({image: _applyFilter({image: pyramidImages[pyramidImages.length-1]})}));
+        //pyramidImages.push(_applyFilter(_applyFilter(pyramidImages[pyramidImages.length-1])));
+        pyramidImages.push(_applyFilter(pyramidImages[pyramidImages.length-1]));
+      }
+
+      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+        console.log('exec time Gaussian', i, j, new Date().getTime() - _start);
       }
     }
   }
@@ -54,23 +66,25 @@ const _numOctaves = (options) => {
 }
 
 //4th order binomial
-const _applyFilter = ({image}) => {
+const _applyFilter = (image) => {
   const {data, width, height} = image;
-  if (width < 5) {console.log("image too small"); return;}
-  if (height < 5) {console.log("image too small"); return;}
+
+  //if (width < 5) {console.log("image too small"); return;}
+  //if (height < 5) {console.log("image too small"); return;}
 
   const temp = new Float32Array(data.length);
 
   // apply horizontal filter. border is computed by extending border pixel
   for (let j = 0; j < height; j++) {
+    const joffset = j * width;
     for (let i = 0; i < width; i++) {
-      const pos = j * width + i;
+      const pos = joffset+ i;
 
-      temp[pos] = data[j*width + Math.max(i-2,0)] +
-                  data[j*width + Math.max(i-1,0)] * 4 +
-                  data[j*width + i] * 6 +
-                  data[j*width + Math.min(i+1,width-1)] * 4 +
-                  data[j*width + Math.min(i+2,width-1)];
+      temp[pos] = data[joffset + Math.max(i-2,0)] +
+                  data[joffset + Math.max(i-1,0)] * 4 +
+                  data[joffset + i] * 6 +
+                  data[joffset + Math.min(i+1,width-1)] * 4 +
+                  data[joffset + Math.min(i+2,width-1)];
     }
   }
 

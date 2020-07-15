@@ -81,6 +81,14 @@ const _extractPoints = ({image}) => {
     var _start = new Date().getTime();
   }
 
+  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+    console.log('exec time extract points until jsfeat detect', new Date().getTime() - _start);
+  }
+
+  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+    console.log('exec time extract points before gaussian: ', new Date().getTime() - _start);
+  }
+
   //const maxFeatureNum = FEATURE_DENSITY * image.width * image.height / (480.0*360);
   const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
 

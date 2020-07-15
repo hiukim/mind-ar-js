@@ -21,14 +21,14 @@ class Controller {
     }
   }
 
-  setup(inputWidth, inputHeight) {
+  setup(options) {
     if (!this.useworker) {
-      this.engine = new Engine(inputWidth, inputHeight);
+      this.engine = new Engine(options);
       this.projectionMatrix = this.engine.getProjectionMatrix();
       return;
     }
 
-    this.worker.postMessage({type: 'setup', options: {inputWidth, inputHeight}});
+    this.worker.postMessage({type: 'setup', options});
 
     return new Promise((resolve, reject) => {
       this.subscribers['setupDone'] = (e) => {

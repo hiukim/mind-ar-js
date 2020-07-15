@@ -1,29 +1,30 @@
 const {ImageTarget} = require('./image-target/index.js');
 
 class Engine {
-  constructor(inputWidth, inputHeight) {
-    this.inputWidth = inputWidth;
-    this.inputHeight = inputHeight;
+  constructor(options) {
+    this.inputWidth = options.inputWidth;
+    this.inputHeight = options.inputHeight;
+    this.smartMatching = options.smartMatching;
     this._imageTargets = [];
 
     const near = 10;
     const far = 1000;
     const fovy = 45.0 * Math.PI / 180; // 45 in radian. field of view vertical
-    const f = (inputHeight/2) / Math.tan(fovy/2);
+    const f = (this.inputHeight/2) / Math.tan(fovy/2);
     //     [fx  s cx]
     // K = [ 0 fx cy]
     //     [ 0  0  1]
     this._projectionTransform = [
-      [f, 0, inputWidth / 2],
-      [0, f, inputHeight / 2],
+      [f, 0, this.inputWidth / 2],
+      [0, f, this.inputHeight / 2],
       [0, 0, 1]
     ];
     console.log("project transform", JSON.stringify(this._projectionTransform));
 
     this._projectionMatrix = _glProjectionMatrix({
       projectionTransform: this._projectionTransform,
-      width: inputWidth - 1, // -1 is not necessary?
-      height: inputHeight - 1,
+      width: this.inputWidth - 1, // -1 is not necessary?
+      height: this.inputHeight - 1,
       near: near,
       far: far,
     });
@@ -34,12 +35,13 @@ class Engine {
   }
 
   addImageTarget(options) {
-    const imageTarget = new ImageTarget(Object.assign({projectionTransform: this._projectionTransform}, options));
+    const imageTarget = new ImageTarget(Object.assign({projectionTransform: this._projectionTransform, smartMatching: this.smartMatching}, options));
     this._imageTargets.push(imageTarget);
   }
 
   process(queryImageData) {
     const queryImage = {data: queryImageData, width: this.inputWidth, height: this.inputHeight};
+
     const result = [];
     this._imageTargets.forEach((imageTarget) => {
       const modelViewTransform = imageTarget.process(queryImage);
