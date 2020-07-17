@@ -89,7 +89,6 @@ const _extractPoints = ({image}) => {
     console.log('exec time extract points before gaussian: ', new Date().getTime() - _start);
   }
 
-  //const maxFeatureNum = FEATURE_DENSITY * image.width * image.height / (480.0*360);
   const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
 
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
@@ -119,8 +118,10 @@ const _extractPoints = ({image}) => {
     keypoints.push({
       x2D: featurePoints[i].x,
       y2D: featurePoints[i].y,
-      x3D: (featurePoints[i].x + 0.5) / image.dpi * 25.4, // inch to millimeter
-      y3D: ((image.height-0.5) - featurePoints[i].y) / image.dpi * 25.4, // inch to millimeter
+      //x3D: (featurePoints[i].x + 0.5) / image.dpi * 25.4, // inch to millimeter
+      //y3D: ((image.height-0.5) - featurePoints[i].y) / image.dpi * 25.4, // inch to millimeter
+      x3D: (featurePoints[i].x + 0.5) / image.dpi,
+      y3D: ((image.height-0.5) - featurePoints[i].y) / image.dpi,
       angle: featurePoints[i].angle,
       scale: featurePoints[i].sigma,
       maxima: featurePoints[i].score > 0,

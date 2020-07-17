@@ -1,7 +1,7 @@
 const {resize} = require("./utils/images.js");
 const {buildImageList} = require('./image-list.js');
 const {Matcher, compileMatching} = require('./matching/matcher.js');
-const {Tracker, compileTracking} = require('./tracking/tracker.js');
+const {Tracker, compileTracking} = require('./tracking2/tracker.js');
 const {estimateHomography} = require('./icp/estimate_homography.js');
 const {refineHomography} = require('./icp/refine_homography');
 
@@ -36,7 +36,8 @@ class ImageTarget {
   }
 
   process(queryImage) {
-    const processImage = Object.assign(queryImage, {dpi: 72});
+    //const processImage = Object.assign(queryImage, {dpi: 72});
+    const processImage = Object.assign(queryImage, {dpi: 1});
 
     if (!this.isTracking) {
 
@@ -74,6 +75,7 @@ class ImageTarget {
       console.log("initial matched model view transform", initialModelViewTransform);
 
       if (initialModelViewTransform === null) return null;
+      //return initialModelViewTransform;
 
       // TODO: maybe don't this refineHomography. result seems worse when the detected size is big
       const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});

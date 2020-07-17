@@ -183,7 +183,7 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
       }
     }
   }
-  console.log("first extract length", featurePoints.length);
+  //console.log("first extract length", featurePoints.length);
 
   if (typeof window !== 'undefined' && window.DEBUG) {
     const fps = window.debugContent.featurePoints2[window.debug.keyframeIndex];

@@ -8,6 +8,7 @@
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
     <script src="../dist/mindar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gpu.js@latest/dist/gpu-browser.min.js"></script>
     <script>
       const getGreyImage = (image) => {
         const greyImage = {
@@ -22,6 +23,8 @@
       }
 
       AFRAME.registerSystem('ar-system', {
+        AR_PROCESS_DIMENSION_MAX: 640,
+        //AR_PROCESS_DIMENSION_MAX: 320,
         //AR_PROCESS_WIDTH: 320,
         //AR_PROCESS_HEIGHT: 240,
         //AR_PROCESS_WIDTH: 640,
@@ -131,7 +134,8 @@
           this._computeSizes(this.container, this.video);
 
           const {vw, vh, pw, ph, cw, ch, cx, cy, sw, sh, sx, sy, tw, th, tx, ty} = this.sizes;
-          await this.controller.setup(pw, ph);
+          //await this.controller.setup({inputWidth: pw, inputHeight: ph, smartMatching: true});
+          await this.controller.setup({inputWidth: pw, inputHeight: ph, smartMatching: false});
 
           const proj = this.controller.getProjectionMatrix();
           //const fov = 2 * Math.atan(1/proj[5]) * 180 / Math.PI; // vertical fov
@@ -175,7 +179,17 @@
           processCanvas.style.width = '200px';
           this.container.appendChild(processCanvas);
 
-          const compiledMSP = await fetch('./assets/card1.msp');
+          const processCanvas2 = document.createElement('canvas');
+          this.workerProcessContext2 = processCanvas2.getContext('2d');
+          processCanvas2.width = pw;
+          processCanvas2.height = ph;
+          processCanvas2.style.position = "absolute";
+          processCanvas2.style.right = 0;
+          processCanvas2.style.bottom = 0;
+          processCanvas2.style.width = '200px';
+          this.container.appendChild(processCanvas2);
+
+          const compiledMSP = await fetch('./assets/newcard1.msp');
           const compiled = msgpack.decode(new Uint8Array(await compiledMSP.arrayBuffer()));
           await this.controller.addImageTarget({type: 'compiled', input: compiled});
           this.processReady = true;
@@ -194,15 +208,23 @@
           //const greyImageData = [];
           const greyImageData = new Uint8Array(imageData.data.length / 4);
           for (let i = 0; i < imageData.data.length; i += 4) {
-            //greyImageData.push(Math.floor((imageData.data[i]+imageData.data[i+1]+imageData.data[i+2])/3));
             greyImageData[i/4] = Math.floor((imageData.data[i]+imageData.data[i+1]+imageData.data[i+2])/3);
+            //greyImageData[i/4] = (imageData.data[i] * 3 + imageData.data[i+1] + imageData.data[i+2] * 4) >> 3;
           }
           //console.log("process data", greyImageData);
+          const debugImageData = this.workerProcessContext2.getImageData(0, 0, pw, ph);
+          for (let i = 0; i < greyImageData.length; i++) {
+            debugImageData.data[i*4+0] = greyImageData[i];
+            debugImageData.data[i*4+1] = greyImageData[i];
+            debugImageData.data[i*4+2] = greyImageData[i];
+            debugImageData.data[i*4+3] = 255;
+          }
+          this.workerProcessContext2.putImageData(debugImageData, 0, 0);
 
           var _start = new Date().getTime();
           const result = await this.controller.process(greyImageData);
           var _end = new Date().getTime();
-          console.log('exec time process Image: ', _start, _end, _end - _start);
+          //console.log('exec time process Image: ', _start, _end, _end - _start);
           $("#debug").html("<span>process time: " + (_end - _start)+ "</span>");
 
           //console.log("result: ", result);
@@ -240,9 +262,10 @@
             sx = 0;
             sy = (video.videoHeight - sh) / 2;
           }
-
-          let pw = video.videoWidth / 2;
-          let ph = video.videoHeight /2;
+        
+          let vpRatio = Math.max(1, Math.max(video.videoWidth, video.videoHeight) / this.AR_PROCESS_DIMENSION_MAX);
+          let pw = video.videoWidth / vpRatio;
+          let ph = video.videoHeight / vpRatio;
           let pRatio = pw / ph;
 
           // fit the clip video source into the ar process size, keeping the ratio
@@ -281,7 +304,7 @@
             sw, sh, sx, sy, tw, th, tx, ty
           }
 
-          //console.log('recompute sizes: ', sizes);
+          console.log('recompute sizes: ', sizes);
           this.sizes = sizes;
         }
       });
@@ -313,14 +336,16 @@
           this.marker = {
             width: 674,
             height: 372,
-            dpi: 72,
+            //dpi: 72,
           };
 
           const arSystem = this.el.sceneEl.systems['ar-system'];
           this.markerIndex = arSystem.registerAnchor(this);
 
-          const markerWidth = this.marker.width / this.marker.dpi * 2.54 * 10; // in mm
-          const markerHeight = this.marker.height / this.marker.dpi * 2.54 * 10; // in mm
+          //const markerWidth = this.marker.width / this.marker.dpi * 2.54 * 10; // in mm
+          //const markerHeight = this.marker.height / this.marker.dpi * 2.54 * 10; // in mm
+          const markerWidth = this.marker.width;
+          const markerHeight = this.marker.height
           const position = new AFRAME.THREE.Vector3();
           const quaternion = new AFRAME.THREE.Quaternion();
           const scale = new AFRAME.THREE.Vector3();
@@ -335,6 +360,7 @@
 
         updateWorldMatrix(worldMatrix) {
           this.el.object3D.visible = worldMatrix !== null;
+          //if (worldMatrix !== null) this.el.object3D.visible = true;
           if (worldMatrix === null) {
             return;
           }

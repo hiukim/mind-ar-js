@@ -3,7 +3,8 @@ const {Cumsum} = require('../utils/cumsum');
 const SEARCH_SIZE1 = 10;
 const SEARCH_SIZE2 = 2;
 
-const TEMPLATE_SIZE = 22
+//const TEMPLATE_SIZE = 22 // 22 is default from artoolkit
+const TEMPLATE_SIZE = 6;
 const TEMPLATE_SD_THRESH = 5.0;
 const MAX_SIM_THRESH = 0.95;
 
@@ -175,7 +176,8 @@ const _selectFeature = (options) => {
 
   //console.log("params: ", templateSize, templateSize, occSize, maxSimThresh, minSimThresh, sdThresh);
 
-  occSize *= 2;
+  //occSize *= 2;
+  occSize = Math.floor(Math.min(image.width, image.height) / 10);
 
   const divSize = (templateSize * 2 + 1) * 3;
   const xDiv = Math.floor(width / divSize);
@@ -245,11 +247,13 @@ const _selectFeature = (options) => {
     }
 
     coords.push({
-      x: cx,
-      y: cy,
-      mx: 1.0 * cx / dpi * 25.4,
-      my: 1.0 * (height - cy) / dpi * 25.4,
-      maxSim: minSim,
+      //x: cx,
+      //y: cy,
+      //mx: 1.0 * cx / dpi * 25.4,
+      //my: 1.0 * (height - cy) / dpi * 25.4,
+      mx: 1.0 * cx / dpi,
+      my: 1.0 * (height - cy) / dpi,
+      //maxSim: minSim,
     })
 
     num += 1;
@@ -332,6 +336,7 @@ const _getSimilarity = (options) => {
   if (vlen2 == 0) return null;
   vlen2 = Math.sqrt(vlen2);
 
+  // covariance between template and current pixel
   const sim = 1.0 * sxy / (vlen * vlen2);
   return sim;
 }
@@ -339,3 +344,4 @@ const _getSimilarity = (options) => {
 module.exports = {
   extract
 };
+

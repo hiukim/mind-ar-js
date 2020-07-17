@@ -4,7 +4,8 @@ const {refineHomography} = require('../icp/refine_homography.js');
 const AR2_TRACKING_CANDIDATE_MAX = 200
 
 const AR2_DEFAULT_SEARCH_FEATURE_NUM = 16;
-const AR2_TEMP_SCALE = 2;
+//const AR2_TEMP_SCALE = 2;
+const AR2_TEMP_SCALE = 1;
 const AR2_DEFAULT_TS = 6;
 const AR2_DEFAULT_TRACKING_SD_THRESH = 5.0;
 const AR2_SIM_THRESH = 0.5;
@@ -15,6 +16,20 @@ const AR2_SEARCH_SIZE = 6;
 
 const SKIP_INTERVAL = 3;
 const KEEP_NUM = 3;
+
+const _track = ({projectionTransform, featureSets, imageList, prevResults, targetImage, randomizer}) => {
+  const prevModelViewProjectionTransforms = [];
+  for (let i = 0;  i < prevResults.length; i++) {
+    const t = buildModelViewProjectionTransform(projectionTransform, prevResults[i].modelViewTransform);
+    prevModelViewProjectionTransforms.push(t);
+  }
+  const modelViewTransform = prevResults[prevResults.length-1].modelViewTransform;
+  const modelViewProjectionTransform = prevModelViewProjectionTransforms[prevModelViewProjectionTransforms.length-1];
+
+  for (let j = 0; j < featureSets.length; j++) {
+  }
+
+}
 
 const track = ({projectionTransform, featureSets, imageList, prevResults, targetImage, randomizer}) => {
   const prevModelViewProjectionTransforms = [];
@@ -95,11 +110,15 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       // dpi = 25.4d / 10 = 2.54d
       const dpi = [];
       if (d1 < d2) {
-        dpi[0] = Math.sqrt(d2) * 2.54; // because mx+10, moved 10. so do 25.4 / 10 = 2.54?
-        dpi[1] = Math.sqrt(d1) * 2.54;
+        //dpi[0] = Math.sqrt(d2) * 2.54; // because mx+10, moved 10. so do 25.4 / 10 = 2.54?
+        //dpi[1] = Math.sqrt(d1) * 2.54;
+        dpi[0] = Math.sqrt(d2) / 10;
+        dpi[1] = Math.sqrt(d1) / 10;
       } else {
-        dpi[0] = Math.sqrt(d1) * 2.54;
-        dpi[1] = Math.sqrt(d2) * 2.54;
+        //dpi[0] = Math.sqrt(d1) * 2.54;
+        //dpi[1] = Math.sqrt(d2) * 2.54;
+        dpi[0] = Math.sqrt(d1) / 10;
+        dpi[1] = Math.sqrt(d2) / 10;
       }
 
       if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
@@ -213,6 +232,7 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     return null;
     //return {modelViewTransform, selectedFeatures};
   }
+  //console.log('selected features', selectedFeatures);
 
   const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
   let err = null;
@@ -497,10 +517,12 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
   return {
     pos2D: {x: bx, y: by},
     pos3D: {x: mx, y: my, z: 0},
-    sim: wval2/ 10000.0
+    //sim: wval2/ 10000.0
+    sim: wval2
   }
 }
 
+// compute covariance between template and region centered at i, j
 const _computePointVal = ({i, j, tsize, xsize, targetImage, template, templateVlen, templateSum, templateValidNum}) => {
   let sum1 = 0;
   let sum2 = 0;
@@ -541,7 +563,8 @@ const _computePointVal = ({i, j, tsize, xsize, targetImage, template, templateVl
   const vlen = sum2 - sum1 * sum1 / templateValidNum;
   let wval = 0;
   if (vlen !== 0) {
-    wval = sum3 * 100 / templateVlen * 100 / Math.floor(Math.sqrt(vlen));
+    //wval = sum3 * 100 / templateVlen * 100 / Math.floor(Math.sqrt(vlen));
+    wval = sum3 / templateVlen / Math.sqrt(vlen);
     //wval = Math.floor(Math.floor(Math.floor(sum3) * 100 / Math.floor(templateVlen)) * 100 / Math.floor(Math.sqrt(vlen)));
     //console.log("wval", wval, templateVlen, vlen, templateValidNum);
   }
@@ -585,14 +608,16 @@ const _setTemplate = ({image, dpi, modelViewProjectionTransform, mx, my}) => {
 
       const {x: mx2, y: my2} = screenToMarkerCoordinate(modelViewProjectionTransform, sx2, sy2);
 
-      let ix = Math.floor(mx2 * dpi / 25.4 + 0.5);
+      //let ix = Math.floor(mx2 * dpi / 25.4 + 0.5);
+      let ix = Math.floor(mx2 * dpi + 0.5);
       if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         // crazy hack for debugging....
         if (ix ===  163 &&  Math.abs(mx2-81.74991690104808)<0.000000001) ix = 164;
         //if (ix === -1 && mx2 === -1.0571840521437157) ix = 0;
       }
 
-      const iy = Math.floor(image.height - my2 * dpi / 25.4 + 0.5);
+      //const iy = Math.floor(image.height - my2 * dpi / 25.4 + 0.5);
+      const iy = Math.floor(image.height - my2 * dpi + 0.5);
       //console.log("ix iy", ix, iy, image.width, image.height, mx2, my2, dpi);
       if (ix < 0 || ix >= image.width) {
         template.push(null);
@@ -802,3 +827,4 @@ const _getTriangleArea = (p1, p2, p3) => {
 module.exports = {
   track
 }
+
