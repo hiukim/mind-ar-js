@@ -88,6 +88,7 @@ const _applyFilter = (image) => {
     }
   }
 
+
   const dst = new Float32Array(data.length);
   // apply vertical filter. border is computed by extending border pixel
   for (let i = 0; i < width; i++) {

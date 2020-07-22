@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "gpu.js": "^2.9.4",
     "image-js": "^0.21.9",
     "ml-matrix": "^6.5.0",
     "tinyqueue": "^2.0.3"

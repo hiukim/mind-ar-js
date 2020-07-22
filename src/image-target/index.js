@@ -87,7 +87,7 @@ class ImageTarget {
           console.log("INCORRECT ICP refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
         }
       }
-      //console.log("initial refined model view transform", refinedModelViewTransform);
+      console.log("initial refined model view transform", refinedModelViewTransform);
 
       this.isTracking = true;
       this.tracker.detected(refinedModelViewTransform);

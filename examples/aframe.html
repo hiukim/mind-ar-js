@@ -25,10 +25,6 @@
       AFRAME.registerSystem('ar-system', {
         AR_PROCESS_DIMENSION_MAX: 640,
         //AR_PROCESS_DIMENSION_MAX: 320,
-        //AR_PROCESS_WIDTH: 320,
-        //AR_PROCESS_HEIGHT: 240,
-        //AR_PROCESS_WIDTH: 640,
-        //AR_PROCESS_HEIGHT: 480,
 
         container: null,
         video: null,
@@ -196,22 +192,32 @@
         },
 
         _processImage: async function() {
+          var _start = new Date().getTime();
+
           const {vw, vh, pw, ph, cw, ch, cx, cy, sw, sh, sx, sy, tw, th, tx, ty} = this.sizes;
 
           const processContext = this.workerProcessContext;
-          //processContext.fillStyle = "black";
-          //processContext.fillRect(0, 0, pw, ph);
           //processContext.drawImage(this.video, sx, sy, sw, sh, tx, ty, tw, th);
           processContext.drawImage(this.video, 0, 0, pw, ph);
 
           const imageData = processContext.getImageData(0, 0, pw, ph);
-          //const greyImageData = [];
+          var _end = new Date().getTime();
+
+          const processData = new Uint8Array(pw * ph);
+          for (let i = 0; i < processData.length; i++) {
+            const offset = i * 4;
+            processData[i] = Math.floor((imageData.data[offset] + imageData.data[offset+1] + imageData.data[i+2])/3);
+          }
+
+          /*
           const greyImageData = new Uint8Array(imageData.data.length / 4);
           for (let i = 0; i < imageData.data.length; i += 4) {
             greyImageData[i/4] = Math.floor((imageData.data[i]+imageData.data[i+1]+imageData.data[i+2])/3);
             //greyImageData[i/4] = (imageData.data[i] * 3 + imageData.data[i+1] + imageData.data[i+2] * 4) >> 3;
           }
           //console.log("process data", greyImageData);
+          */
+          /*
           const debugImageData = this.workerProcessContext2.getImageData(0, 0, pw, ph);
           for (let i = 0; i < greyImageData.length; i++) {
             debugImageData.data[i*4+0] = greyImageData[i];
@@ -220,12 +226,15 @@
             debugImageData.data[i*4+3] = 255;
           }
           this.workerProcessContext2.putImageData(debugImageData, 0, 0);
+          */
+          var _end2 = new Date().getTime();
 
-          var _start = new Date().getTime();
-          const result = await this.controller.process(greyImageData);
-          var _end = new Date().getTime();
+          //const result = await this.controller.process(greyImageData);
+          const result = await this.controller.process(processData);
+          
           //console.log('exec time process Image: ', _start, _end, _end - _start);
-          $("#debug").html("<span>process time: " + (_end - _start)+ "</span>");
+          var _end3 = new Date().getTime();
+          $("#debug").html("<span>process time: " + (_end - _start) + "/" + (_end2 - _end) + "/" + (_end3 - _end2) + "</span>");
 
           //console.log("result: ", result);
           for (let i = 0; i < this.anchorEntities.length; i++) {

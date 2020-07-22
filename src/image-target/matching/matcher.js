@@ -5,6 +5,9 @@ const {detect} = require('./detector');
 const {extract} = require('./freak-extractor');
 const {match} = require('./matching');
 
+const {detect: detect2} = require('./detector2');
+const {detect: detect3} = require('./detector3');
+
 const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;
 const PYRAMID_MIN_SIZE = 8;
 //const FEATURE_DENSITY = 100;
@@ -89,25 +92,65 @@ const _extractPoints = ({image}) => {
     console.log('exec time extract points before gaussian: ', new Date().getTime() - _start);
   }
 
-  const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
+  //const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
 
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
     console.log('exec time extract points until gaussian: ', new Date().getTime() - _start);
   }
 
-  const dogPyramid = buildDoGPyramid({gaussianPyramid: gaussianPyramid});
+  //const dogPyramid = buildDoGPyramid({gaussianPyramid: gaussianPyramid});
+
+  //const featurePoints = detect({gaussianPyramid: gaussianPyramid, dogPyramid: dogPyramid});
+  const correctResult = null;
+  //const correctResult3 = detect3({gaussianPyramid: _gaussianPyramid, dogPyramid: _dogPyramid});
+  const correctResult3 = null;
+
+  const {featurePoints, descriptors: descriptors} = detect2({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES, correctResult, correctResult3});
+
+  //console.log("detect again");
+  const r = detect2({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES, correctResult, correctResult3});
+  //console.log("detect again finish");
+
+  /*
+  for (let k = 0; k < gaussianPyramid.images.length; k++) {
+    for (let i = 0; i < gaussianPyramid.images[k].data.length; i++) {
+      if ( Math.abs(gaussianPyramid.images[k].data[i] - _gaussianPyramid.images[k].data[i]) > 0.1 ) {
+        console.log("INCORRECT gaussian pyramid", k, i);
+        break;
+      }
+    }
+  }
+  for (let k = 0; k < dogPyramid.images.length; k++) {
+    for (let i = 0; i < dogPyramid.images[k].data.length; i++) {
+      if ( Math.abs(dogPyramid.images[k].data[i] - _dogPyramid.images[k].data[i]) > 0.1 ) {
+        console.log("INCORRECT gaussian pyramid", k, i);
+        break;
+      }
+    }
+  }
+  */
 
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
     console.log('exec time extract points until dog ', new Date().getTime() - _start);
   }
 
-  const featurePoints = detect({gaussianPyramid, dogPyramid});
 
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
     console.log('exec time extract points until detect', new Date().getTime() - _start);
   }
 
-  const descriptors = extract({pyramid: gaussianPyramid, points: featurePoints});
+  /*
+  const descriptors2 = extract({pyramid: gaussianPyramid, points: featurePoints});
+  console.log("descrxiptors", descriptors, descriptors2);
+  for (let i = 0; i < descriptors.length; i++) {
+    for (let j = 0; j < descriptors[i].length; j++) {
+      if (descriptors[i][j] !== descriptors2[i][j]) {
+        console.log("INCORRECTX descriptors", i, j);
+        breka;
+      }
+    }
+  }
+  */
 
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
     console.log('exec time extract points until extract', new Date().getTime() - _start);

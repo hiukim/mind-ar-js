@@ -17,20 +17,6 @@ const AR2_SEARCH_SIZE = 6;
 const SKIP_INTERVAL = 3;
 const KEEP_NUM = 3;
 
-const _track = ({projectionTransform, featureSets, imageList, prevResults, targetImage, randomizer}) => {
-  const prevModelViewProjectionTransforms = [];
-  for (let i = 0;  i < prevResults.length; i++) {
-    const t = buildModelViewProjectionTransform(projectionTransform, prevResults[i].modelViewTransform);
-    prevModelViewProjectionTransforms.push(t);
-  }
-  const modelViewTransform = prevResults[prevResults.length-1].modelViewTransform;
-  const modelViewProjectionTransform = prevModelViewProjectionTransforms[prevModelViewProjectionTransforms.length-1];
-
-  for (let j = 0; j < featureSets.length; j++) {
-  }
-
-}
-
 const track = ({projectionTransform, featureSets, imageList, prevResults, targetImage, randomizer}) => {
   const prevModelViewProjectionTransforms = [];
   for (let i = 0;  i < prevResults.length; i++) {

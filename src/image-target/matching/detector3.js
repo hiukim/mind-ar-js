@@ -17,10 +17,6 @@ const ONE_OVER_2PI = 0.159154943091895;
 
 // Detect minima and maximum in Laplacian images
 const detect = ({gaussianPyramid, dogPyramid}) => {
-  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-    var _start = new Date().getTime();
-  }
-
   const originalWidth = dogPyramid.images[0].width;
   const originalHeight = dogPyramid.images[0].height;
 
@@ -28,7 +24,6 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
 
   const featurePoints = [];
 
-  let extremaCount = 0;
   for (let k = 1; k < dogPyramid.images.length - 1; k++) {
     let image0 = dogPyramid.images[k-1];
     let image1 = dogPyramid.images[k];
@@ -42,26 +37,14 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
     let hasPadOneHeight = false;
 
     if ( Math.floor(image0.width/2) == image1.width) {
-      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-        var __start = new Date().getTime();
-      }
       image0 = downsampleBilinear({image: image0});
-      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-        console.log('exec time downsampleBilinear', image0.width, new Date().getTime() - __start);
-      }
     }
 
     if ( Math.floor(image1.width/2) == image2.width) {
       hasUpsample = true;
       hasPadOneWidth = image1.width % 2 === 1;
       hasPadOneHeight = image1.height % 2 === 1;
-      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-        var __start = new Date().getTime();
-      }
       image2 = upsampleBilinear({image: image2, padOneWidth: hasPadOneWidth, padOneHeight: hasPadOneHeight});
-      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-        console.log('exec time upsampleBilinear', new Date().getTime() - __start);
-      }
     }
 
     const width = image1.width;
@@ -92,12 +75,14 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
         if (v*v < LAPLACIAN_SQR_THRESHOLD) continue;
 
         // Step 1: find maxima/ minima in laplacian images
+
         let isMax = true;
         for (let d = 0; d < neighbours.length; d++) {
           if (v <= image0.data[pos+neighbours[d]]) {isMax = false; break};
           if (v <= image2.data[pos+neighbours[d]]) {isMax = false; break};
           if (d !== 0 && v <= image1.data[pos+neighbours[d]]) {isMax = false; break};
         }
+
         let isMin = true;
         for (let d = 0; d < neighbours.length; d++) {
           if (v >= image0.data[pos+neighbours[d]]) {isMin = false; break};
@@ -106,8 +91,6 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
         }
 
         if (!isMax && !isMin) continue; // extrema -> feature point
-
-        extremaCount += 1;
 
         // Step 2: sub-pixel refinement (I'm not sure what that means. Any educational ref?)
 
@@ -185,8 +168,7 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
       }
     }
   }
-
-  if (typeof window !== 'undefined' && window.DEBUG) {
+  if (window.DEBUG) {
     const fps = window.debugContent.featurePoints2[window.debug.keyframeIndex];
     console.log("featurepoints2", featurePoints.length, 'vs', fps.length);
     for (let i = 0; i < fps.length; i++) {
@@ -199,27 +181,24 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
     }
   }
 
-  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-    console.log('exec time DETECTION first extract', new Date().getTime() - _start);
-  }
-
   const prunedFeaturePoints = _pruneFeatures({featurePoints: featurePoints, width: originalWidth, height: originalHeight});
 
-  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-    console.log('exec time DETECTION prune', new Date().getTime() - _start);
-  }
+  console.log("pruned feature points length", prunedFeaturePoints.length);
+
+  // compute feature orientations
+  const gradients = _computeGradients({pyramid: gaussianPyramid});
 
   const orientedFeaturePoints = [];
   for (let i = 0; i < prunedFeaturePoints.length; i++) {
-    if (typeof window !== 'undefined' && window.DEBUG) {
+    if (window.DEBUG) {
       window.debug.orientationComputeIndex = i;
     }
 
     const fp = prunedFeaturePoints[i];
     const octaveSigma = fp.sigma * (1.0 / Math.pow(2, fp.octave));
 
-    const pyramidImageIndex = fp.octave * gaussianPyramid.numScalesPerOctaves + fp.scale;
-    const angles = _computeOrientation({x: fp.octaveX, y: fp.octaveY, sigma: octaveSigma, octave: fp.octave, scale: fp.scale, pyramid: gaussianPyramid, pyramidImageIndex});
+    const gradient = gradients[fp.octave * gaussianPyramid.numScalesPerOctaves + fp.scale];
+    const angles = _computeOrientation({x: fp.octaveX, y: fp.octaveY, sigma: octaveSigma, octave: fp.octave, scale: fp.scale, gradient: gradient});
 
     for (let j = 0; j < angles.length; j++) {
       orientedFeaturePoints.push(Object.assign({
@@ -228,7 +207,7 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
     }
   }
 
-  if (typeof window !== 'undefined' && window.DEBUG) {
+  if (window.DEBUG) {
     const fps = window.debugContent.featurePoints4[window.debug.keyframeIndex];
     console.log("featurepoints4", orientedFeaturePoints.length, 'vs', fps.length);
     for (let i = 0; i < fps.length; i++) {
@@ -242,16 +221,12 @@ const detect = ({gaussianPyramid, dogPyramid}) => {
     }
   }
 
-  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-    console.log('exec time DETECTION compute oriented', new Date().getTime() - _start);
-  }
-
+  return {gradients};
   return orientedFeaturePoints;
 }
 
 const _computeOrientation = (options) => {
-  const {x, y, sigma, octave, scale, gradient, pyramid, pyramidImageIndex} = options;
-  const image = pyramid.images[pyramidImageIndex];
+  const {x, y, sigma, octave, scale, gradient} = options;
 
   const gwSigma = Math.max(1.0, ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * sigma);
   const gwScale = -1.0 / (2 * gwSigma * gwSigma);
@@ -260,11 +235,11 @@ const _computeOrientation = (options) => {
   const radius2 = Math.ceil( radius * radius - 0.5);
 
   const x0 = Math.max(0, x - Math.floor(radius + 0.5));
-  const x1 = Math.min(image.width-1, x + Math.floor(radius + 0.5));
+  const x1 = Math.min(gradient.width-1, x + Math.floor(radius + 0.5));
   const y0 = Math.max(0, y - Math.floor(radius + 0.5));
-  const y1 = Math.min(image.height-1, y + Math.floor(radius + 0.5));
+  const y1 = Math.min(gradient.height-1, y + Math.floor(radius + 0.5));
 
-  if (typeof window !== 'undefined' && window.DEBUG) {
+  if (window.DEBUG) {
     const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
     if (Math.floor(o.x + 0.5) !== x || Math.floor(o.y + 0.5) !== y) {
       console.log("INCORRECT orientation input");
@@ -288,7 +263,7 @@ const _computeOrientation = (options) => {
     const dy2 = dy * dy;
 
     for (let xp = x0; xp <= x1; xp++) {
-      if (typeof window !== 'undefined' && window.DEBUG) {
+      if (window.DEBUG) {
         window.debug.fbinIndex += 1;
       }
 
@@ -300,7 +275,9 @@ const _computeOrientation = (options) => {
         continue; // only use the gradients within the circular window
       }
 
-      const {mag, angle} = _computeGradient(pyramid, pyramidImageIndex, yp, xp);
+      const gradientValue = gradient.values[ yp * gradient.width + xp ];
+      const angle = gradientValue.angle;
+      const mag = gradientValue.mag;
 
       const w = _fastExp6({x: r2 * gwScale}); // Compute the gaussian weight based on distance from center of keypoint
 
@@ -313,7 +290,7 @@ const _computeOrientation = (options) => {
       const b2 = (bin + 1) % ORIENTATION_NUM_BINS;
       const magnitude = w * mag;
 
-      if (typeof window !== 'undefined' && window.DEBUG) {
+      if (window.DEBUG) {
         const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
         if (Math.abs(fbin - o.fbins[window.debug.fbinIndex]) > 0.001) {
           console.log("INCORRECT fbin", r2, radius2, fbin, 'vs', o.fbins[window.debug.fbinIndex]);
@@ -334,9 +311,8 @@ const _computeOrientation = (options) => {
       histogram[b2] += w2 * magnitude;
     }
   }
-  //console.log("correct histograms", JSON.stringify(histogram));
 
-  if (typeof window !== 'undefined' && window.DEBUG) {
+  if (window.DEBUG) {
     const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
     for (let i = 0; i < histogram.length; i++) {
       if (Math.abs(o.histograms[i] - histogram[i]) > 0.001) {
@@ -365,7 +341,7 @@ const _computeOrientation = (options) => {
     }
   }
 
-  if (typeof window !== 'undefined' && window.DEBUG) {
+  if (window.DEBUG) {
     const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
     for (let i = 0; i < histogram.length; i++) {
       if (Math.abs(o.smoothedHistograms[i] - histogram[i]) > 0.001) {
@@ -413,7 +389,7 @@ const _computeOrientation = (options) => {
         }
       }
 
-      if (typeof window !== 'undefined' && window.DEBUG) {
+      if (window.DEBUG) {
         const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
         if (!window.cmp(fbin, o.histfbins[i])) {
           console.log("INCORRECT orientation fbin", i, fbin, 'vs', o.histfbins[i], o.histAs[i], o.histBs[i], o.histCs[i]);
@@ -475,18 +451,37 @@ const _fastExp6 = (options) => {
   return (720+x*(720+x*(360+x*(120+x*(30+x*(6+x))))))*0.0013888888;
 }
 
-const _computeGradient = (pyramid, pyramidImageIndex, j, i) => {
-  // cache computation?
-  const image = pyramid.images[pyramidImageIndex];
-  const prevJ = j > 0? j - 1: j;
-  const nextJ = j < image.height - 1? j + 1: j;
-  const prevI = i > 0? i - 1: i;
-  const nextI = i < image.width - 1? i + 1: i;
-  const dx = image.data[j * image.width + nextI] - image.data[j * image.width + prevI];
-  const dy = image.data[nextJ * image.width + i] - image.data[prevJ * image.width + i];
-  const angle = Math.atan2(dy, dx) + Math.PI;
-  const mag = Math.sqrt(dx * dx + dy * dy);
-  return {angle, mag};
+const _computeGradients = (options) => {
+  const {pyramid} = options;
+  const gradients = [];
+
+  for (let k = 0; k < pyramid.images.length; k++) {
+    const values = [];
+    const image = pyramid.images[k];
+
+    for (let j = 0; j < image.height; j++) {
+      const prevJ = j > 0? j - 1: j;
+      const nextJ = j < image.height - 1? j + 1: j;
+
+      for (let i = 0; i < image.width; i++) {
+        const prevI = i > 0? i - 1: i;
+        const nextI = i < image.width - 1? i + 1: i;
+        const dx = image.data[j * image.width + nextI] - image.data[j * image.width + prevI];
+        const dy = image.data[nextJ * image.width + i] - image.data[prevJ * image.width + i];
+
+        values.push({
+          angle: Math.atan2(dy, dx) + Math.PI,
+          mag: Math.sqrt(dx * dx + dy * dy)
+        });
+      }
+    }
+    gradients.push({
+      width: image.width,
+      height: image.height,
+      values: values
+    });
+  }
+  return gradients;
 }
 
 // divide the image into PRUNE_FEATURES_NUM_BUCKETS * PRUNE_FEATURES_NUM_BUCKETS area
@@ -558,14 +553,11 @@ const _solveSymmetric33 = (options) => {
   B[0] = A[4] * A[8] - A[5] * A[7];
   B[1] = A[2] * A[7] - A[1] * A[8];
   B[2] = A[1] * A[5] - A[2] * A[4];
-  //B[3] = A[5] * A[6] - A[3] * A[8];
-  B[3] = B[1];
+  B[3] = A[5] * A[6] - A[3] * A[8];
   B[4] = A[0] * A[8] - A[2] * A[6];
   B[5] = A[2] * A[3] - A[0] * A[5];
-  //B[6] = A[3] * A[7] - A[4] * A[6];
-  //B[7] = A[1] * A[6] - A[0] * A[7];
-  B[6] = B[2];
-  B[7] = B[5];
+  B[6] = A[3] * A[7] - A[4] * A[6];
+  B[7] = A[1] * A[6] - A[0] * A[7];
   B[8] = A[0] * A[4] - A[1] * A[3];
 
   const x = [];
@@ -573,9 +565,9 @@ const _solveSymmetric33 = (options) => {
   x[1] = B[3] * b[0] + B[4] * b[1] + B[5] * b[2];
   x[2] = B[6] * b[0] + B[7] * b[1] + B[8] * b[2];
 
-  x[0] = x[0] / det;
-  x[1] = x[1] / det;
-  x[2] = x[2] / det;
+  x[0] = 1.0 * x[0] / det;
+  x[1] = 1.0 * x[1] / det;
+  x[2] = 1.0 * x[2] / det;
 
   return x;
 }
@@ -583,4 +575,5 @@ const _solveSymmetric33 = (options) => {
 module.exports = {
   detect
 }
+
 

@@ -1,5 +1,5 @@
 // simpler version of upsampling. better performance
-const upsampleBilinear = ({image, padOneWidth, padOneHeight}) => {
+const _upsampleBilinear = ({image, padOneWidth, padOneHeight}) => {
   const {width, height, data} = image;
   const dstWidth = image.width * 2 + (padOneWidth?1:0);
   const dstHeight = image.height * 2 + (padOneHeight?1:0);
@@ -21,7 +21,7 @@ const upsampleBilinear = ({image, padOneWidth, padOneHeight}) => {
 }
 
 // artoolkit version. slower. is it necessary?
-const _upsampleBilinear = ({image, padOneWidth, padOneHeight}) => {
+const upsampleBilinear = ({image, padOneWidth, padOneHeight}) => {
   const {width, height, data} = image;
 
   const dstWidth = image.width * 2 + (padOneWidth?1:0);
