@@ -1,7 +1,7 @@
 const {GPU} = require('gpu.js');
-//const gpu = new GPU({mode: 'dev'});
+//const gpu = new GPU({mode: 'debug'});
 const gpu = new GPU();
-//console.log("gpu", gpu);
+console.log("gpu", gpu);
 
 const LAPLACIAN_SQR_THRESHOLD = 3 * 3;
 const MAX_FEATURE_POINTS = 500;
@@ -118,6 +118,9 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
 
   let kernelIndex = 0;
 
+  //const gPyramid = _buildGaussianPyramid(kernelIndex++, image, numOctaves, numScalesPerOctaves);
+  //const gPyramid = _buildGaussianPyramid(kernelIndex++, image, 1, 1);
+
   const pyramidImages = [];
   for (let i = 0; i < numOctaves; i++) {
     if (i === 0) {
@@ -137,11 +140,33 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
     console.log('exec time until pyramid', new Date().getTime() - _start);
   }
 
-  const gaussianImages = _stackImages(kernelIndex++, pyramidImages);
-  const gaussianImageSizes = [];
-  for (let k = 0; k < pyramidImages.length; k++) {
-    gaussianImageSizes.push([image.width, image.height]);
+  /*
+  let curIndex = 0;
+  let totalSize = 0;
+  for (let i = 0; i < pyramidImages.length; i++) {
+    let incorrectCount = 0;
+    const vs = pyramidImages[i].data.toArray();
+    totalSize += vs.length;
+    for (let j = 0; j < vs.length; j++) {
+      if (all[curIndex++] !== vs[j]) {
+        incorrectCount += 1;
+        if (incorrectCount < 5) {
+          console.log("INCORRECT", i, j, all[curIndex-1], vs[j]);
+        }
+      }
+    }
   }
+  console.log("total size", all.length, totalSize);
+  */
+
+  //const gaussianImages = _stackImages(kernelIndex++, pyramidImages);
+  //return [];
+  //return [];
+
+  //const gaussianImageSizes = [];
+  //for (let k = 0; k < pyramidImages.length; k++) {
+  //  gaussianImageSizes.push([image.width, image.height]);
+  //}
 
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
     console.log('exec time until pyramid stack', new Date().getTime() - _start);
@@ -174,7 +199,8 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
   // compute feature orientations
   const gradients = [];
   for (let k = 0; k < pyramidImages.length; k++) {
-    gradients.push(_computeGradients(kernelIndex++, pyramidImages[k], gaussianImages, k));
+    //gradients.push(_computeGradients(kernelIndex++, pyramidImages[k], gaussianImages, k));
+    gradients.push(_computeGradients(kernelIndex++, pyramidImages[k]));
   }
 
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
@@ -230,9 +256,10 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
     console.log('exec time until DOG', new Date().getTime() - _start);
   }
 
-
   const originalWidth = dogPyramid.images[0].width;
   const originalHeight = dogPyramid.images[0].height;
+
+  let prunedExtremas = initialPrune(kernelIndex++);
 
   const featurePoints = [];
   for (let k = 1; k < dogPyramid.images.length - 1; k++) {
@@ -287,12 +314,38 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
     }
       */
 
+    prunedExtremas = applyPrune(kernelIndex++, k, prunedExtremas, extremasResult.result, extremasResult.saveScore, extremasResult.saveSigma, extremasResult.saveX, extremasResult.saveY, image1.width, image1.height);
+
+
+    /*
     const isExtremas = extremasResult.result.toArray();
     const extremaScores = extremasResult.saveScore.toArray();
     const extremaSigmas = extremasResult.saveSigma.toArray();
     const extremaXs = extremasResult.saveX.toArray();
     const extremaYs = extremasResult.saveY.toArray();
+    */
 
+    /*
+    for (let i = 0; i < isExtremas.length; i++) {
+      if (isExtremas[i] === 1) {
+        // original x = x*2^n + 2^(n-1) - 0.5
+        // original y = y*2^n + 2^(n-1) - 0.5
+        const posI = i % image1.width;
+        const posJ = Math.floor(i / image1.width);
+        const originalX = posI * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
+        const originalY = posJ * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
+        const newX = extremaXs[i];
+        const newY = extremaYs[i];
+
+        let newOctaveX = newX * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
+        let newOctaveY = newY * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
+
+        console.log("extream xy", extremaXs[i], extremaYs[i], originalX, originalY, posI, posJ, newOctaveX, newOctaveY);
+      }
+    }
+    */
+
+    /*
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until feature points toArray', k,  new Date().getTime() - _start);
     }
@@ -301,6 +354,11 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
       if (isExtremas[i] === 1) {
         const newX = extremaXs[i];
         const newY = extremaYs[i];
+
+        const posI = i % image1.width;
+        const posJ = Math.floor(i / image1.width);
+        const originalX = posI * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
+        const originalY = posJ * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
 
         let newOctaveX = newX * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
         let newOctaveY = newY * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
@@ -316,6 +374,8 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
           octaveSigma: octaveSigma,
           x: newX,
           y: newY,
+          originalX: originalX,
+          originalY: originalY,
           sigma: extremaSigmas[i],
           score: extremaScores[i],
         })
@@ -324,9 +384,61 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until feature points', k,  new Date().getTime() - _start);
     }
+    */
   }
 
-  const prunedFeaturePoints = _pruneFeatures({featurePoints: featurePoints, width: originalWidth, height: originalHeight});
+  //prunedExtremas = reducePrune(kernelIndex++, prunedExtremas);
+  const prunedExtremasArr = prunedExtremas.toArray();
+  //return {featurePoints: [], descriptors: []};
+
+  const prunedFeaturePoints = [];
+  for (let i = 0; i < prunedExtremasArr.length; i++) {
+    for (let j = 0; j < prunedExtremasArr[i].length; j++) {
+      if (prunedExtremasArr[i][j][0] !== 0) {
+        const ext = prunedExtremasArr[i][j];
+        const dogIndex = ext[4];
+        const octave = Math.floor(dogIndex / dogPyramid.numScalesPerOctaves);
+        const scale = dogIndex % dogPyramid.numScalesPerOctaves;
+        const newX = ext[2];
+        const newY = ext[3];
+
+        let newOctaveX = newX * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
+        let newOctaveY = newY * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
+        newOctaveX = Math.floor(newOctaveX + 0.5);
+        newOctaveY = Math.floor(newOctaveY + 0.5);
+        const octaveSigma = ext[1] * (1.0 / Math.pow(2, octave));
+
+        prunedFeaturePoints.push({
+          bucket: i,
+          octave: octave,
+          scale: scale,
+          octaveX: newOctaveX,
+          octaveY: newOctaveY,
+          octaveSigma: octaveSigma,
+          octave: octave,
+          scale: scale,
+          score: ext[0],
+          sigma: ext[1],
+          x: ext[2],
+          y: ext[3],
+        });
+      }
+    }
+  }
+  //console.log("pruned extremas count", prunedFeaturePoints2.length);
+  //console.log("prunedFeaturePoints2", prunedFeaturePoints2);
+
+  //let prunedFeaturePoints = _pruneFeatures({featurePoints: featurePoints, width: originalWidth, height: originalHeight});
+  //console.log("prunedFeature count", prunedFeaturePoints.length);
+  //console.log("prunedFeaturePoints", prunedFeaturePoints);
+
+  /*
+  for (let i = 0; i < prunedFeaturePoints.length; i++) {
+    const p1 = prunedFeaturePoints[i];
+    const p2 = prunedFeaturePoints2[i];
+    console.log("p1 p2", i, p1.x, p1.y, 'vs', p2.x, p2.y);
+  }
+  */
 
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
     console.log('exec time until feature points prune', new Date().getTime() - _start);
@@ -379,10 +491,14 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
         }, fp));
       }
     }
-    const _freakValues = _computeFreak(kernelIndex++, gaussianImages, gaussianImageSizes, gaussianPyramid.numOctaves,  gaussianPyramid.numScalesPerOctaves, orientedFeaturePointsByGaussianIndex);
+    //const _freakValues2 = __computeFreak(kernelIndex++, gaussianImages, gaussianImageSizes, gaussianPyramid.numOctaves,  gaussianPyramid.numScalesPerOctaves, orientedFeaturePointsByGaussianIndex);
+
+    const _freakValues = _computeFreak(kernelIndex++, gaussianPyramid.images, gaussianPyramid.numOctaves,  gaussianPyramid.numScalesPerOctaves, orientedFeaturePointsByGaussianIndex);
 
     const freakValues = _freakValues.toArray();
+    //const freakValues2 = _freakValues2.toArray();
     //console.log("freak values", freakValues);
+    //console.log("freak values 2", freakValues2);
 
     for (let p = 0; p < orientedFeaturePointsByGaussianIndex.length; p++) {
       orientedFeaturePoints.push(orientedFeaturePointsByGaussianIndex[p]);
@@ -517,6 +633,9 @@ const _numOctaves = (options) => {
 
 const _computeOrientations = (histogram) => {
   // The orientation histogram is smoothed with a Gaussian, sigma=1
+
+  // just pick the max index, don't do smoothing
+  /*
   const kernel = [0.274068619061197, 0.451862761877606, 0.274068619061197];
   for(let i = 0; i < ORIENTATION_SMOOTHING_ITERATIONS; i++) {
     const old = [];
@@ -530,6 +649,7 @@ const _computeOrientations = (histogram) => {
                     + kernel[2] * old[(j+1) % histogram.length];
     }
   }
+  */
 
   // Find the peak of the histogram.
   let maxHeight = -1;
@@ -553,8 +673,8 @@ const _computeOrientations = (histogram) => {
     const next = (i + 1) % histogram.length;
 
     // add 0.0001 in comparison to avoid too sensitive to rounding precision
-    if (histogram[i] > ORIENTATION_PEAK_THRESHOLD * maxHeight && (histogram[i] > histogram[prev] + 0.0001) && (histogram[i] > histogram[next] + 0.0001)) {
-    //if (i === maxIndex) {
+    //if (histogram[i] > ORIENTATION_PEAK_THRESHOLD * maxHeight && (histogram[i] > histogram[prev] + 0.0001) && (histogram[i] > histogram[next] + 0.0001)) {
+    if (i === maxIndex) {
       // The default sub-pixel bin location is the discrete location if the quadratic fitting fails.
       let fbin = i;
 
@@ -607,26 +727,36 @@ const _pruneFeatures = (options) => {
   const dy = Math.ceil(1.0 * height / PRUNE_FEATURES_NUM_BUCKETS);
 
   for (let i = 0; i < featurePoints.length; i++) {
-    const bucketX = Math.floor(featurePoints[i].x / dx);
-    const bucketY = Math.floor(featurePoints[i].y / dy);
+    //const bucketX = Math.floor(featurePoints[i].x / dx);
+    //const bucketY = Math.floor(featurePoints[i].y / dy);
+    const bucketX = Math.floor(featurePoints[i].originalX / dx);
+    const bucketY = Math.floor(featurePoints[i].originalY / dy);
 
     const bucketIndex = bucketY * PRUNE_FEATURES_NUM_BUCKETS + bucketX;
+
+    if ( Math.abs(featurePoints[i].x - 54.77949523) < 0.0001) {
+      console.log("[debug 54.77949523]", featurePoints[i], bucketX, bucketY, bucketIndex);
+    }
+
     buckets[bucketIndex].push(featurePoints[i]);
   }
 
-  for (let i = 0; i < PRUNE_FEATURES_NUM_BUCKETS; i++) {
-    for (let j = 0; j < PRUNE_FEATURES_NUM_BUCKETS; j++) {
+  console.log("bucet 20", buckets[20]);
+
+  for (let j = 0; j < PRUNE_FEATURES_NUM_BUCKETS; j++) {
+    for (let i = 0; i < PRUNE_FEATURES_NUM_BUCKETS; i++) {
       const bucketIndex = j * PRUNE_FEATURES_NUM_BUCKETS + i;
       const bucket = buckets[bucketIndex];
       const nSelected = Math.min(bucket.length, nPointsPerBuckets);
 
-      if (bucket.length > nSelected) {
+      //if (bucket.length > nSelected) {
         bucket.sort((f1, f2) => {
           return Math.abs(f1.score) > Math.abs(f2.score)? -1: 1;
         });
-      }
+      //}
       for (let k = 0; k < nSelected; k++) {
-        resultFeaturePoints.push(bucket[k]);
+        //resultFeaturePoints.push(bucket[k]);
+        resultFeaturePoints.push(Object.assign(bucket[k], {bucket: bucketIndex}));
       }
     }
   }
@@ -636,7 +766,268 @@ const _pruneFeatures = (options) => {
 
 const kernels = [];
 
-const _computeGradients = (kernelIndex, image, gaussianImages, gaussianImageIndex) => {
+const initialPrune = (kernelIndex) => {
+  const nBuckets = PRUNE_FEATURES_NUM_BUCKETS * PRUNE_FEATURES_NUM_BUCKETS;
+  const nPointsPerBuckets = MAX_FEATURE_POINTS / nBuckets;
+
+  if (kernelIndex === kernels.length) {
+    kernels.push(
+      gpu.createKernel(function() {
+        return 0;
+      }, {
+        output: [5, nPointsPerBuckets, nBuckets], // first dimension: [score, sigma, x, y, dogIndex]
+        pipeline: true,
+      })
+    )
+  }
+  const kernel = kernels[kernelIndex];
+  const result = kernel();
+  return result;
+}
+
+// removed necessary information for prunedExtremas
+const reducePrune = (kernelIndex, prunedExtremas) => {
+  const nBuckets = PRUNE_FEATURES_NUM_BUCKETS * PRUNE_FEATURES_NUM_BUCKETS;
+  const nPointsPerBuckets = MAX_FEATURE_POINTS / nBuckets;
+  if (kernelIndex === kernels.length) {
+    kernels.push(
+      gpu.createKernel(function(prunedExtremas) {
+        return 0;
+        return prunedExtremas[this.thread.z+1][this.thread.y][this.thread.x];
+      }, {
+        //output: [1, nPointsPerBuckets, nBuckets], // first dimension: [sigma, x, y, dogIndex]
+        output: [1], // first dimension: [sigma, x, y, dogIndex]
+        pipeline: true,
+      })
+    )
+  }
+  const kernel = kernels[kernelIndex];
+  const result = kernel(prunedExtremas);
+  return result;
+}
+
+const applyPrune = (kernelIndex, dogIndex, prunedExtremas, isExtremas, extremaScores, extremaSigmas, extremaXs, extremaYs, width, height) => {
+  const nBuckets = PRUNE_FEATURES_NUM_BUCKETS * PRUNE_FEATURES_NUM_BUCKETS;
+  const nPointsPerBuckets = MAX_FEATURE_POINTS / nBuckets;
+
+  if (kernelIndex === kernels.length) {
+    const subkernels = [];
+
+    subkernels.push(
+      gpu.createKernelMap({
+        saveMax1: function(a) {return a},
+        saveMax2: function(a) {return a},
+        saveMax3: function(a) {return a},
+        saveMax4: function(a) {return a},
+        saveMax5: function(a) {return a}
+      }, function(prunedExtremas, numBucketsPerDimension, isExtremas, extremaScores, width, height) {
+        const bucketIndex = this.thread.x;
+        const bucketX = bucketIndex % numBucketsPerDimension;
+        const bucketY = Math.floor(bucketIndex / numBucketsPerDimension);
+        const dx = Math.ceil(width / numBucketsPerDimension);
+        const dy = Math.ceil(height / numBucketsPerDimension);
+
+        // can declare array in gpu.js?
+        // negative numbers indicate from exsiting prunedExtremas
+        let max1 = -1;
+        let max2 = -2;
+        let max3 = -3;
+        let max4 = -4;
+        let max5 = -5;
+
+        let maxs = [-1, -2, -3, -4, -5];
+
+        for (let t = 0; t < 5; t++) {
+          for (let i = bucketX * dx; i < bucketX * dx + dx; i++) {
+            for (let j = bucketY * dy; j < bucketY * dy + dy; j++) {
+              const pointIndex = j * width + i;
+              if (isExtremas[pointIndex] === 1 && pointIndex !== max1 && pointIndex !== max2 && pointIndex !== max3 && pointIndex !== max4 && pointIndex !== max5)
+              {
+                //if ((max1 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max1])) || (max1 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[0][-1 * max1 - 1][bucketIndex]))) {
+                if ((max1 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max1])) || (max1 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[bucketIndex][-1 * max1 - 1][0]))) {
+                  max5 = max4;
+                  max4 = max3;
+                  max3 = max2;
+                  max2 = max1;
+                  max1 = pointIndex;
+                }
+                //else if ( (max2 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max2])) || (max2 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[0][-1 * max2 -1][bucketIndex]))) {
+                else if ( (max2 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max2])) || (max2 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[bucketIndex][-1 * max2 -1][0]))) {
+                  max5 = max4;
+                  max4 = max3;
+                  max3 = max2;
+                  max2 = pointIndex;
+                }
+                //else if ( (max3 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max3])) || (max3 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[0][-1 * max3 -1][bucketIndex]))) {
+                else if ( (max3 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max3])) || (max3 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[bucketIndex][-1 * max3 -1][0]))) {
+                  max5 = max4;
+                  max4 = max3;
+                  max3 = pointIndex;
+                }
+                //else if ( (max4 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max4])) || (max4 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[0][-1 * max4 -1][bucketIndex]))) {
+                else if ( (max4 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max4])) || (max4 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[bucketIndex][-1 * max4 -1][0]))) {
+                  max5 = max4;
+                  max4 = pointIndex;
+                }
+                //else if ( (max5 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max5])) || (max5 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[0][-1 * max5 -1][bucketIndex]))) {
+                else if ( (max5 >= 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(extremaScores[max5])) || (max5 < 0 && Math.abs(extremaScores[pointIndex]) > Math.abs(prunedExtremas[bucketIndex][-1 * max5 -1][0]))) {
+                  max5 = pointIndex;
+                }
+              }
+            }
+          }
+        }
+        saveMax1(max1);
+        saveMax2(max2);
+        saveMax3(max3);
+        saveMax4(max4);
+        saveMax5(max5);
+        return -1;
+      }, {
+        output: [nBuckets],
+        pipeline: true,
+      })
+    );
+
+    subkernels.push(
+      gpu.createKernel(function(dogIndex, prunedExtremas, extremaScores, extremaSigmas, extremaXs, extremaYs, saveMax1, saveMax2, saveMax3, saveMax4, saveMax5) {
+        const propertyIndex = this.thread.x;
+        const bucketPointIndex = this.thread.y;
+        const bucketIndex = this.thread.z;
+        const max1 = saveMax1[bucketIndex];
+        const max2 = saveMax2[bucketIndex];
+        const max3 = saveMax3[bucketIndex];
+        const max4 = saveMax4[bucketIndex];
+        const max5 = saveMax5[bucketIndex];
+
+        if (bucketPointIndex === 0) {
+          if (max1 < 0) {
+            //return prunedExtremas[propertyIndex][-1 * max1 -1][bucketIndex];
+            return prunedExtremas[bucketIndex][-1 * max1 -1][propertyIndex];
+          } else {
+            if (propertyIndex === 0) return extremaScores[max1];
+            if (propertyIndex === 1) return extremaSigmas[max1];
+            if (propertyIndex === 2) return extremaXs[max1];
+            if (propertyIndex === 3) return extremaYs[max1];
+            if (propertyIndex === 4) return dogIndex;
+          }
+        }
+        if (bucketPointIndex === 1) {
+          if (max2 < 0) {
+            //return prunedExtremas[propertyIndex][-1 * max2 -1][bucketIndex];
+            return prunedExtremas[bucketIndex][-1 * max2 -1][propertyIndex];
+          } else {
+            if (propertyIndex === 0) return extremaScores[max2];
+            if (propertyIndex === 1) return extremaSigmas[max2];
+            if (propertyIndex === 2) return extremaXs[max2];
+            if (propertyIndex === 3) return extremaYs[max2];
+            if (propertyIndex === 4) return dogIndex;
+          }
+        }
+        if (bucketPointIndex === 2) {
+          if (max3 < 0) {
+            //return prunedExtremas[propertyIndex][-1 * max3 -1][bucketIndex];
+            return prunedExtremas[bucketIndex][-1 * max3 -1][propertyIndex];
+          } else {
+            if (propertyIndex === 0) return extremaScores[max3];
+            if (propertyIndex === 1) return extremaSigmas[max3];
+            if (propertyIndex === 2) return extremaXs[max3];
+            if (propertyIndex === 3) return extremaYs[max3];
+            if (propertyIndex === 4) return dogIndex;
+          }
+        }
+        if (bucketPointIndex === 3) {
+          if (max4 < 0) {
+            //return prunedExtremas[propertyIndex][-1 * max4 -1][bucketIndex];
+            return prunedExtremas[bucketIndex][-1 * max4 -1][propertyIndex];
+          } else {
+            if (propertyIndex === 0) return extremaScores[max4];
+            if (propertyIndex === 1) return extremaSigmas[max4];
+            if (propertyIndex === 2) return extremaXs[max4];
+            if (propertyIndex === 3) return extremaYs[max4];
+            if (propertyIndex === 4) return dogIndex;
+          }
+        }
+        if (bucketPointIndex === 4) {
+          if (max5 < 0) {
+            //return prunedExtremas[propertyIndex][-1 * max5 -1][bucketIndex];
+            return prunedExtremas[bucketIndex][-1 * max5 -1][propertyIndex];
+          } else {
+            if (propertyIndex === 0) return extremaScores[max5];
+            if (propertyIndex === 1) return extremaSigmas[max5];
+            if (propertyIndex === 2) return extremaXs[max5];
+            if (propertyIndex === 3) return extremaYs[max5];
+            if (propertyIndex === 4) return dogIndex;
+          }
+        }
+      }, {
+        output: [5, nPointsPerBuckets, nBuckets], // first dimension: [score, sigma, x, y]
+        pipeline: true,
+      })
+    );
+    kernels.push(subkernels);
+  }
+  const subkernels = kernels[kernelIndex];
+  const orderResult = subkernels[0](prunedExtremas, PRUNE_FEATURES_NUM_BUCKETS, isExtremas, extremaScores, width, height);
+  //console.log("orderResult", orderResult.saveMax1.toArray(), extremaScores.toArray());
+  const result = subkernels[1](dogIndex, prunedExtremas, extremaScores, extremaSigmas, extremaXs, extremaYs, orderResult.saveMax1, orderResult.saveMax2, orderResult.saveMax3, orderResult.saveMax4, orderResult.saveMax5);
+  return result;
+}
+
+const _computeGradients = (kernelIndex, image) => {
+  if (kernelIndex === kernels.length) {
+    kernels.push(
+      gpu.createKernelMap({
+        saveDy: function(a) {return a},
+        saveDx: function(a) {return a},
+        saveMag: function(a) {return a}
+      },
+      function(data, width, height) {
+        const i = this.thread.x % width;
+        const j = Math.floor(this.thread.x / width);
+        const prevJ = j > 0? j - 1: j;
+        const nextJ = j < height - 1? j + 1: j;
+        const prevI = i > 0? i - 1: i;
+        const nextI = i < width - 1? i + 1: i;
+        const dx = data[j * width + nextI] - data[j * width + prevI];
+        const dy = data[nextJ * width + i] - data[prevJ * width + i];
+
+        // seems like gpu atan2 doesn't handle dx === 0 well
+        let angle = 0;
+        if (dx === 0 && dy === 0) angle = 0;
+        else if (dy === 0) {
+          if (dx < 0) angle = Math.PI;
+          else angle = 0;
+        }
+        else if (dx === 0) {
+          if (dy < 0) angle = -Math.PI / 2;
+          else angle = Math.PI / 2;
+        }
+        else {
+          angle = Math.atan2(Math.abs(dy), Math.abs(dx));
+          if (dx < 0 && dy > 0) angle = Math.PI - angle;
+          else if (dx < 0 && dy < 0) angle = -(Math.PI - angle);
+          else if (dx > 0 && dy < 0) angle = -angle;
+        }
+        angle += Math.PI;
+
+        const mag = Math.sqrt(dx * dx + dy * dy);
+        saveMag(mag);
+        saveDx(dx);
+        saveDy(dy);
+        return angle;
+      }, {
+        output: [image.width * image.height],
+        pipeline: true,
+      })
+    )
+  }
+  const kernel = kernels[kernelIndex];
+  const result = kernel(image.data, image.width, image.height);
+  return result;
+}
+
+const __computeGradients = (kernelIndex, image, gaussianImages, gaussianImageIndex) => {
   if (kernelIndex === kernels.length) {
     kernels.push(
       gpu.createKernelMap({
@@ -691,7 +1082,155 @@ const _computeGradients = (kernelIndex, image, gaussianImages, gaussianImageInde
   return result;
 }
 
-const _computeFreak = (kernelIndex, gaussianImages, gaussianImageSizes, gaussianNumOctaves, gaussianNumScalesPerOctaves, featurePoints) => {
+const _computeFreak = (kernelIndex, pyramidImages, gaussianNumOctaves, gaussianNumScalesPerOctaves, featurePoints) => {
+  if (kernelIndex === kernels.length) {
+    const subkernels = [];
+
+    subkernels.push(
+      gpu.createKernelMap({
+        saveXp: function(a) {return a},
+        saveYp: function(a) {return a}
+      },
+      function(gaussianNumOctaves, gaussianNumScalesPerOctaves, featureCount, xs, ys, sigmas, angles, freakPoints) {
+        if (this.thread.y >= featureCount) return -1;
+
+        const EXPANSION_FACTOR = 7;
+
+        const mK = Math.pow(2, 1.0 / (gaussianNumScalesPerOctaves-1));
+        const oneOverLogK = 1.0 / Math.log(mK);
+
+        const inputX = xs[this.thread.y];
+        const inputY = ys[this.thread.y];
+        const inputSigma = sigmas[this.thread.y];
+        const inputAngle = angles[this.thread.y];
+
+        const freakSigma = freakPoints[this.thread.x][0];
+        const freakX = freakPoints[this.thread.x][1];
+        const freakY = freakPoints[this.thread.x][2];
+
+        // Ensure the scale of the similarity transform is at least "1".
+        const transformScale = Math.max(1, inputSigma * EXPANSION_FACTOR);
+        const c = transformScale * Math.cos(inputAngle);
+        const s = transformScale * Math.sin(inputAngle);
+        // similarity matrix
+        // const S = [
+        //  c, -s, x,
+        //  s, c, y,
+        //  0, 0, 1
+        //]
+        const S0 = c;
+        const S1 = -s;
+        const S2 = inputX;
+        const S3 = s;
+        const S4 = c;
+        const S5 = inputY;
+
+        const sigma = transformScale * freakSigma;
+        let octave = Math.floor(Math.log2(sigma));
+        const fscale = Math.log(sigma / Math.pow(2, octave)) * oneOverLogK;
+        let scale = Math.round(fscale);
+
+        // sgima of last scale =  sigma of the first scale in next octave
+        // prefer coarser octaves for efficiency
+        if (scale === gaussianNumScalesPerOctaves - 1) {
+          octave = octave + 1;
+          scale = 0;
+        }
+        // clip octave and scale
+        if (octave < 0) {
+          octave = 0;
+          scale = 0;
+        }
+        if (octave >= gaussianNumOctaves) {
+          octave = gaussianNumOctaves - 1;
+          scale = gaussianNumScalesPerOctaves - 1;
+        }
+
+        // for downsample point
+        const imageIndex = octave * gaussianNumScalesPerOctaves + scale;
+        const a = 1.0 / (Math.pow(2, octave));
+        const b = 0.5 * a - 0.5;
+
+        const x = S0 * freakX + S1 * freakY + S2;
+        const y = S3 * freakX + S4 * freakY + S5;
+        let xp = x * a + b; // x in octave
+        let yp = y * a + b; // y in octave
+
+        saveXp(xp);
+        saveYp(yp);
+        return imageIndex;
+      }, {
+        output: [freakPoints.length, MAX_FEATURE_POINTS],
+        pipeline: true,
+      })
+    )
+
+    subkernels.push(
+      gpu.createKernel(function() {
+        return 0;
+      }, {
+        output: [freakPoints.length, MAX_FEATURE_POINTS],
+        pipeline: true,
+      })
+    );
+
+    for (let i = 0; i < pyramidImages.length; i++) {
+      subkernels.push(
+        gpu.createKernel(function(data, thisIndex, imageData, width, height, xps, yps, imageIndexes) {
+          if (imageIndexes[this.thread.y][this.thread.x] !== thisIndex) return data[this.thread.y][this.thread.x];
+
+          let xp = xps[this.thread.y][this.thread.x];
+          let yp = yps[this.thread.y][this.thread.x];
+
+          // bilinear interpolation
+          xp = Math.max(0, Math.min(xp, width - 2));
+          yp = Math.max(0, Math.min(yp, height - 2));
+
+          const x0 = Math.floor(xp);
+          const x1 = x0 + 1;
+          const y0 = Math.floor(yp);
+          const y1 = y0 + 1;
+          const value = (x1-xp) * (y1-yp) * imageData[y0 * width + x0]
+                      + (xp-x0) * (y1-yp) * imageData[y0 * width + x1]
+                      + (x1-xp) * (yp-y0) * imageData[y1 * width + x0]
+                      + (xp-x0) * (yp-y0) * imageData[y1 * width + x1];
+          return value;
+        }, {
+          output: [freakPoints.length, MAX_FEATURE_POINTS],
+          pipeline: true,
+        })
+      )
+    }
+    kernels.push(subkernels);
+  }
+  const subkernels = kernels[kernelIndex];
+
+  const inputxs = new Float32Array(MAX_FEATURE_POINTS);
+  const inputys = new Float32Array(MAX_FEATURE_POINTS);
+  const inputsigmas = new Float32Array(MAX_FEATURE_POINTS);
+  const inputangles = new Float32Array(MAX_FEATURE_POINTS);
+  for (let i = 0; i < featurePoints.length; i++) {
+    const fp = featurePoints[i];
+    inputxs[i] = fp.x;
+    inputys[i] = fp.y;
+    inputsigmas[i] = fp.sigma;
+    inputangles[i] = fp.angle;
+  }
+  if (featurePoints.length === 0) return null;
+  const result = subkernels[0](gaussianNumOctaves, gaussianNumScalesPerOctaves, featurePoints.length, inputxs, inputys, inputsigmas, inputangles, freakPoints);
+
+  const imageIndexes = result.result;
+  const xps = result.saveXp;
+  const yps = result.saveYp;
+
+  let freakResult = subkernels[1]();
+  for (let i = 0; i < pyramidImages.length; i++) {
+    freakResult = subkernels[i+2](freakResult, i, pyramidImages[i].data, pyramidImages[i].width, pyramidImages[i].height, xps, yps, imageIndexes);
+  }
+  return freakResult;
+}
+
+const __computeFreak = (kernelIndex, gaussianImages, gaussianImageSizes, gaussianNumOctaves, gaussianNumScalesPerOctaves, featurePoints) => {
   if (kernelIndex === kernels.length) {
     kernels.push(
       gpu.createKernel(function(gaussianImages, gaussianImageSizes, gaussianNumOctaves, gaussianNumScalesPerOctaves, featureCount, xs, ys, sigmas, angles, freakPoints) {
@@ -1157,6 +1696,133 @@ const _downsampleBilinear = (kernelIndex, image) => {
   return {width: dstWidth, height: dstHeight, data: result};
 }
 
+const _buildGaussianPyramid = (kernelIndex, image, numOctaves, numScalesPerOctaves) => {
+  const {width, height} = image;
+  let totalSize = 0;
+  let curWidth = width;
+  let curHeight = height;
+  for (let i = 0; i < numOctaves; i++) {
+    totalSize += curWidth * curHeight * numScalesPerOctaves;
+    curWidth = Math.floor(curWidth / 2);
+    curHeight = Math.floor(curHeight / 2);
+  }
+
+  if (kernelIndex === kernels.length) {
+    const subkernels = [];
+    const initKernel = gpu.createKernel(function(data, imageWidth, imageHeight) {
+      if (this.thread.x >= imageWidth * imageHeight) return -1;
+      return data[this.thread.x];
+    }, {
+      output: [totalSize],
+      pipeline: true,
+    });
+    subkernels.push(initKernel);
+
+    for (let i = 0; i < numOctaves * numScalesPerOctaves; i++) {
+      // special case for imageIndex = 0, it apply binomail filter on itself
+      const kernel = gpu.createKernel(function(data, imageWidth, imageHeight, numOctaves, numScalesPerOctaves, imageIndex) {
+        const prevImageIndex = imageIndex === 0? 0: imageIndex - 1;
+        const prevOctave = Math.floor(prevImageIndex / numScalesPerOctaves);
+        const prevScale = prevImageIndex % numScalesPerOctaves;
+        const curScale = imageIndex % numScalesPerOctaves;
+
+        let prevStart = 0;
+        let prevWidth = imageWidth;
+        let prevHeight = imageHeight;
+        for (let i = 0; i < prevOctave; i++) {
+          prevStart += (numScalesPerOctaves * prevWidth * prevHeight);
+          prevWidth = Math.floor(prevWidth / 2);
+          prevHeight = Math.floor(prevHeight / 2);
+        }
+        prevStart += prevWidth * prevHeight * prevScale;
+
+        let curStart = imageIndex === 0? 0: (prevStart + prevWidth * prevHeight);
+        let curWidth = prevScale === numScalesPerOctaves - 1? Math.floor(prevWidth/2): prevWidth;
+        let curHeight = prevScale === numScalesPerOctaves - 1? Math.floor(prevHeight/2): prevHeight;
+        let curEnd = curStart + curWidth * curHeight;
+
+        if (this.thread.x < curStart || this.thread.x >= curEnd) {
+          return data[this.thread.x];
+        }
+
+        const x = (this.thread.x - curStart) % curWidth;
+        const y = Math.floor((this.thread.x - curStart) / curWidth);
+
+        if (imageIndex > 0 && curScale === 0) { // downsample binomial
+          const srcPos = prevStart + (y*2) * prevWidth + (x*2);
+          const v = (data[srcPos] + data[srcPos+1] + data[srcPos+prevWidth] + data[srcPos+prevWidth+1]) * 0.25;
+          return v;
+        }
+        else { // 4th order binomail filter from previous
+          //return data[prevStart];
+
+          let v = data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.max(x-2, 0)]
+                + data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.max(x-1, 0)] * 4
+                + data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.max(x, 0)] * 6
+                + data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.min(x+1, prevWidth-1)] * 4
+                + data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.min(x+2, prevWidth-1)]
+
+                + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.max(x-2, 0)] * 4
+                + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.max(x-1, 0)] * 16
+                + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.max(x, 0)] *  24
+                + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.min(x+1, prevWidth-1)] * 16
+                + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.min(x+2, prevWidth-1)] * 4
+
+                + data[ prevStart + Math.max(y, 0) * prevWidth + Math.max(x-2, 0)] * 6
+                + data[ prevStart + Math.max(y, 0) * prevWidth + Math.max(x-1, 0)] * 24
+                + data[ prevStart + Math.max(y, 0) * prevWidth + Math.max(x, 0)] * 36
+                + data[ prevStart + Math.max(y, 0) * prevWidth + Math.min(x+1, prevWidth-1)] * 24
+                + data[ prevStart + Math.max(y, 0) * prevWidth + Math.min(x+2, prevWidth-1)] * 6
+
+                + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.max(x-2, 0)] * 4
+                + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.max(x-1, 0)] * 16
+                + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.max(x, 0)] *  24
+                + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.min(x+1, prevWidth-1)] * 16
+                + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.min(x+2, prevWidth-1)] * 4
+
+                + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.max(x-2, 0)]
+                + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.max(x-1, 0)] * 4
+                + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.max(x, 0)] * 6
+                + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.min(x+1, prevWidth-1)] * 4
+                + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.min(x+2, prevWidth-1)];
+          v /= 256;
+          return v;
+        }
+      }, {
+        output: [totalSize],
+        pipeline: true,
+      });
+
+      subkernels.push(kernel);
+    }
+
+    const copykernel = gpu.createKernel(function(data) {
+      return data[this.thread.x];
+    }, {
+      output: [totalSize],
+      pipeline: true,
+    });
+
+    //kernels.push([initKernel, kernel, copykernel]);
+    kernels.push(subkernels);
+  }
+
+  const subkernels = kernels[kernelIndex];
+
+  let result = subkernels[0](image.data, image.width, image.height);
+
+  for (let i = 0; i < numOctaves * numScalesPerOctaves; i++) {
+    //let lastResult = result;
+    result = subkernels[i+1](result, image.width, image.height, numOctaves, numScalesPerOctaves, i);
+    //lastResult.delete();
+    //if (i === 0) break;
+  }
+  //let finalResult = subkernels[2](result);
+  //result.delete();
+  return result;
+  //return finalResult;
+}
+
 const _upsampleBilinear = (kernelIndex, image, padOneWidth, padOneHeight) => {
   const dstWidth = image.width * 2 + (padOneWidth?1:0);
   const dstHeight = image.height * 2 + (padOneHeight?1:0);
@@ -1223,10 +1889,57 @@ const _applyFilter = (kernelIndex, image) => {
       output: [image.width * image.height],
       pipeline: true,
     });
-    kernels.push({f1, f2});
+
+    const f3 = gpu.createKernel(function(data, width, height) {
+      const j = Math.floor(this.thread.x / width);
+      const i = this.thread.x % width;
+      const joffset = j * width;
+      const prevStart = 0;
+      const prevWidth = width;
+      const prevHeight = height;
+      const y = j;
+      const x = i;
+        let v = data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.max(x-2, 0)]
+              + data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.max(x-1, 0)] * 4
+              + data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.max(x, 0)] * 6
+              + data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.min(x+1, prevWidth-1)] * 4
+              + data[ prevStart + Math.max(y-2, 0) * prevWidth + Math.min(x+2, prevWidth-1)]
+
+              + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.max(x-2, 0)] * 4
+              + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.max(x-1, 0)] * 16
+              + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.max(x, 0)] *  24
+              + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.min(x+1, prevWidth-1)] * 16
+              + data[ prevStart + Math.max(y-1, 0) * prevWidth + Math.min(x+2, prevWidth-1)] * 4
+
+              + data[ prevStart + Math.max(y, 0) * prevWidth + Math.max(x-2, 0)] * 6
+              + data[ prevStart + Math.max(y, 0) * prevWidth + Math.max(x-1, 0)] * 24
+              + data[ prevStart + Math.max(y, 0) * prevWidth + Math.max(x, 0)] * 36
+              + data[ prevStart + Math.max(y, 0) * prevWidth + Math.min(x+1, prevWidth-1)] * 24
+              + data[ prevStart + Math.max(y, 0) * prevWidth + Math.min(x+2, prevWidth-1)] * 6
+
+              + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.max(x-2, 0)] * 4
+              + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.max(x-1, 0)] * 16
+              + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.max(x, 0)] *  24
+              + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.min(x+1, prevWidth-1)] * 16
+              + data[ prevStart + Math.min(y+1, prevHeight-1) * prevWidth + Math.min(x+2, prevWidth-1)] * 4
+
+              + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.max(x-2, 0)]
+              + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.max(x-1, 0)] * 4
+              + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.max(x, 0)] * 6
+              + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.min(x+1, prevWidth-1)] * 4
+              + data[ prevStart + Math.min(y+2, prevHeight-1) * prevWidth + Math.min(x+2, prevWidth-1)];
+      v /= 256;
+      return v;
+    }, {
+      output: [image.width * image.height],
+      pipeline: true
+    });
+    kernels.push({f1, f2, f3});
   }
-  const {f1, f2} = kernels[kernelIndex];
+  const {f1, f2, f3} = kernels[kernelIndex];
   const result = f2(f1(image.data, image.width, image.height), image.width, image.height);
+  //const result = f3(image.data, image.width, image.height);
+
   return {width: image.width, height: image.height, data: result};
 }
 
@@ -1247,6 +1960,68 @@ const _differenceImageBinomial = (kernelIndex, image1, image2) => {
 }
 
 // have better way?!
+const __stackImages = (kernelIndex, images) => {
+  if (kernelIndex === kernels.length) {
+    let totalSize = 0;
+    for (let i = 0; i < images.length; i++) {
+      totalSize += images[i].width * images[i].height;
+    }
+
+    const subkernels = [];
+    subkernels.push(
+      gpu.createKernel(function() {
+        return -1;
+      }, {
+        output: [totalSize],
+        pipeline: true,
+      })
+    );
+
+    for (let i = 0; i < images.length; i++) {
+      subkernels.push(
+        gpu.createKernel(function(data, newData, width, height, start, allData) {
+          const x = this.thread.x - start;
+          if (x < 0 || x >= width * height) return data[this.thread.x];
+          ///return newData[x];
+          return allData[0][x];
+        }, {
+          output: [totalSize],
+          pipeline: true,
+        })
+      );
+    }
+    //kernels.push(subkernels);
+    kernels.push(
+      gpu.createKernel(function(allData) {
+        return allData[0][0];
+      }, {
+        output: [totalSize],
+        pipeline: true,
+      })
+    );
+  }
+  const allData = [];
+  for (let i = 0; i < images.length; i++) {
+    allData.push(images[i].data);
+  }
+
+  console.log("clal stack");
+  const result = kernels[kernelIndex](allData);
+  return result;
+
+  /*
+  const subkernels = kernels[kernelIndex];
+
+  let result = subkernels[0]();
+  let start = 0;
+  for (let i = 0; i < images.length; i++) {
+    result = subkernels[i+1](result, images[i].data, images[i].width, images[i].height, start, [images[0].data, images[1].data]);
+    start += images[i].width * images[i].height;
+  }
+  return result;
+  */
+}
+
 const _stackImages = (kernelIndex, images) => {
   const width = images[0].width;
   const height = images[0].height;
