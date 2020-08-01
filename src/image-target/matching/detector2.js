@@ -298,6 +298,15 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
 
     const extremasResult = _buildExtremas(kernelIndex++, image0, image1, image2, octave, scale, originalWidth, originalHeight, dogPyramid.numScalesPerOctaves, startI, startJ, endI, endJ);
 
+    /*
+    const isExtremasArr = extremasResult.result.toArray();
+    let eCount = 0;
+    for (let ll = 0; ll < isExtremasArr.length; ll++) {
+      if (isExtremasArr[ll] === 1) eCount += 1;
+    }
+    console.log("extream result", k, eCount);
+    */
+
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until build extremas', k,  new Date().getTime() - _start);
     }
@@ -386,8 +395,9 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
     }
     */
   }
+  const extremaAngles = computeExtremaAngle(kernelIndex++, dogPyramid, gaussianPyramid, gradients, prunedExtremas);
+  const extremaFreaks = computeExtremaFreak(kernelIndex++, pyramidImages, gaussianPyramid.numOctaves, gaussianPyramid.numScalesPerOctaves, prunedExtremas, extremaAngles);
 
-  //prunedExtremas = reducePrune(kernelIndex++, prunedExtremas);
   const prunedExtremasArr = prunedExtremas.toArray();
   //return {featurePoints: [], descriptors: []};
 
@@ -425,6 +435,57 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
       }
     }
   }
+
+  const reducedExtremas = reducePrune(kernelIndex++, prunedExtremas, extremaAngles, extremaFreaks);
+  const reducedExtremasArr = reducedExtremas.toArray();
+
+  const orientedFeaturePoints2 = [];
+  const descriptors2 = [];
+  console.log("reducedExtremasArr", reducedExtremasArr);
+  for (let i = 0; i < reducedExtremasArr.length; i++) {
+    for (let j = 0; j < reducedExtremasArr[i].length; j++) {
+      if (prunedExtremasArr[i][j][0] !== 0) {
+        const ext = reducedExtremasArr[i][j];
+        orientedFeaturePoints2.push({
+          score: ext[0],
+          sigma: ext[1],
+          x: ext[2],
+          y: ext[3],
+          angle: ext[4],
+        });
+
+        const desc = [];
+        for (let m = 0; m < freakPoints.length; m++) {
+          for (let n = m+1; n < freakPoints.length; n++) {
+            // avoid too senstive to rounding precision
+            desc.push(ext[m+5] < ext[n+5] + 0.0001);
+          }
+        }
+
+        // encode descriptors in binary format
+        // 37 samples = 1+2+3+...+36 = 666 comparisons = 666 bits
+        // ceil(666/32) = 84 numbers (32bit number)
+        const descBit = [];
+        let temp = 0;
+        let count = 0;
+        for (let m = 0; m < desc.length; m++) {
+          if (desc[m]) temp += 1;
+          count += 1;
+          if (count === 32) {
+            descBit.push(temp);
+            temp = 0;
+            count = 0;
+          } else {
+            temp = (temp << 1) >>> 0; // >>> 0 to make it unsigned
+          }
+        }
+        descBit.push(temp);
+
+        descriptors2.push(descBit);
+      }
+    }
+  }
+
   //console.log("pruned extremas count", prunedFeaturePoints2.length);
   //console.log("prunedFeaturePoints2", prunedFeaturePoints2);
 
@@ -468,9 +529,14 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
 
     const _histograms = _computeOrientationHistograms(kernelIndex++, gradientMags, gradientAngles, gaussianImage.width, gaussianImage.height, featurePointsByGaussianIndex[i]);
 
+    console.log("histogram gaussian index", i, featurePointsByGaussianIndex[i].length);
+
     if (featurePointsByGaussianIndex[i].length === 0) continue;
 
     const histograms = _histograms.toArray();
+
+    console.log("histograms", gaussianIndex, JSON.parse(JSON.stringify(histograms)));
+    console.log("smoothed histograms", gaussianIndex, histograms);
 
     //const x0 = _histograms.saveX0.toArray();
     //const x1 = _histograms.saveX1.toArray();
@@ -484,6 +550,7 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
     for (let j = 0; j < featurePointsByGaussianIndex[i].length; j++) {
       const fp = featurePointsByGaussianIndex[i][j];
       const angles = _computeOrientations(histograms[j]);
+      //console.log("angles: ", j, angles);
 
       for (let k = 0; k < angles.length; k++) {
         orientedFeaturePointsByGaussianIndex.push(Object.assign({
@@ -496,6 +563,7 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
     const _freakValues = _computeFreak(kernelIndex++, gaussianPyramid.images, gaussianPyramid.numOctaves,  gaussianPyramid.numScalesPerOctaves, orientedFeaturePointsByGaussianIndex);
 
     const freakValues = _freakValues.toArray();
+    console.log("_freakValues", i, freakValues);
     //const freakValues2 = _freakValues2.toArray();
     //console.log("freak values", freakValues);
     //console.log("freak values 2", freakValues2);
@@ -537,6 +605,22 @@ const detect = ({image, numScalesPerOctaves, minSize, correctResult, correctResu
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
     console.log('exec time until done', new Date().getTime() - _start);
   }
+
+  /*
+  console.log("orientedFeaturePoints compare", orientedFeaturePoints.length,  orientedFeaturePoints2.length);
+  orientedFeaturePoints.sort((f1, f2) => {return f1.x * 1000 + f1.y - f2.x * 1000 - f2.y});
+  orientedFeaturePoints2.sort((f1, f2) => {return f1.x * 1000 + f1.y - f2.x * 1000 - f2.y});
+  for (let i = 0; i < orientedFeaturePoints.length; i++) {
+    const f1 = orientedFeaturePoints[i];
+    const f2 = orientedFeaturePoints2[i];
+    //console.log("compare", i, f1, f2);
+    if (f1.x !== f2.x || f1.y !== f2.y || f1.score !== f2.score || f1.sigma !== f2.sigma || Math.abs(f1.angle - f2.angle) > 0.00001) {
+      console.log("INCORRECT");
+    }
+  }
+  */
+
+  return {featurePoints: orientedFeaturePoints2, descriptors: descriptors2};
   return {featurePoints: orientedFeaturePoints, descriptors};
 
   /*
@@ -634,8 +718,6 @@ const _numOctaves = (options) => {
 const _computeOrientations = (histogram) => {
   // The orientation histogram is smoothed with a Gaussian, sigma=1
 
-  // just pick the max index, don't do smoothing
-  /*
   const kernel = [0.274068619061197, 0.451862761877606, 0.274068619061197];
   for(let i = 0; i < ORIENTATION_SMOOTHING_ITERATIONS; i++) {
     const old = [];
@@ -649,7 +731,6 @@ const _computeOrientations = (histogram) => {
                     + kernel[2] * old[(j+1) % histogram.length];
     }
   }
-  */
 
   // Find the peak of the histogram.
   let maxHeight = -1;
@@ -785,25 +866,230 @@ const initialPrune = (kernelIndex) => {
   return result;
 }
 
-// removed necessary information for prunedExtremas
-const reducePrune = (kernelIndex, prunedExtremas) => {
+// combine necessary information for to return to cpu
+const reducePrune = (kernelIndex, prunedExtremas, extremaAngles, extremaFreaks) => {
   const nBuckets = PRUNE_FEATURES_NUM_BUCKETS * PRUNE_FEATURES_NUM_BUCKETS;
   const nPointsPerBuckets = MAX_FEATURE_POINTS / nBuckets;
   if (kernelIndex === kernels.length) {
     kernels.push(
-      gpu.createKernel(function(prunedExtremas) {
-        return 0;
-        return prunedExtremas[this.thread.z+1][this.thread.y][this.thread.x];
+      gpu.createKernel(function(prunedExtremas, extremaAngles, extremaFreaks) {
+        if (this.thread.x < 4) {
+          return prunedExtremas[this.thread.z][this.thread.y][this.thread.x];
+        }
+        if (this.thread.x < 5) {
+          return extremaAngles[this.thread.z][this.thread.y][this.thread.x-4];
+        }
+        return extremaFreaks[this.thread.z][this.thread.y][this.thread.x-5];
       }, {
-        //output: [1, nPointsPerBuckets, nBuckets], // first dimension: [sigma, x, y, dogIndex]
-        output: [1], // first dimension: [sigma, x, y, dogIndex]
+        output: [5 + freakPoints.length, nPointsPerBuckets, nBuckets], // first dimension: [score, sigma, x, y, angle, freaks...]
         pipeline: true,
       })
     )
   }
   const kernel = kernels[kernelIndex];
-  const result = kernel(prunedExtremas);
+  const result = kernel(prunedExtremas, extremaAngles, extremaFreaks);
   return result;
+}
+
+const computeExtremaAngle = (kernelIndex, dogPyramid, gaussianPyramid, gradients, prunedExtremas) => {
+  const nBuckets = PRUNE_FEATURES_NUM_BUCKETS * PRUNE_FEATURES_NUM_BUCKETS;
+  const nPointsPerBuckets = MAX_FEATURE_POINTS / nBuckets;
+
+  if (kernelIndex === kernels.length) {
+    const subkernels = [];
+
+    subkernels.push(
+      gpu.createKernel(function() {
+        return 0;
+      }, {
+        output: [ORIENTATION_NUM_BINS, nPointsPerBuckets, nBuckets],
+        pipeline: true,
+      })
+    )
+
+    for (let k = 1; k < dogPyramid.images.length - 1; k++) {
+      subkernels.push(
+        gpu.createKernel(function(histograms, prunedExtremas, dogPyramidnumScalesPerOctaves, gaussianIndex, gradientMags, gradientAngles, width, height, numBins) {
+          const histogramIndex = this.thread.x;
+          const bucketPointIndex = this.thread.y;
+          const bucketIndex = this.thread.z;
+
+          const dogIndex = prunedExtremas[bucketIndex][bucketPointIndex][4];
+          const octave = Math.floor(dogIndex / dogPyramidnumScalesPerOctaves);
+          const scale = dogIndex % dogPyramidnumScalesPerOctaves;
+          const thisGaussianindex = octave * (dogPyramidnumScalesPerOctaves+1) + scale;
+
+          //if (thisGaussianindex !== 15) return -2;
+
+          if (thisGaussianindex !== gaussianIndex) {
+            return histograms[this.thread.z][this.thread.y][this.thread.x];
+          }
+
+          const newSigma = prunedExtremas[bucketIndex][bucketPointIndex][1];
+          const newX = prunedExtremas[bucketIndex][bucketPointIndex][2];
+          const newY = prunedExtremas[bucketIndex][bucketPointIndex][3];
+
+          let x = newX * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
+          let y = newY * (1.0 / Math.pow(2, octave)) + 0.5 * (1.0 / Math.pow(2, octave)) - 0.5;
+          x = Math.floor(x + 0.5);
+          y = Math.floor(y + 0.5);
+          const sigma = newSigma * (1.0 / Math.pow(2, octave));
+
+          const ORIENTATION_GAUSSIAN_EXPANSION_FACTOR = 3.0;
+          const ORIENTATION_REGION_EXPANSION_FACTOR = 1.5;
+          const ORIENTATION_SMOOTHING_ITERATIONS = 5;
+          const ORIENTATION_PEAK_THRESHOLD = 0.8;
+          const ONE_OVER_2PI = 0.159154943091895;
+
+          const gwSigma = Math.max(1.0, ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * sigma);
+          const gwScale = -1.0 / (2 * gwSigma * gwSigma);
+
+          const radius = ORIENTATION_REGION_EXPANSION_FACTOR * gwSigma;
+          const radius2 = Math.ceil( radius * radius - 0.5);
+
+          const x0 = Math.max(0, x - Math.floor(radius + 0.5));
+          const x1 = Math.min(width-1, x + Math.floor(radius + 0.5));
+          const y0 = Math.max(0, y - Math.floor(radius + 0.5));
+          const y1 = Math.min(height-1, y + Math.floor(radius + 0.5));
+
+          let sum = 0;
+
+          for (let yp = y0; yp <= y1; yp++) {
+            const dy = yp - y;
+            const dy2 = dy * dy;
+            for (let xp = x0; xp <= x1; xp++) {
+              const dx = xp - x;
+              const dx2 = dx * dx;
+              const r2 = dx2 + dy2;
+
+              if (r2 <= radius2) {
+                const mag = gradientMags[yp * width + xp];
+                const angle = gradientAngles[yp * width + xp];
+                const _x = r2 * gwScale;
+                const w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888;
+
+                const fbin  = numBins * angle * ONE_OVER_2PI;
+                const bin = Math.floor(fbin - 0.5);
+                const w2 = fbin - bin - 0.5;
+                const w1 = (1.0 - w2);
+                const b1 = (bin + numBins) % numBins;
+                const b2 = (bin + 1) % numBins;
+                const magnitude = w * mag;
+
+                if (b1 === this.thread.x) sum += w1 * magnitude;
+                if (b2 === this.thread.x) sum += w2 * magnitude;
+              }
+            }
+          }
+          return sum;
+        }, {
+          output: [ORIENTATION_NUM_BINS, nPointsPerBuckets, nBuckets],
+          pipeline: true,
+        })
+      )
+    }
+
+    for (let k = 0; k < ORIENTATION_SMOOTHING_ITERATIONS; k++) {
+      subkernels.push(
+        gpu.createKernel(function(histograms, numBins) {
+          const histogramIndex = this.thread.x;
+          const bucketPointIndex = this.thread.y;
+          const bucketIndex = this.thread.z;
+
+          const kernel = [0.274068619061197, 0.451862761877606, 0.274068619061197];
+          return kernel[0] * histograms[this.thread.z][this.thread.y][(histogramIndex - 1 + numBins) % numBins]
+               + kernel[1] * histograms[this.thread.z][this.thread.y][histogramIndex]
+               + kernel[2] * histograms[this.thread.z][this.thread.y][(histogramIndex+1) % numBins];
+        }, {
+          output: [ORIENTATION_NUM_BINS, nPointsPerBuckets, nBuckets],
+          pipeline: true,
+        })
+      );
+    }
+
+    subkernels.push(
+      gpu.createKernel(function(histograms, numBins) {
+        const histogramIndex = this.thread.x;
+        const bucketPointIndex = this.thread.y;
+        const bucketIndex = this.thread.z;
+
+        let maxIndex = 0;
+        for (let i = 1; i < numBins; i++) {
+          if (histograms[this.thread.z][this.thread.y][i] > histograms[this.thread.z][this.thread.y][maxIndex]) {
+            maxIndex = i;
+          }
+        }
+        const prev = (maxIndex - 1 + numBins) % numBins;
+        const next = (maxIndex + 1) % numBins;
+
+        let fbin = maxIndex; // default if no quadratic fit
+
+        /**
+         * Fit a quatratic to 3 points. The system of equations is:
+         *
+         * y0 = A*x0^2 + B*x0 + C
+         * y1 = A*x1^2 + B*x1 + C
+         * y2 = A*x2^2 + B*x2 + C
+         *
+         * This system of equations is solved for A,B,C.
+         */
+        const p10 = maxIndex-1;
+        const p11 = histograms[this.thread.z][this.thread.y][prev];
+        const p20 = maxIndex;
+        const p21 = histograms[this.thread.z][this.thread.y][maxIndex];
+        const p30 = maxIndex+1;
+        const p31 = histograms[this.thread.z][this.thread.y][next];
+
+        const d1 = (p30-p20)*(p30-p10);
+        const d2 = (p10-p20)*(p30-p10);
+        const d3 = p10-p20;
+
+        // If any of the denominators are zero then return FALSE.
+        if (d1 != 0 && d2 != 0 && d3 != 0) {
+          const a = p10*p10;
+          const b = p20*p20;
+
+          // Solve for the coefficients A,B,C
+          const A = ((p31-p21)/d1)-((p11-p21)/d2);
+          const B = ((p11-p21)+(A*(b-a)))/d3;
+          const C = p11-(A*a)-(B*p10);
+          fbin = -B / (2 * A);
+        }
+
+        let an =  2.0 * Math.PI * ((fbin + 0.5 + numBins) / numBins);
+        while (an > 2.0 * Math.PI) { // modula
+          an -= 2.0 * Math.PI;
+        }
+        return an;
+      }, {
+        output: [1, nPointsPerBuckets, nBuckets],
+        pipeline: true,
+      })
+    );
+
+    kernels.push(subkernels);
+  }
+  const subkernels = kernels[kernelIndex];
+
+  let histograms = subkernels[0]();
+  let c = 1;
+  for (let k = 1; k < dogPyramid.images.length - 1; k++) {
+    const octave = Math.floor(k / dogPyramid.numScalesPerOctaves);
+    const scale = k % dogPyramid.numScalesPerOctaves;
+
+    const gaussianIndex = octave * gaussianPyramid.numScalesPerOctaves + scale;
+    const gaussianImage = gaussianPyramid.images[gaussianIndex];
+    const gradientMags = gradients[gaussianIndex].saveMag;
+    const gradientAngles = gradients[gaussianIndex].result;
+
+    histograms = subkernels[c++](histograms, prunedExtremas, dogPyramid.numScalesPerOctaves, gaussianIndex, gradientMags, gradientAngles, gaussianImage.width, gaussianImage.height, ORIENTATION_NUM_BINS);
+  }
+  for (let k = 0; k < ORIENTATION_SMOOTHING_ITERATIONS; k++) {
+    histograms = subkernels[c++](histograms, ORIENTATION_NUM_BINS);
+  }
+
+  const angles = subkernels[c++](histograms, ORIENTATION_NUM_BINS);
+  return angles;
 }
 
 const applyPrune = (kernelIndex, dogIndex, prunedExtremas, isExtremas, extremaScores, extremaSigmas, extremaXs, extremaYs, width, height) => {
@@ -820,7 +1106,7 @@ const applyPrune = (kernelIndex, dogIndex, prunedExtremas, isExtremas, extremaSc
         saveMax3: function(a) {return a},
         saveMax4: function(a) {return a},
         saveMax5: function(a) {return a}
-      }, function(prunedExtremas, numBucketsPerDimension, isExtremas, extremaScores, width, height) {
+      }, function(prunedExtremas, numBucketsPerDimension, nPointsPerBuckets, isExtremas, extremaScores, width, height) {
         const bucketIndex = this.thread.x;
         const bucketX = bucketIndex % numBucketsPerDimension;
         const bucketY = Math.floor(bucketIndex / numBucketsPerDimension);
@@ -834,8 +1120,6 @@ const applyPrune = (kernelIndex, dogIndex, prunedExtremas, isExtremas, extremaSc
         let max3 = -3;
         let max4 = -4;
         let max5 = -5;
-
-        let maxs = [-1, -2, -3, -4, -5];
 
         for (let t = 0; t < 5; t++) {
           for (let i = bucketX * dx; i < bucketX * dx + dx; i++) {
@@ -968,7 +1252,7 @@ const applyPrune = (kernelIndex, dogIndex, prunedExtremas, isExtremas, extremaSc
     kernels.push(subkernels);
   }
   const subkernels = kernels[kernelIndex];
-  const orderResult = subkernels[0](prunedExtremas, PRUNE_FEATURES_NUM_BUCKETS, isExtremas, extremaScores, width, height);
+  const orderResult = subkernels[0](prunedExtremas, PRUNE_FEATURES_NUM_BUCKETS, nPointsPerBuckets, isExtremas, extremaScores, width, height);
   //console.log("orderResult", orderResult.saveMax1.toArray(), extremaScores.toArray());
   const result = subkernels[1](dogIndex, prunedExtremas, extremaScores, extremaSigmas, extremaXs, extremaYs, orderResult.saveMax1, orderResult.saveMax2, orderResult.saveMax3, orderResult.saveMax4, orderResult.saveMax5);
   return result;
@@ -1080,6 +1364,146 @@ const __computeGradients = (kernelIndex, image, gaussianImages, gaussianImageInd
   const kernel = kernels[kernelIndex];
   const result = kernel(image.data, image.width, image.height, gaussianImages, gaussianImageIndex);
   return result;
+}
+
+const computeExtremaFreak = (kernelIndex, pyramidImages, gaussianNumOctaves, gaussianNumScalesPerOctaves, prunedExtremas, prunedExtremasAngles) => {
+  const nBuckets = PRUNE_FEATURES_NUM_BUCKETS * PRUNE_FEATURES_NUM_BUCKETS;
+  const nPointsPerBuckets = MAX_FEATURE_POINTS / nBuckets;
+
+  if (kernelIndex === kernels.length) {
+    const subkernels = [];
+
+    subkernels.push(
+      gpu.createKernelMap({
+        saveXp: function(a) {return a},
+        saveYp: function(a) {return a}
+      },
+      function(gaussianNumOctaves, gaussianNumScalesPerOctaves, prunedExtremas, prunedExtremasAngles, freakPoints) {
+        const bucketPointIndex = this.thread.y;
+        const bucketIndex = this.thread.z;
+
+        const EXPANSION_FACTOR = 7;
+
+        const mK = Math.pow(2, 1.0 / (gaussianNumScalesPerOctaves-1));
+        const oneOverLogK = 1.0 / Math.log(mK);
+
+        const inputX = prunedExtremas[bucketIndex][bucketPointIndex][2];
+        const inputY = prunedExtremas[bucketIndex][bucketPointIndex][3];
+        const inputSigma = prunedExtremas[bucketIndex][bucketPointIndex][1];
+        const inputAngle = prunedExtremasAngles[bucketIndex][bucketPointIndex][0];
+
+        const freakSigma = freakPoints[this.thread.x][0];
+        const freakX = freakPoints[this.thread.x][1];
+        const freakY = freakPoints[this.thread.x][2];
+
+        // Ensure the scale of the similarity transform is at least "1".
+        const transformScale = Math.max(1, inputSigma * EXPANSION_FACTOR);
+        const c = transformScale * Math.cos(inputAngle);
+        const s = transformScale * Math.sin(inputAngle);
+        // similarity matrix
+        // const S = [
+        //  c, -s, x,
+        //  s, c, y,
+        //  0, 0, 1
+        //]
+        const S0 = c;
+        const S1 = -s;
+        const S2 = inputX;
+        const S3 = s;
+        const S4 = c;
+        const S5 = inputY;
+
+        const sigma = transformScale * freakSigma;
+        let octave = Math.floor(Math.log2(sigma));
+        const fscale = Math.log(sigma / Math.pow(2, octave)) * oneOverLogK;
+        let scale = Math.round(fscale);
+
+        // sgima of last scale =  sigma of the first scale in next octave
+        // prefer coarser octaves for efficiency
+        if (scale === gaussianNumScalesPerOctaves - 1) {
+          octave = octave + 1;
+          scale = 0;
+        }
+        // clip octave and scale
+        if (octave < 0) {
+          octave = 0;
+          scale = 0;
+        }
+        if (octave >= gaussianNumOctaves) {
+          octave = gaussianNumOctaves - 1;
+          scale = gaussianNumScalesPerOctaves - 1;
+        }
+
+        // for downsample point
+        const imageIndex = octave * gaussianNumScalesPerOctaves + scale;
+        const a = 1.0 / (Math.pow(2, octave));
+        const b = 0.5 * a - 0.5;
+
+        const x = S0 * freakX + S1 * freakY + S2;
+        const y = S3 * freakX + S4 * freakY + S5;
+        let xp = x * a + b; // x in octave
+        let yp = y * a + b; // y in octave
+
+        saveXp(xp);
+        saveYp(yp);
+        return imageIndex;
+      }, {
+        output: [freakPoints.length, nPointsPerBuckets, nBuckets],
+        pipeline: true,
+      })
+    )
+
+    subkernels.push(
+      gpu.createKernel(function() {
+        return 0;
+      }, {
+        output: [freakPoints.length, nPointsPerBuckets, nBuckets],
+        pipeline: true,
+      })
+    );
+
+    for (let i = 0; i < pyramidImages.length; i++) {
+      subkernels.push(
+        gpu.createKernel(function(data, thisIndex, imageData, width, height, xps, yps, imageIndexes) {
+          if (imageIndexes[this.thread.z][this.thread.y][this.thread.x] !== thisIndex) return data[this.thread.z][this.thread.y][this.thread.x];
+
+          let xp = xps[this.thread.z][this.thread.y][this.thread.x];
+          let yp = yps[this.thread.z][this.thread.y][this.thread.x];
+
+          // bilinear interpolation
+          xp = Math.max(0, Math.min(xp, width - 2));
+          yp = Math.max(0, Math.min(yp, height - 2));
+
+          const x0 = Math.floor(xp);
+          const x1 = x0 + 1;
+          const y0 = Math.floor(yp);
+          const y1 = y0 + 1;
+          const value = (x1-xp) * (y1-yp) * imageData[y0 * width + x0]
+                      + (xp-x0) * (y1-yp) * imageData[y0 * width + x1]
+                      + (x1-xp) * (yp-y0) * imageData[y1 * width + x0]
+                      + (xp-x0) * (yp-y0) * imageData[y1 * width + x1];
+          return value;
+        }, {
+          output: [freakPoints.length, nPointsPerBuckets, nBuckets],
+          pipeline: true,
+        })
+      )
+    }
+    kernels.push(subkernels);
+  }
+  const subkernels = kernels[kernelIndex];
+
+  const result = subkernels[0](gaussianNumOctaves, gaussianNumScalesPerOctaves, prunedExtremas, prunedExtremasAngles, freakPoints);
+
+  const imageIndexes = result.result;
+  const xps = result.saveXp;
+  const yps = result.saveYp;
+
+  let freakResult = subkernels[1]();
+  for (let i = 0; i < pyramidImages.length; i++) {
+    freakResult = subkernels[i+2](freakResult, i, pyramidImages[i].data, pyramidImages[i].width, pyramidImages[i].height, xps, yps, imageIndexes);
+  }
+  return freakResult;
 }
 
 const _computeFreak = (kernelIndex, pyramidImages, gaussianNumOctaves, gaussianNumScalesPerOctaves, featurePoints) => {
@@ -1418,8 +1842,8 @@ const _computeOrientationHistograms = (kernelIndex, gradientMags, gradientAngles
     inputys[i] = fp.octaveY;
     inputsigmas[i] = fp.octaveSigma;
   }
-  if (featurePoints.length === 0) return null;
   const result = kernel(gradientMags, gradientAngles, width, height, ORIENTATION_NUM_BINS, featurePoints.length, inputxs, inputys, inputsigmas);
+  if (featurePoints.length === 0) return null;
   return result;
 }
 
