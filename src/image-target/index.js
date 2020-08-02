@@ -35,7 +35,7 @@ class ImageTarget {
     this.isTracking = false;
   }
 
-  process(queryImage) {
+  process(queryImage, featurePoints) {
     //const processImage = Object.assign(queryImage, {dpi: 72});
     const processImage = Object.assign(queryImage, {dpi: 1});
 
@@ -57,7 +57,8 @@ class ImageTarget {
         matchProcessImage = processImage;
       }
       //const matchResult = this.matcher.match(processImage);
-      const matchResult = this.matcher.match(matchProcessImage);
+      //const matchResult = this.matcher.match(matchProcessImage);
+      const matchResult = this.matcher.matchDetection(featurePoints);
 
       //console.log("match result", matchResult);
       if (matchResult === null) return null;

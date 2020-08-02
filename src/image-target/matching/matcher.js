@@ -17,6 +17,46 @@ class Matcher {
     this.keyframes = matchingData.keyframes;
   }
 
+  matchDetection(featurePoints) {
+    const querywidth = 640;
+    const queryheight = 480;
+    const querypoints = [];
+    const dpi = 1.0;
+    for (let i = 0; i < featurePoints.length; i++) {
+      querypoints.push({
+        x2D: featurePoints[i].x,
+        y2D: featurePoints[i].y,
+        x3D: (featurePoints[i].x + 0.5) / dpi,
+        y3D: ((queryheight-0.5) - featurePoints[i].y) / dpi,
+        angle: featurePoints[i].angle,
+        scale: featurePoints[i].sigma,
+        maxima: featurePoints[i].score > 0,
+        descriptors: featurePoints[i].descriptors
+      })
+    }
+    const result = match({keyframes: this.keyframes, querypoints: querypoints, querywidth , queryheight});
+    if (result === null) return null;
+
+    const screenCoords = [];
+    const worldCoords = [];
+    const keyframe = this.keyframes[result.keyframeIndex];
+    for (let i = 0; i < result.matches.length; i++) {
+      const querypointIndex = result.matches[i].querypointIndex;
+      const keypointIndex = result.matches[i].keypointIndex;
+      screenCoords.push({
+        x: querypoints[querypointIndex].x2D,
+        y: querypoints[querypointIndex].y2D,
+      })
+      worldCoords.push({
+        x: keyframe.points[keypointIndex].x3D,
+        y: keyframe.points[keypointIndex].y3D,
+        z: 0,
+      })
+    }
+
+    return {screenCoords, worldCoords};
+  }
+
   // return a list of screenCoords -> worldCoords pairs
   match(targetImage) {
     const querypoints = _extractPoints({image: targetImage});
@@ -105,10 +145,12 @@ const _extractPoints = ({image}) => {
   //const correctResult3 = detect3({gaussianPyramid: _gaussianPyramid, dogPyramid: _dogPyramid});
   const correctResult3 = null;
 
-  const {featurePoints, descriptors: descriptors} = detect2({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES, correctResult, correctResult3});
+  const {featurePoints, descriptors: descriptors} = detect2({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
+
+  //return [];
 
   //console.log("detect again");
-  const r = detect2({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES, correctResult, correctResult3});
+  //const r = detect2({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES, correctResult, correctResult3});
   //console.log("detect again finish");
 
   /*

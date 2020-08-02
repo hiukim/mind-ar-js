@@ -5,7 +5,8 @@ const {computeHomography} = require('./homography.js');
 const {multiplyPointHomographyInhomogenous, matrixInverse33} = require('../utils/geometry.js');
 
 const INLIER_THRESHOLD = 3;
-const MIN_NUM_INLIERS = 8;
+//const MIN_NUM_INLIERS = 8;  //default
+const MIN_NUM_INLIERS = 6;
 const CLUSTER_MAX_POP = 8;
 const HAMMING_THRESHOLD = 0.7;
 
@@ -161,6 +162,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until first inlier matches: ', new Date().getTime() - _start);
     }
+
+    //console.log("inlierMatches", inlierMatches);
 
     if (inlierMatches.length < MIN_NUM_INLIERS) {
       continue;

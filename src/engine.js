@@ -1,9 +1,11 @@
 const {ImageTarget} = require('./image-target/index.js');
+const {Detector} = require('./image-target/detector.js');
 
 class Engine {
   constructor(options) {
     this.inputWidth = options.inputWidth;
     this.inputHeight = options.inputHeight;
+    this.detector = new Detector(this.inputWidth, this.inputHeight);
     this.smartMatching = options.smartMatching;
     this._imageTargets = [];
 
@@ -40,11 +42,21 @@ class Engine {
   }
 
   process(queryImageData) {
+    let featurePoints = null;
+
+    let needFeaturePoints = false;
+    this._imageTargets.forEach((imageTarget) => {
+      if (!imageTarget.isTracking) needFeaturePoints = true;
+    });
+    if (needFeaturePoints) {
+      featurePoints = this.detector.detect(queryImageData);
+    }
+
     const queryImage = {data: queryImageData, width: this.inputWidth, height: this.inputHeight};
 
     const result = [];
     this._imageTargets.forEach((imageTarget) => {
-      const modelViewTransform = imageTarget.process(queryImage);
+      const modelViewTransform = imageTarget.process(queryImage, featurePoints);
       const worldMatrix = modelViewTransform === null? null: _glModelViewMatrix({modelViewTransform});
 
       //console.log("worldMatrix", worldMatrix);
