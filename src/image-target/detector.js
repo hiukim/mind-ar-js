@@ -10,9 +10,12 @@ const MAX_SUBPIXEL_DISTANCE_SQR = 3 * 3;
 const EDGE_THRESHOLD = 4.0;
 const EDGE_HESSIAN_THRESHOLD = ((EDGE_THRESHOLD+1) * (EDGE_THRESHOLD+1) / EDGE_THRESHOLD);
 
+// TODO: can try 20 per dimension and max feature 1 for more efficient computation
 const NUM_BUCKETS_PER_DIMENSION = 10;
+//const NUM_BUCKETS_PER_DIMENSION = 20;
 const NUM_BUCKETS = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
 const MAX_FEATURES_PER_BUCKET = 5;
+//const MAX_FEATURES_PER_BUCKET = 1;
 // total max feature points = NUM_BUCKETS * MAX_FEATURES_PER_BUCKET
 
 const ORIENTATION_NUM_BINS = 36;
@@ -114,6 +117,13 @@ for (let r = 0; r < FREAK_RINGS.length; r++) {
   }
 }
 
+const FREAK_CONPARISON_COUNT = (FREAKPOINTS.length-1) * (FREAKPOINTS.length) / 2; // 666
+
+// gpu.js use 32-bit float number. it has 24 significant bit and 8 bit exponent (can confirmed?)
+//   therefore, it can only put 24 bits of information with full accuracy
+//   any better way to utilize all 32 bits?
+const FREAK_24BIT_DESCRIPTOR_COUNT = Math.ceil(FREAK_CONPARISON_COUNT / 24); // ceil(666/24) = 28 numbers
+
 class Detector {
   constructor(width, height) {
     this.width = width;
@@ -141,7 +151,6 @@ class Detector {
     const originalWidth = this.width;
     const originalHeight = this.height;
     const numOctaves = this.numOctaves;
-    const numScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES;
 
     // Build gaussian pyramid images
     const pyramidImages = [];
@@ -154,44 +163,37 @@ class Detector {
       }
 
       // remaining images of octave, 4th order binomail from previous
-      for (let j = 0; j < numScalesPerOctaves - 1; j++) {
+      for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES - 1; j++) {
         pyramidImages.push(this._applyFilter(pyramidImages[pyramidImages.length-1]));
       }
-
-      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-        console.log('exec time until build gausian', i,  new Date().getTime() - _start);
-      }
+    }
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+      console.log('exec time until build gausian', new Date().getTime() - _start);
     }
 
-    const gaussianPyramid = {
-      numOctaves: numOctaves,
-      numScalesPerOctaves: numScalesPerOctaves,
-      images: pyramidImages
-    }
-
+    // Build difference of gaussian pyramid
     const dogPyramidImages = [];
     for (let i = 0; i < numOctaves; i++) {
-      for (let j = 0; j < numScalesPerOctaves - 1; j++) {
-        const image1 = gaussianPyramid.images[i * gaussianPyramid.numScalesPerOctaves + j];
-        const image2 = gaussianPyramid.images[i * gaussianPyramid.numScalesPerOctaves + j + 1];
+      for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES - 1; j++) {
+        const image1 = pyramidImages[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j];
+        const image2 = pyramidImages[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j + 1];
         dogPyramidImages.push(this._differenceImageBinomial(image1, image2));
       }
     }
-    const dogPyramid = {
-      numOctaves: numOctaves,
-      numScalesPerOctaves: numScalesPerOctaves - 1,
-      images: dogPyramidImages
+    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
+      console.log('exec time until build dog', new Date().getTime() - _start);
     }
 
     let prunedExtremas = this._initializePrune();
 
-    for (let k = 1; k < dogPyramid.images.length - 1; k++) {
-      let image0 = dogPyramid.images[k-1];
-      let image1 = dogPyramid.images[k];
-      let image2 = dogPyramid.images[k+1];
+    // Find feature points (i.e. extremas in dog images)
+    for (let k = 1; k < dogPyramidImages.length - 1; k++) {
+      let image0 = dogPyramidImages[k-1];
+      let image1 = dogPyramidImages[k];
+      let image2 = dogPyramidImages[k+1];
 
-      const octave = Math.floor(k / dogPyramid.numScalesPerOctaves);
-      const scale = k % dogPyramid.numScalesPerOctaves;
+      const octave = Math.floor(k / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
+      const scale = k % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
 
       let hasUpsample = false;
       let hasPadOneWidth = false;
@@ -236,10 +238,10 @@ class Detector {
     // compute the orientation angle of the extrema
     //  artoolkit picks mutiple angles (usually 1-3), but we pick one only for simplicity
     let extremaHistograms = this._initializeHistograms();
-    for (let k = 1; k < dogPyramid.images.length - 1; k++) {
-      const octave = Math.floor(k / dogPyramid.numScalesPerOctaves);
-      const scale = k % dogPyramid.numScalesPerOctaves;
-      const gaussianIndex = octave * gaussianPyramid.numScalesPerOctaves + scale;
+    for (let k = 1; k < dogPyramidImages.length - 1; k++) {
+      const octave = Math.floor(k / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
+      const scale = k % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
+      const gaussianIndex = octave * PYRAMID_NUM_SCALES_PER_OCTAVES + scale;
       const gaussianImage = pyramidImages[gaussianIndex]
       const gradientResult = this._computeGradients(gaussianImage);
 
@@ -250,17 +252,12 @@ class Detector {
 
     // compute the FREAK descriptors for extremas
     const extremaFreaks = this._computeExtremaFreak(pyramidImages, numOctaves, prunedExtremas, extremaAngles);
+    const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
 
     // combine all needed data and return to CPU together
-    const combinedExtremas = this._combine(prunedExtremas, extremaAngles, extremaFreaks);
+    const combinedExtremas = this._combine(prunedExtremas, extremaAngles, freakDescriptors);
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until combine', new Date().getTime() - _start);
-    }
-
-    const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
-    const freakDescriptorsArr = freakDescriptors.toArray();
-    if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-      console.log('exec time until freakDescriptors', new Date().getTime() - _start);
     }
 
     const combinedExtremasArr = combinedExtremas.toArray();
@@ -275,50 +272,22 @@ class Detector {
         if (combinedExtremasArr[i][j][0] !== 0) {
           const ext = combinedExtremasArr[i][j];
 
-          const desc = [];
-          for (let m = 0; m < FREAKPOINTS.length; m++) {
-            for (let n = m+1; n < FREAKPOINTS.length; n++) {
-              // avoid too senstive to rounding precision
-              desc.push(ext[m+5] < ext[n+5] + 0.0001);
-            }
+          const descBit24 = ext.slice(5);
+          // convert 24-bits encoded to 32-bits encoded. i.e. every 4 numbers to 3 numbers
+          //  [24 + 8] [16 + 16] [8 + 24]
+          // altogether 28 numbers, so perfectly convert to 21 numbers
+          const descriptors = [];
+          for (let k = 0; k < descBit24.length; k += 4) {
+            const v1 = descBit24[k] * 256 + (descBit24[k+1] >> 16);
+            const v2 = (descBit24[k+1] & 65535) * 65536 + (descBit24[k+2] >> 8);
+            const v3 = (descBit24[k+2] & 255) * 16777216 + descBit24[k+3];
+            descriptors.push(v1);
+            descriptors.push(v2);
+            descriptors.push(v3);
           }
-
-          const desc2 = freakDescriptorsArr[i][j];
-          for (let k = 0; k < desc.length; k++) {
-            if (!!desc[k] !== !!desc2[k]) {
-              console.log("INCORRECCT desc compare", k, desc, desc2);
-              break;
-            }
-          }
-
-          // encode descriptors in binary format
-          // 37 samples = 1+2+3+...+36 = 666 comparisons = 666 bits
-          // ceil(666/32) = 21 numbers (32bit number)
-          const descBit = [];
-          let temp = 0;
-          let count = 0;
-          for (let m = 0; m < desc.length; m++) {
-            if (desc[m]) temp += 1;
-            count += 1;
-            if (count === 32) {
-              descBit.push(temp);
-              temp = 0;
-              count = 0;
-            } else {
-              temp = (temp << 1) >>> 0; // >>> 0 to make it unsigned
-            }
-          }
-          descBit.push(temp);
-
-          const descBit2 = freakDescriptorsArr[i][j];
-          console.log("descBit2", descBit, descBit2);
-          for (let k = 0; k < descBit.length; k++) {
-            if (descBit[k] !== descBit2[k]) {
-              console.log(descBit[k], descBit2[k], (descBit2[k]>>>0));
-              console.log("INCORRECCT descBit compare", k, descBit, descBit2);
-              break;
-            }
-          }
+          // there are 666 freak bits to encode, so the last descriptors only use 26 bits. (666 % 32)
+          // for historically reason, it started from the 2nd least significant bits (but not necessary); so now we shift by (32-26-1) bits
+          descriptors[descriptors.length-1] = (descriptors[descriptors.length-1] >>> 5);
 
           featurePoints.push({
             score: ext[0],
@@ -326,7 +295,7 @@ class Detector {
             x: ext[2],
             y: ext[3],
             angle: ext[4],
-            descriptors: descBit
+            descriptors: descriptors
           });
         }
       }
@@ -356,25 +325,25 @@ class Detector {
 
   // combine necessary information to return to cpu
   // first dimension: [score, sigma, x, y, angle, freak1, freak2, ..., freak37]
-  _combine(prunedExtremas, extremaAngles, extremaFreaks) {
+  _combine(prunedExtremas, extremaAngles, freakDescriptors) {
     if (this.kernelIndex === this.kernels.length) {
       this.kernels.push(
-        gpu.createKernel(function(prunedExtremas, extremaAngles, extremaFreaks) {
+        gpu.createKernel(function(prunedExtremas, extremaAngles, freakDescriptors) {
           if (this.thread.x < 4) {
             return prunedExtremas[this.thread.z][this.thread.y][this.thread.x];
           }
           if (this.thread.x < 5) {
             return extremaAngles[this.thread.z][this.thread.y][this.thread.x-4];
           }
-          return extremaFreaks[this.thread.z][this.thread.y][this.thread.x-5];
+          return freakDescriptors[this.thread.z][this.thread.y][this.thread.x-5];
         }, {
-          output: [5 + FREAKPOINTS.length, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+          output: [5 + FREAK_24BIT_DESCRIPTOR_COUNT, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
           pipeline: true,
         })
       )
     }
     const kernel = this.kernels[this.kernelIndex++];
-    const result = kernel(prunedExtremas, extremaAngles, extremaFreaks);
+    const result = kernel(prunedExtremas, extremaAngles, freakDescriptors);
     return result;
   }
 
@@ -603,7 +572,7 @@ class Detector {
 
       subkernels.push( //dummy
         gpu.createKernel(function() {
-          return 0;
+          return -1;
         }, {
           output: [1, NUM_BUCKETS],
           pipeline: true,
@@ -639,8 +608,15 @@ class Detector {
             let maxScore = Math.abs(prunedExtremas[bucketIndex][-1 * currentPrunedMaxIndex - 1][0]); // score at propertyIndex 0
             maxScore = Math.max(maxScore, 0.0001); // safeguard, but probably not needed
 
-            for (let i = bucketX * dx; i < bucketX * dx + dx; i++) {
-              for (let j = bucketY * dy; j < bucketY * dy + dy; j++) {
+            let startX = Math.floor(bucketX * dx);
+            let endX = Math.floor((bucketX + 1) * dx);
+            let startY = Math.floor(bucketY * dy);
+            let endY = Math.floor((bucketY + 1) * dy);
+
+            //for (let i = bucketX * dx; i < bucketX * dx + dx; i++) {
+            //  for (let j = bucketY * dy; j < bucketY * dy + dy; j++) {
+            for (let i = startX; i < endX; i++) {
+              for (let j = startY; j < endY; j++) {
                 const pointIndex = j * width + i;
                 const pointScore = Math.abs(extremaScores[pointIndex]);
                 if (pointScore > maxScore) {
@@ -658,10 +634,12 @@ class Detector {
             return maxIndex;
           }, {
             constants: {
-              bucketWidth: Math.ceil(width / NUM_BUCKETS_PER_DIMENSION),
-              bucketHeight: Math.ceil(height / NUM_BUCKETS_PER_DIMENSION),
-              width,
-              height,
+              //bucketWidth: Math.ceil(width / NUM_BUCKETS_PER_DIMENSION),
+              //bucketHeight: Math.ceil(height / NUM_BUCKETS_PER_DIMENSION),
+              bucketWidth: width / NUM_BUCKETS_PER_DIMENSION,
+              bucketHeight: height / NUM_BUCKETS_PER_DIMENSION,
+              width: width,
+              height: height,
               numBucketsPerDimension: NUM_BUCKETS_PER_DIMENSION,
               orderIndex: i
             },
@@ -763,8 +741,6 @@ class Detector {
   }
 
   _computeFreakDescriptors(freakResult) {
-    const comparisonCount = (FREAKPOINTS.length-1) * (FREAKPOINTS.length) / 2; // 666
-    const descriptorCount = Math.ceil(comparisonCount / 32); // ceil(666/32) = 21 numbers (32 bit number)
     if (this.kernelIndex === this.kernels.length) {
       const subkernels = [];
       subkernels.push(
@@ -798,29 +774,33 @@ class Detector {
           constants: {
             numFreakPoints: FREAKPOINTS.length
           },
-          output: [comparisonCount, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+          output: [FREAK_CONPARISON_COUNT, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
           pipeline: true,
         })
       )
 
       subkernels.push(
         gpu.createKernel(function(freakValues) {
+          const comparisonCount = this.constants.comparisonCount;
           const x = this.thread.x;
-          const start = 32 * x;
-          const end = start + 32;
+          const start = 24 * x;
+          const end = start + 24;
           let temp = 0;
-          for (let i = start; i < end-1; i++) {
-            if (freakValues[this.thread.z][this.thread.y][i] === 1) temp += 1;
+          for (let i = start; i < end; i++) {
+            if (i < comparisonCount && freakValues[this.thread.z][this.thread.y][i] === 1) {
+              temp += 1;
+            }
             temp = temp * 2;
-            //temp = (temp << 1) >>> 0;
           }
-          if (freakValues[this.thread.z][this.thread.y][end-1] === 1) temp += 1;
+          temp /= 2;
+
           return temp;
         }, {
           constants: {
+            comparisonCount: FREAK_CONPARISON_COUNT,
             numFreakPoints: FREAKPOINTS.length
           },
-          output: [descriptorCount, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+          output: [FREAK_24BIT_DESCRIPTOR_COUNT, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
           pipeline: true,
         })
       );
