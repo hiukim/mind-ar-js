@@ -60,6 +60,10 @@ const _detect = ({gaussianPyramid, dogPyramid}) => {
 
   let extremaCount = 0;
   for (let k = 1; k < dogPyramid.images.length - 1; k++) {
+    // Experimental result shows that no extrema is possible for odd number of k
+    // I believe it has something to do with how the gaussian pyramid being constructed
+    if (k % 2 === 1) continue;
+
     let image0 = dogPyramid.images[k-1];
     let image1 = dogPyramid.images[k];
     let image2 = dogPyramid.images[k+1];

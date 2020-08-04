@@ -187,8 +187,13 @@ class Detector {
     let prunedExtremas = this._initializePrune();
 
     // Find feature points (i.e. extremas in dog images)
-    // TODO ONLY k even number matters... figure out why
     for (let k = 1; k < dogPyramidImages.length - 1; k++) {
+      // Experimental result shows that no extrema is possible for odd number of k
+      // I believe it has something to do with how the gaussian pyramid being constructed
+      // If anyone wants to optimize the speed of this detector, here is probably the bottleneck:
+      //    reduce the number of passes required here.
+      if (k % 2 === 1) continue;
+
       let image0 = dogPyramidImages[k-1];
       let image1 = dogPyramidImages[k];
       let image2 = dogPyramidImages[k+1];
