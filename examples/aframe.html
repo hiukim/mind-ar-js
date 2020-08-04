@@ -192,7 +192,7 @@
           processCanvas2.style.width = '200px';
           this.container.appendChild(processCanvas2);
 
-          const compiledMSP = await fetch('./assets/newcard1.msp');
+          const compiledMSP = await fetch('./assets/newcard1_2.msp');
           const compiled = msgpack.decode(new Uint8Array(await compiledMSP.arrayBuffer()));
           await this.controller.addImageTarget({type: 'compiled', input: compiled});
           this.processReady = true;

@@ -1,12 +1,12 @@
 const {ImageTarget} = require('./image-target/index.js');
-const {Detector} = require('./image-target/detector.js');
+const {Detector} = require('./image-target/detectorGPU/detector.js');
+//const {Detector} = require('./image-target/detectorCPU/detector.js');
 
 class Engine {
   constructor(options) {
     this.inputWidth = options.inputWidth;
     this.inputHeight = options.inputHeight;
     this.detector = new Detector(this.inputWidth, this.inputHeight);
-    this.smartMatching = options.smartMatching;
     this._imageTargets = [];
 
     const near = 10;
@@ -37,7 +37,7 @@ class Engine {
   }
 
   addImageTarget(options) {
-    const imageTarget = new ImageTarget(Object.assign({projectionTransform: this._projectionTransform, smartMatching: this.smartMatching}, options));
+    const imageTarget = new ImageTarget(Object.assign({projectionTransform: this._projectionTransform}, options));
     this._imageTargets.push(imageTarget);
   }
 

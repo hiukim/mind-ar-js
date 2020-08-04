@@ -1,4 +1,10 @@
 const {upsampleBilinear, downsampleBilinear} = require('../utils/images.js');
+const {build: buildGaussianPyramid} = require('./gaussian-pyramid');
+const {build: buildDoGPyramid} = require('./dog-pyramid');
+const {extract} = require('./freak-extractor');
+
+const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;
+const PYRAMID_MIN_SIZE = 8;
 
 const MAX_SUBPIXEL_DISTANCE_SQR = 3 * 3;
 const LAPLACIAN_SQR_THRESHOLD = 3 * 3;
@@ -15,8 +21,32 @@ const ORIENTATION_PEAK_THRESHOLD = 0.8;
 
 const ONE_OVER_2PI = 0.159154943091895;
 
+class Detector {
+  constructor(width, height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  detect(imageData) {
+    const image = {data: imageData, width: this.width, height: this.height};
+
+    const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
+
+    const dogPyramid = buildDoGPyramid({gaussianPyramid: gaussianPyramid});
+
+    const featurePoints = _detect({gaussianPyramid: gaussianPyramid, dogPyramid: dogPyramid});
+
+    const descriptors = extract({pyramid: gaussianPyramid, points: featurePoints});
+
+    for (let i = 0; i < featurePoints.length; i++) {
+      featurePoints[i].descriptors = descriptors[i];
+    }
+    return featurePoints;
+  }
+}
+
 // Detect minima and maximum in Laplacian images
-const detect = ({gaussianPyramid, dogPyramid}) => {
+const _detect = ({gaussianPyramid, dogPyramid}) => {
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
     var _start = new Date().getTime();
   }
@@ -581,6 +611,5 @@ const _solveSymmetric33 = (options) => {
 }
 
 module.exports = {
-  detect
+  Detector
 }
-

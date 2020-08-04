@@ -187,6 +187,7 @@ class Detector {
     let prunedExtremas = this._initializePrune();
 
     // Find feature points (i.e. extremas in dog images)
+    // TODO ONLY k even number matters... figure out why
     for (let k = 1; k < dogPyramidImages.length - 1; k++) {
       let image0 = dogPyramidImages[k-1];
       let image1 = dogPyramidImages[k];
@@ -1142,14 +1143,14 @@ class Detector {
       this.kernels.push(
         gpu.createKernel(function(data) {
           const width = this.constants.width;
-          const srcWidth = width * 2;
+          const srcWidth = this.constants.srcWidth;
           const j = Math.floor(this.thread.x / width);
           const i = this.thread.x % width;
           const srcPos = j * 2 * srcWidth + i * 2;
           const v = (data[srcPos] + data[srcPos+1] + data[srcPos+srcWidth] + data[srcPos+srcWidth+1]) * 0.25;
           return v;
         }, {
-          constants: {width: dstWidth},
+          constants: {srcWidth: image.width, width: dstWidth},
           output: [dstWidth * dstHeight],
           pipeline: true,
         })

@@ -207,6 +207,7 @@ const extract = (options) => {
         temp = 0;
         count = 0;
       } else {
+        // probably can just do temp = temp * 2
         temp = (temp << 1) >>> 0; // >>> 0 to make it unsigned
       }
     }

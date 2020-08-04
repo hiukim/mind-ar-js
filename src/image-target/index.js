@@ -7,7 +7,7 @@ const {refineHomography} = require('./icp/refine_homography');
 
 class ImageTarget {
   constructor(options) {
-    const {type, input, projectionTransform, smartMatching} = options;
+    const {type, input, projectionTransform} = options;
     let imageList;
     let targetImage;
     let matchingData;
@@ -27,7 +27,6 @@ class ImageTarget {
     }
     console.log("image target consdtructor", imageList, matchingData, trackingData);
 
-    this.smartMatching = smartMatching;
     this.projectionTransform = projectionTransform;
     this.matcher = new Matcher(matchingData);
     this.tracker = new Tracker(trackingData, imageList, projectionTransform);
@@ -40,37 +39,10 @@ class ImageTarget {
     const processImage = Object.assign(queryImage, {dpi: 1});
 
     if (!this.isTracking) {
-
-      let matchProcessImage;
-      if (this.smartMatching) { // use a cropped version of image to improve processing speed
-        matchProcessImage = {
-          width: processImage.width / 2,
-          height: processImage.height / 2,
-          data: new Uint8Array(processImage.width * processImage.height)
-        };
-        for (let i = 0; i < matchProcessImage.width; i++) {
-          for (let j = 0; j < matchProcessImage.height; j++) {
-            matchProcessImage.data[j * matchProcessImage.width + i] = processImage.data[processImage.width * (j + processImage.height/4) + (i + processImage.width/4)];
-          }
-        }
-      } else {
-        matchProcessImage = processImage;
-      }
-      //const matchResult = this.matcher.match(processImage);
-      //const matchResult = this.matcher.match(matchProcessImage);
-      const matchResult = this.matcher.matchDetection(featurePoints);
-
-      //console.log("match result", matchResult);
+      const matchResult = this.matcher.matchDetection(queryImage, featurePoints);
       if (matchResult === null) return null;
 
       const {screenCoords, worldCoords} = matchResult;
-
-      if (this.smartMatching) {
-        for (let i = 0; i < screenCoords.length; i++) {
-          screenCoords[i].x += processImage.width / 4;
-          screenCoords[i].y += processImage.height / 4;
-        }
-      }
 
       const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
       console.log("initial matched model view transform", initialModelViewTransform);
@@ -81,13 +53,6 @@ class ImageTarget {
       // TODO: maybe don't this refineHomography. result seems worse when the detected size is big
       const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
 
-      if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
-        console.log("refine err", err);
-        console.log("refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
-        if (!window.cmp2DArray(refinedModelViewTransform, window.debugMatch.camPose, 0.0001)) {
-          console.log("INCORRECT ICP refinedModelViewTransform", refinedModelViewTransform, window.debugMatch.camPose);
-        }
-      }
       console.log("initial refined model view transform", refinedModelViewTransform);
 
       this.isTracking = true;

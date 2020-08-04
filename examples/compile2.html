@@ -10,10 +10,12 @@
         const greyImage = {
           width: _greyImage.width,
           height: _greyImage.height,
-          data: []
+          //data: []
+          data: new Uint8Array(_greyImage.width * _greyImage.height)
         };
         for (let i = 0; i < _greyImage.data.length; i++) {
-          greyImage.data.push( Math.floor(_greyImage.data[i] / _greyImage.maxValue * 255));
+          //greyImage.data.push( Math.floor(_greyImage.data[i] / _greyImage.maxValue * 255));
+          greyImage.data[i] = Math.floor(_greyImage.data[i] / _greyImage.maxValue * 255);
         }
         return greyImage;
       }
@@ -55,7 +57,7 @@
 
       document.addEventListener('DOMContentLoaded', function(event) {
         async function process() {
-          const filename = 'card7';
+          const filename = 'card1';
 
           let targetImage = await IJS.Image.load('./assets/' + filename + '.png');
           //targetImage = targetImage.resize({width: 337, height: 186});
@@ -84,7 +86,7 @@
             for (let j = 0; j < kpmPoints.length; j++) {
               points2.push({x: Math.round(kpmPoints[j].x2D), y: Math.round(kpmPoints[j].y2D)});
             }
-            //showImage(image, points2);
+            showImage(image, points2);
           }
 
           //return;
