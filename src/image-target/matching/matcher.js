@@ -11,7 +11,7 @@ class Matcher {
     this.keyframes = matchingData.keyframes;
   }
 
-  matchDetection(queryImage, featurePoints) {
+  matchDetection(queryWidth, queryHeight, featurePoints) {
     const querypoints = [];
     const dpi = 1.0;
     for (let i = 0; i < featurePoints.length; i++) {
@@ -19,14 +19,14 @@ class Matcher {
         x2D: featurePoints[i].x,
         y2D: featurePoints[i].y,
         x3D: (featurePoints[i].x + 0.5) / dpi,
-        y3D: ((queryImage.height-0.5) - featurePoints[i].y) / dpi,
+        y3D: ((queryHeight-0.5) - featurePoints[i].y) / dpi,
         angle: featurePoints[i].angle,
         scale: featurePoints[i].sigma,
         maxima: featurePoints[i].score > 0,
         descriptors: featurePoints[i].descriptors
       })
     }
-    const result = match({keyframes: this.keyframes, querypoints: querypoints, querywidth: queryImage.width, queryheight: queryImage.height});
+    const result = match({keyframes: this.keyframes, querypoints: querypoints, querywidth: queryWidth, queryheight: queryHeight});
     if (result === null) return null;
 
     const screenCoords = [];

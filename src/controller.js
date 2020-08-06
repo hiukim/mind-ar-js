@@ -15,6 +15,11 @@ class Controller {
     this.worker.onmessage = (e) => {
       const {data} = e;
       const {type} = data;
+
+      if (type === 'logTime') {
+        logTime(data.title)
+      }; // for debugging use only
+
       if (this.subscribers[type]) {
         this.subscribers[type](e);
       }
@@ -57,9 +62,9 @@ class Controller {
     });
   }
 
-  process(queryImageData) {
+  process(video) {
     if (!this.useworker) {
-      return this.engine.process(queryImageData);
+      return this.engine.process(video);
     }
 
     this.worker.postMessage({type: 'process', options: {queryImageData: queryImageData}}, [queryImageData.buffer]);

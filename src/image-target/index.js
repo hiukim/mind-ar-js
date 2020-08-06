@@ -34,6 +34,34 @@ class ImageTarget {
     this.isTracking = false;
   }
 
+  match(queryWidth, queryHeight, featurePoints) {
+    const matchResult = this.matcher.matchDetection(queryWidth, queryHeight, featurePoints);
+    if (matchResult === null) return null;
+
+    const {screenCoords, worldCoords} = matchResult;
+
+    const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
+    console.log("initial matched model view transform", initialModelViewTransform);
+
+    if (initialModelViewTransform === null) return null;
+    //return initialModelViewTransform;
+
+    // TODO: maybe don't this refineHomography. result seems worse when the detected size is big
+    const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
+
+    this.isTracking = true;
+    this.tracker.detected(refinedModelViewTransform);
+  }
+
+  track(queryImage) {
+    this.tracker.track(queryImage);
+    const updatedModelViewTransform = this.tracker.getLatest();
+    if (updatedModelViewTransform === null) {
+      this.isTracking = false;
+    }
+    return updatedModelViewTransform;
+  }
+
   process(queryImage, featurePoints) {
     //const processImage = Object.assign(queryImage, {dpi: 72});
     const processImage = Object.assign(queryImage, {dpi: 1});

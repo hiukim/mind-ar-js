@@ -8,9 +8,24 @@
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
     <script src="../dist/mindar.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gpu.js@latest/dist/gpu-browser.min.js"></script>
 
     <script>
+      var _start;
+      var _last;
+      var debugFrameMessage = '';
+      const clearLogTime =  () => {
+        _start = new Date().getTime();
+        _last = new Date().getTime();
+        debugFrameMessage = '';
+      }; 
+      const logTime = (title) => {
+        debugFrameMessage += title + ':' + (new Date().getTime() - _last).toString().padStart(3, '0') + ". ";
+        _last = new Date().getTime();
+      }
+      const logTotalTime = (title) => {
+        debugFrameMessage += title + ':' + (new Date().getTime() - _start) + ". ";
+      }
+
       const getGreyImage = (image) => {
         const greyImage = {
           width: image.width,
@@ -22,15 +37,15 @@
         }
         return greyImage;
       }
+          console.log("TEST");
 
       AFRAME.registerSystem('ar-system', {
-        AR_PROCESS_DIMENSION_MAX: 640,
+        //AR_PROCESS_DIMENSION_MAX: 640,
         //AR_PROCESS_DIMENSION_MAX: 320,
         container: null,
         video: null,
         processReady: false,
         processingImage: false,
-        lastProcessTime: null,
 
         init: function() {
           this.anchorEntities = [];
@@ -41,13 +56,9 @@
 
           if (this.processReady) {
             if (!this.processingImage) {
-              if (this.lastProcessTime === null || new Date().getTime() - this.lastProcessTime > 500) {
-                //this.lastProcessTime = new Date().getTime();
-
-                if (this.workerStats) this.workerStats.update();
-                this.processingImage = true;
-                this._processImage();
-              }
+              if (this.workerStats) this.workerStats.update();
+              this.processingImage = true;
+              this._processImage();
             }
           }
         },
@@ -79,6 +90,7 @@
         },
 
         _startVideo: function() {
+          console.log("start video");
           this.video = document.createElement('video');
 
           this.video.setAttribute('autoplay', '');
@@ -97,16 +109,16 @@
 
           navigator.mediaDevices.getUserMedia({audio: false, video: {
             facingMode: 'environment',
-            //width: {ideal: 480},
-            //height: {ideal: 640},
           }}).then((stream) => {
-            this.video.srcObject = stream;
             this.video.addEventListener( 'loadedmetadata', () => {
               console.log("video ready...", this.video);
               this.video.setAttribute('width', this.video.videoWidth);
               this.video.setAttribute('height', this.video.videoHeight);
               this._startAR();
             });
+            this.video.srcObject = stream;
+          }).catch((err) => {
+            console.log("getUserMedia error", err);
           });
         },
 
@@ -130,8 +142,8 @@
         },
 
         _startAR: async function() {
-          this.controller = new MINDAR.Controller({});
-          //this.controller = new MINDAR.Controller({useworker: false});
+          //this.controller = new MINDAR.Controller({});
+          this.controller = new MINDAR.Controller({useworker: false});
           //await this.controller.setup(this.AR_PROCESS_WIDTH, this.AR_PROCESS_HEIGHT);
 
           this._computeSizes(this.container, this.video);
@@ -199,50 +211,23 @@
         },
 
         _processImage: async function() {
-          var _start = new Date().getTime();
+          clearLogTime();
 
           const {vw, vh, pw, ph, cw, ch, cx, cy, sw, sh, sx, sy, tw, th, tx, ty} = this.sizes;
 
-          const processContext = this.workerProcessContext;
+          //const processContext = this.workerProcessContext;
           //processContext.drawImage(this.video, sx, sy, sw, sh, tx, ty, tw, th);
-          processContext.drawImage(this.video, 0, 0, pw, ph);
+          //processContext.drawImage(this.video, 0, 0, pw, ph); // this line is fast
 
-          const imageData = processContext.getImageData(0, 0, pw, ph);
+          logTime('input');
 
-          const processData = new Uint8Array(pw * ph);
-          for (let i = 0; i < processData.length; i++) {
-            const offset = i * 4;
-            processData[i] = Math.floor((imageData.data[offset] + imageData.data[offset+1] + imageData.data[i+2])/3);
-          }
+          const result = await this.controller.process(this.video);
+          //const result = [{worldMatrix: null}];
 
-          const greyImageData = new Uint8Array(imageData.data.length / 4);
-          for (let i = 0; i < imageData.data.length; i += 4) {
-            greyImageData[i/4] = Math.floor((imageData.data[i]+imageData.data[i+1]+imageData.data[i+2])/3);
-            //greyImageData[i/4] = (imageData.data[i] * 3 + imageData.data[i+1] + imageData.data[i+2] * 4) >> 3;
-          }
-          var _end = new Date().getTime();
-
-          //console.log("process data", greyImageData);
-          /*
-          const debugImageData = this.workerProcessContext2.getImageData(0, 0, pw, ph);
-          for (let i = 0; i < greyImageData.length; i++) {
-            debugImageData.data[i*4+0] = greyImageData[i];
-            debugImageData.data[i*4+1] = greyImageData[i];
-            debugImageData.data[i*4+2] = greyImageData[i];
-            debugImageData.data[i*4+3] = 255;
-          }
-          this.workerProcessContext2.putImageData(debugImageData, 0, 0);
-          */
-          var _end2 = new Date().getTime();
-
-          //const result = await this.controller.process(greyImageData);
-          const result = await this.controller.process(processData);
+          logTotalTime('total');
           
-          //console.log('exec time process Image: ', _start, _end, _end - _start);
-          var _end3 = new Date().getTime();
-          $("#debug").html("<span>process time: " + (_end - _start) + "/" + (_end2 - _end) + "/" + (_end3 - _end2) + "</span>");
+          $("#debug").html(debugFrameMessage);
 
-          //console.log("result: ", result);
           for (let i = 0; i < this.anchorEntities.length; i++) {
             this.anchorEntities[i].updateWorldMatrix(result[i].worldMatrix);
           }
@@ -278,7 +263,8 @@
             sy = (video.videoHeight - sh) / 2;
           }
         
-          let vpRatio = Math.max(1, Math.max(video.videoWidth, video.videoHeight) / this.AR_PROCESS_DIMENSION_MAX);
+          //let vpRatio = Math.max(1, Math.max(video.videoWidth, video.videoHeight) / this.AR_PROCESS_DIMENSION_MAX);
+          let vpRatio = 1;
           let pw = video.videoWidth / vpRatio;
           let ph = video.videoHeight / vpRatio;
           let pRatio = pw / ph;
@@ -402,6 +388,41 @@
           }
         });
       });
+
+      const showImage = (targetImage, points) => {
+        const container = document.getElementById("container");
+        const canvas = document.createElement('canvas');
+        container.appendChild(canvas);
+        canvas.width  = targetImage.width;
+        canvas.height = targetImage.height;
+        canvas.style.width = canvas.width;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = new Uint32Array(imageData.data.buffer);
+
+        const alpha = (0xff << 24);
+        for (let c = 0; c < targetImage.width; c++) {
+          for (let r = 0; r < targetImage.height; r++) {
+            const pix = targetImage.data[r * targetImage.width + c];
+            data[r * canvas.width + c] = alpha | (pix << 16) | (pix << 8) | pix;
+          }
+        }
+
+        var pix = (0xff << 24) | (0x00 << 16) | (0xff << 8) | 0x00; // green
+        for (let i=0; i < points.length; ++i) {
+          const x = points[i].x;
+          const y = points[i].y;
+          const offset = (x + y * canvas.width);
+          data[offset] = pix;
+          for (var size = 1; size <= 3; size++) {
+            data[offset-size] = pix;
+            data[offset+size] = pix;
+            data[offset-size*canvas.width] = pix;
+            data[offset+size*canvas.width] = pix;
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
     </script>
 
     <style>
@@ -417,7 +438,7 @@
     </style>
   </head>
   <body>
-    <button id="playButton">Play</button>
+    <button id="playButton">Play 2</button>
     <span id="debug"></span>
     <div class="displayAR-container">
       <a-scene ar embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false">
@@ -435,6 +456,8 @@
           </a-entity>
         </a-entity>
       </a-scene>
+    </div>
+    <div id="container">
     </div>
   </body>
 </html>

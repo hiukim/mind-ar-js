@@ -30,6 +30,12 @@ class Engine {
       near: near,
       far: far,
     });
+
+    const processCanvas = document.createElement('canvas');
+    processCanvas.width = this.inputWidth;
+    processCanvas.height = this.inputHeight;
+    this.workerProcessContext = processCanvas.getContext('2d');
+    this.processData = new Uint8Array(this.inputWidth * this.inputHeight);
   }
 
   getProjectionMatrix() {
@@ -41,31 +47,48 @@ class Engine {
     this._imageTargets.push(imageTarget);
   }
 
-  process(queryImageData) {
+  process(video) {
+    logTime("engine process");
+
     let featurePoints = null;
+    let queryImage = null;
 
-    let needFeaturePoints = false;
     this._imageTargets.forEach((imageTarget) => {
-      if (!imageTarget.isTracking) needFeaturePoints = true;
+      if (!imageTarget.isTracking) {
+        if (featurePoints === null) {
+          featurePoints = this.detector.detectVideo(video);
+        }
+        imageTarget.match(this.inputWidth, this.inputHeight, featurePoints);
+      }
     });
-    if (needFeaturePoints) {
-      featurePoints = this.detector.detect(queryImageData);
-    }
-
-    const queryImage = {data: queryImageData, width: this.inputWidth, height: this.inputHeight};
 
     const result = [];
     this._imageTargets.forEach((imageTarget) => {
-      const modelViewTransform = imageTarget.process(queryImage, featurePoints);
-      const worldMatrix = modelViewTransform === null? null: _glModelViewMatrix({modelViewTransform});
+      let worldMatrix = null;
+      if (imageTarget.isTracking) {
+        if (queryImage === null) {
+          queryImage = this._buildQueryImage(video);
+        }
 
-      //console.log("worldMatrix", worldMatrix);
-
+        const modelViewTransform = imageTarget.track(queryImage);
+        worldMatrix = modelViewTransform === null? null: _glModelViewMatrix({modelViewTransform});
+      }
       result.push({
         worldMatrix: worldMatrix
       })
     });
     return result;
+  }
+
+  _buildQueryImage(video) {
+    this.workerProcessContext.drawImage(video, 0, 0, this.inputWidth, this.inputHeight);
+    const imageData = this.workerProcessContext.getImageData(0, 0, this.inputWidth, this.inputHeight);
+    for (let i = 0; i < this.processData.length; i++) {
+      const offset = i * 4;
+      this.processData[i] = Math.floor((imageData.data[offset] + imageData.data[offset+1] + imageData.data[offset+2])/3);
+    }
+    const queryImage = {data: this.processData, width: this.inputWidth, height: this.inputHeight, dpi: 1};
+    return queryImage;
   }
 }
 

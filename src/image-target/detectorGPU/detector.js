@@ -1,6 +1,7 @@
 const {GPU} = require('gpu.js');
-//const gpu = new GPU({mode: 'debug'});
-const gpu = new GPU();
+//const gpu = new GPU({mode: 'gpu'});
+//const gpu = new GPU();
+//console.log("gpu", gpu);
 
 const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;
 const PYRAMID_MIN_SIZE = 8;
@@ -124,6 +125,8 @@ const FREAK_CONPARISON_COUNT = (FREAKPOINTS.length-1) * (FREAKPOINTS.length) / 2
 //   any better way to utilize all 32 bits?
 const FREAK_24BIT_DESCRIPTOR_COUNT = Math.ceil(FREAK_CONPARISON_COUNT / 24); // ceil(666/24) = 28 numbers
 
+let gpu = null;
+
 class Detector {
   constructor(width, height) {
     this.width = width;
@@ -137,6 +140,28 @@ class Detector {
     }
     this.numOctaves = numOctaves;
     this.kernels = [];
+    this.gpu = new GPU();
+    gpu = this.gpu;
+
+    console.log("gpu", gpu);
+
+    this.videoKernel = null;
+  }
+
+  detectVideo(video) {
+    if (this.videoKernel === null) {
+      this.videoKernel = gpu.createKernel(function(videoFrame) {
+        const pixel = videoFrame[this.constants.height-1-Math.floor(this.thread.x / this.constants.width)][this.thread.x % this.constants.width];
+        return (pixel[0] + pixel[1] + pixel[2]) * 255 / 3;
+      }, {
+        constants: {width: this.width, height: this.height},
+        output: [this.width * this.height],
+        pipeline: true,
+      })
+    }
+    const result = this.videoKernel(video);
+    //showImage({width:  this.width, height: this.height, data: result.toArray()}, []);
+    return this.detect(result);
   }
 
   detect(imagedata) {
@@ -171,6 +196,8 @@ class Detector {
       console.log('exec time until build gausian', new Date().getTime() - _start);
     }
 
+    logTime("gaussian");
+
     // Build difference of gaussian pyramid
     const dogPyramidImages = [];
     for (let i = 0; i < numOctaves; i++) {
@@ -184,14 +211,14 @@ class Detector {
       console.log('exec time until build dog', new Date().getTime() - _start);
     }
 
+    logTime("dog");
+
     let prunedExtremas = this._initializePrune();
 
     // Find feature points (i.e. extremas in dog images)
     for (let k = 1; k < dogPyramidImages.length - 1; k++) {
       // Experimental result shows that no extrema is possible for odd number of k
       // I believe it has something to do with how the gaussian pyramid being constructed
-      // If anyone wants to optimize the speed of this detector, here is probably the bottleneck:
-      //    reduce the number of passes required here.
       if (k % 2 === 1) continue;
 
       let image0 = dogPyramidImages[k-1];
@@ -226,6 +253,7 @@ class Detector {
       if (hasPadOneWidth) endI -= 1;
       if (hasPadOneHeight) endJ -= 1;
 
+
       // find all extrema for image1
       const extremasResult = this._buildExtremas(image0, image1, image2, octave, scale, startI, startJ, endI, endJ);
 
@@ -240,6 +268,8 @@ class Detector {
         console.log('exec time until apply prune', k,  new Date().getTime() - _start);
       }
     }
+
+    logTime("extrema");
 
     // compute the orientation angle of the extrema
     //  artoolkit picks mutiple angles (usually 1-3), but we pick one only for simplicity
@@ -266,7 +296,12 @@ class Detector {
       console.log('exec time until combine', new Date().getTime() - _start);
     }
 
+    logTime("combines");
+
+    // toArray() is very slow. kind of a performance bottleneck.
     const combinedExtremasArr = combinedExtremas.toArray();
+
+    logTime("extract");
 
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until combine to array', new Date().getTime() - _start);
@@ -981,6 +1016,31 @@ class Detector {
     const dogNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES - 1;
 
     if (this.kernelIndex === this.kernels.length) {
+      this.kernels2 = [];
+      this.kernels2.push(
+        gpu.createKernelMap([
+          function saveX(a) {return a}
+        ],
+        function(data0, data1, data2, startI, startJ, endI, endJ) {
+          saveX(0);
+          return 0;
+        }, {
+          constants: {
+            LAPLACIAN_SQR_THRESHOLD: LAPLACIAN_SQR_THRESHOLD,
+            MAX_SUBPIXEL_DISTANCE_SQR: MAX_SUBPIXEL_DISTANCE_SQR,
+            EDGE_HESSIAN_THRESHOLD: EDGE_HESSIAN_THRESHOLD,
+            originalWidth: originalWidth,
+            originalHeight: originalHeight,
+            width: image1.width,
+            height: image1.height,
+            octave: octave,
+            scale: scale,
+            dogNumScalesPerOctaves: dogNumScalesPerOctaves,
+          },
+          output: [image1.width * image1.height],
+          pipeline: true,
+        })
+      );
       this.kernels.push(
         // return
         //  1. score: how strong is the extrema. (the larger the difference of gaussian value, the stronger)

@@ -25,6 +25,23 @@ class Detector {
   constructor(width, height) {
     this.width = width;
     this.height = height;
+
+    this.processCanvas = document.createElement('canvas');
+    this.processCanvas.width = width;
+    this.processCanvas.height = height;
+    this.workerProcessContext = this.processCanvas.getContext('2d');
+    this.processData = new Uint8Array(width * height);
+  }
+
+  detectVideo(video) {
+    this.workerProcessContext.drawImage(video, 0, 0, this.width, this.height);
+    const imageData = this.workerProcessContext.getImageData(0, 0, this.width, this.height);
+
+    for (let i = 0; i < this.processData.length; i++) {
+      const offset = i * 4;
+      this.processData[i] = Math.floor((imageData.data[offset] + imageData.data[offset+1] + imageData.data[offset+2])/3);
+    }
+    return this.detect(this.processData);
   }
 
   detect(imageData) {
