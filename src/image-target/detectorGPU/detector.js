@@ -143,8 +143,6 @@ class Detector {
     this.gpu = new GPU();
     gpu = this.gpu;
 
-    console.log("gpu", gpu);
-
     this.videoKernel = null;
   }
 
@@ -160,7 +158,6 @@ class Detector {
       })
     }
     const result = this.videoKernel(video);
-    //showImage({width:  this.width, height: this.height, data: result.toArray()}, []);
     return this.detect(result);
   }
 

@@ -2,6 +2,7 @@ const {resize} = require("./utils/images.js");
 const {buildImageList} = require('./image-list.js');
 const {Matcher, compileMatching} = require('./matching/matcher.js');
 const {Tracker, compileTracking} = require('./tracking2/tracker.js');
+const {Tracker: Tracker2} = require('./trackingGPU/tracker.js');
 const {estimateHomography} = require('./icp/estimate_homography.js');
 const {refineHomography} = require('./icp/refine_homography');
 
@@ -25,13 +26,18 @@ class ImageTarget {
       matchingData = compileMatching({imageList});
       trackingData = compileTracking({imageList});
     }
-    console.log("image target consdtructor", imageList, matchingData, trackingData);
+    //console.log("image target consdtructor", imageList, matchingData, trackingData);
 
     this.projectionTransform = projectionTransform;
+
     this.matcher = new Matcher(matchingData);
     this.tracker = new Tracker(trackingData, imageList, projectionTransform);
-
+    this.tracker2 = new Tracker2(trackingData, imageList, projectionTransform);
     this.isTracking = false;
+  }
+
+  setupQuery(queryWidth, queryHeight) {
+    this.tracker2.setupQuery(queryWidth, queryHeight);
   }
 
   match(queryWidth, queryHeight, featurePoints) {
@@ -51,10 +57,12 @@ class ImageTarget {
 
     this.isTracking = true;
     this.tracker.detected(refinedModelViewTransform);
+    this.tracker2.detected(refinedModelViewTransform);
   }
 
-  track(queryImage) {
+  track(queryImage, video) {
     this.tracker.track(queryImage);
+    this.tracker2.track(video);
     const updatedModelViewTransform = this.tracker.getLatest();
     if (updatedModelViewTransform === null) {
       this.isTracking = false;

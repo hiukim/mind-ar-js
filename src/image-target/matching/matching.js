@@ -15,6 +15,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
   let result = null;
 
   for (let i = 0; i < keyframes.length; i++) {
+    logTime("sm"+i);
+
     const keyframe = keyframes[i];
     const keypoints = keyframe.points;
 
@@ -71,6 +73,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
 
+    logTime("em"+i);
+
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until first match: ', new Date().getTime() - _start);
     }
@@ -101,6 +105,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       queryheight,
       matches,
     });
+
+    logTime("hm"+i);
 
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until first hough match: ', new Date().getTime() - _start);
@@ -313,6 +319,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
         H: H2,
       }
     }
+
+    logTime("mathcing end"+i);
   }
 
   return result;

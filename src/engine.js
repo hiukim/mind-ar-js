@@ -44,6 +44,7 @@ class Engine {
 
   addImageTarget(options) {
     const imageTarget = new ImageTarget(Object.assign({projectionTransform: this._projectionTransform}, options));
+    imageTarget.setupQuery(this.inputWidth, this.inputHeight);
     this._imageTargets.push(imageTarget);
   }
 
@@ -70,13 +71,19 @@ class Engine {
           queryImage = this._buildQueryImage(video);
         }
 
-        const modelViewTransform = imageTarget.track(queryImage);
+        const modelViewTransform = imageTarget.track(queryImage, video);
         worldMatrix = modelViewTransform === null? null: _glModelViewMatrix({modelViewTransform});
       }
       result.push({
         worldMatrix: worldMatrix
       })
     });
+
+    // for debugging now.
+    this._imageTargets.forEach((imageTarget) => {
+      imageTarget.isTracking = false;
+    });
+
     return result;
   }
 

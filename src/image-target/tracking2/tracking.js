@@ -14,7 +14,8 @@ const AR2_TRACKING_THRESH = 5.0;
 //const AR2_TRACKING_THRESH = 0.2;// 5 is the default. 0.2 for debug
 const AR2_SEARCH_SIZE = 6;
 
-const SKIP_INTERVAL = 3;
+//const SKIP_INTERVAL = 3; //default
+const SKIP_INTERVAL = 0;
 const KEEP_NUM = 3;
 
 const track = ({projectionTransform, featureSets, imageList, prevResults, targetImage, randomizer}) => {
@@ -26,6 +27,8 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
 
   const modelViewTransform = prevResults[prevResults.length-1].modelViewTransform;
   const modelViewProjectionTransform = prevModelViewProjectionTransforms[prevModelViewProjectionTransforms.length-1];
+
+  console.log("modelViewProjectionTransform", modelViewProjectionTransform);
 
   if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     window.debug.trackFeatureIndex = -1;
@@ -74,7 +77,8 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       vdir[0] /= vlen;
       vdir[1] /= vlen;
       vdir[2] /= vlen;
-      const vdirValue = vdir[0]*modelViewTransform[0][2] + vdir[1]*modelViewTransform[1][2] + vdir[2]*modelViewProjectionTransform[2][2];
+      //const vdirValue = vdir[0]*modelViewTransform[0][2] + vdir[1]*modelViewTransform[1][2] + vdir[2]*modelViewProjectionTransform[2][2];
+      const vdirValue = vdir[0]*modelViewTransform[0][2] + vdir[1]*modelViewTransform[1][2] + vdir[2]*modelViewTransform[2][2];
 
       if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         const v1 = [vdir[0], vdir[1], vdir[2], vdirValue];
@@ -128,6 +132,8 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       }
     }
   }
+    console.log('candidates 1', candidates1);
+    console.log('candidates 2', candidates2);
 
   if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     console.log("candidates1: ", candidates1.length, window.debugMatch.candidates1.length);
@@ -154,7 +160,9 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
 
   while (i < AR2_DEFAULT_SEARCH_FEATURE_NUM) {
     let k = _selectTemplate({pos, prevSelectedFeatures, candidates, num, xsize: targetImage.width, ysize: targetImage.height, randomizer: randomizer});
-    //console.log("selected: ", num, k);
+
+    console.log("selected: ", num, k, candidates[k]);
+
     if (k < 0 && fromCandidates1) {
       fromCandidates1 = false;
       candidates = candidates2;
@@ -169,6 +177,7 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     pos[num] = [candidates[k].sx, candidates[k].sy];
 
     const result = _tracking2dSub({targetImage, imageList, modelViewTransform, modelViewProjectionTransform, candidate: candidates[k], prevModelViewProjectionTransforms});
+    console.log("_tracking2dSub result", result);
 
     if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
       const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
@@ -384,6 +393,7 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
     console.log("search", mx, my, search, t2.search);
   }
+  console.log("search", search);
 
   // get best matching
   const mfImage = [];
@@ -421,8 +431,10 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
 
   const keepCandidates = [];
   for (let n = 0; n < search.length; n++) {
-    const px = Math.floor(search[n][0]/(SKIP_INTERVAL + 1))*(SKIP_INTERVAL + 1) + (SKIP_INTERVAL + 1)/2;
-    const py = Math.floor(search[n][1]/(SKIP_INTERVAL + 1))*(SKIP_INTERVAL + 1) + (SKIP_INTERVAL + 1)/2;
+    //const px = Math.floor(search[n][0]/(SKIP_INTERVAL + 1))*(SKIP_INTERVAL + 1) + (SKIP_INTERVAL + 1)/2;
+    //const py = Math.floor(search[n][1]/(SKIP_INTERVAL + 1))*(SKIP_INTERVAL + 1) + (SKIP_INTERVAL + 1)/2;
+    const px = search[n][0];
+    const py = search[n][1];
 
     // -6, -2, +2, +6 (search size=6, skip=3)
     for (let j = py - ry; j <= py + ry; j += SKIP_INTERVAL + 1) {
