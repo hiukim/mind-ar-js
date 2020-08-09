@@ -81,7 +81,7 @@ class Engine {
 
     // for debugging now.
     this._imageTargets.forEach((imageTarget) => {
-      imageTarget.isTracking = false;
+      //imageTarget.isTracking = false;
     });
 
     return result;

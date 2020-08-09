@@ -1,5 +1,4 @@
-const {screenToMarkerCoordinate, applyModelViewProjectionTransform, buildModelViewProjectionTransform, computeScreenCoordiate} = require('../icp/utils.js');
-
+const {refineHomography} = require('../icp/refine_homography.js');
 const {createRandomizer} = require('../utils/randomizer.js');
 const {GPU} = require('gpu.js');
 
@@ -8,6 +7,9 @@ const AR2_DEFAULT_TS = 6;
 const AR2_SEARCH_SIZE = 6;
 const AR2_SIM_THRESH = 0.5;
 //const AR2_SIM_THRESH = 0.2; // 0.5 is default. 0.2 for debug
+//
+const AR2_TRACKING_THRESH = 5.0;
+//const AR2_TRACKING_THRESH = 0.2;// 5 is the default. 0.2 for debug
 
 const PREV_KEEP = 3;
 
@@ -17,6 +19,8 @@ class Tracker {
     this._initializeGPU(this.gpu);
 
     this.featureSets = trackingData.featureSets;
+    this.projTransform = projectionTransform;
+
     this.featurePoints = this._buildFeaturePoints(trackingData.featureSets);
 
     const {imagePixels, imageProperties} = this._combineImageList(imageList);
@@ -29,6 +33,7 @@ class Tracker {
 
     this.videoKernel = null;
     this.detectedKernel = null;
+    this.updatePrevResultsKernel = null;
     this.kernels = [];
 
     console.log('imagePixels', this.imagePixels.toArray());
@@ -72,6 +77,23 @@ class Tracker {
         (c22 * b1 - c12 * b2) / m,
         (c11 * b2 - c21 * b1) / m
       ]
+    });
+
+    gpu.addFunction(function getVectorAngle(p1, p2) {
+      const l = Math.sqrt( (p2[0]-p1[0])*(p2[0]-p1[0]) + (p2[1]-p1[1])*(p2[1]-p1[1]) );
+      return [
+        (p2[1] - p1[1]) / l, //sin
+        (p2[0] - p1[0]) / l  //cos
+      ];
+    });
+
+    gpu.addFunction(function getTriangleArea(p1, p2, p3) {
+      const x1 = p2[0] - p1[0];
+      const y1 = p2[1] - p1[1];
+      const x2 = p3[0] - p1[0];
+      const y2 = p3[1] - p1[1];
+      const s = 1.0 * (x1 * y2 - x2 * y1) / 2.0;
+      return Math.abs(s);
     });
   }
 
@@ -190,6 +212,79 @@ class Tracker {
     }];
   }
 
+  _updatePrevResults(modelViewTransform, selection) {
+    if (this.updatePrevResultsKernel === null) {
+      const buildModelView = this.gpu.createKernel(function(modelViewTransforms, newModelViewTransform) {
+        if (this.thread.z === 0) return newModelViewTransform[this.thread.y][this.thread.x];
+        return modelViewTransforms[this.thread.z-1][this.thread.y][this.thread.x];
+      }, {
+        pipeline: true,
+        output: [4, 3, PREV_KEEP]
+      });
+      const buildModelViewProjection = this.gpu.createKernel(function(modelViewProjetionTransforms, newModelViewTransform, projectionTransform) {
+        if (this.thread.z === 0) {
+          const j = this.thread.y;
+          const i = this.thread.x;
+          return projectionTransform[j][0] * newModelViewTransform[0][i]
+               + projectionTransform[j][1] * newModelViewTransform[1][i]
+               + projectionTransform[j][2] * newModelViewTransform[2][i];
+        }
+        return modelViewProjetionTransforms[this.thread.z-1][this.thread.y][this.thread.x];
+      }, {
+        pipeline: true,
+        output: [4, 3, PREV_KEEP]
+      });
+      const buildFeatureIndexes = this.gpu.createKernel(function(featureIndexes, newSelection) {
+        if (this.thread.y === 0) {
+          if (newSelection[this.thread.x][5] > this.constants.simThresh) {
+            return newSelection[this.thread.x][0];
+          }
+          return -1;
+        }
+        return featureIndexes[this.thread.y-1][this.thread.x];
+      }, {
+        constants: {simThresh: AR2_SIM_THRESH},
+        pipeline: true,
+        output: [AR2_DEFAULT_SEARCH_FEATURE_NUM, PREV_KEEP]
+      });
+
+      const cloneModelView = this.gpu.createKernel(function(modelViewTransforms) {
+        return modelViewTransforms[this.thread.z][this.thread.y][this.thread.x];
+      }, {
+        pipeline: true,
+        output: [4, 3, PREV_KEEP]
+      });
+
+      const cloneModelViewProjection = this.gpu.createKernel(function(modelViewProjectionTransforms) {
+        return modelViewProjectionTransforms[this.thread.z][this.thread.y][this.thread.x];
+      }, {
+        pipeline: true,
+        output: [4, 3, PREV_KEEP]
+      });
+
+      const cloneFeatureIndexes = this.gpu.createKernel(function(featureIndexes) {
+        return featureIndexes[this.thread.y][this.thread.x];
+      }, {
+        pipeline: true,
+        output: [AR2_DEFAULT_SEARCH_FEATURE_NUM, PREV_KEEP]
+      });
+
+      this.updatePrevResultsKernel = [buildModelView, buildModelViewProjection, buildFeatureIndexes,
+                                      cloneModelView, cloneModelViewProjection, cloneFeatureIndexes];
+    }
+
+    const newPrevModelViewTransforms = this.updatePrevResultsKernel[0](this.prevModelViewTransforms, modelViewTransform);
+    const newPrevModelViewProjectionTransforms = this.updatePrevResultsKernel[1](this.prevModelViewProjectionTransforms, modelViewTransform, this.projectionTransform);
+    const newPrevSelectedFeatureIndexes = this.updatePrevResultsKernel[2](this.prevSelectedFeatureIndexes, selection);
+
+    // gpu.js doesn't allow input and output are same texture in pipeline. any better way?
+    this.prevModelViewTransforms = this.updatePrevResultsKernel[3](newPrevModelViewTransforms);
+    this.prevModelViewProjectionTransforms = this.updatePrevResultsKernel[4](newPrevModelViewProjectionTransforms);
+    this.prevSelectedFeatureIndexes = this.updatePrevResultsKernel[5](newPrevSelectedFeatureIndexes);
+
+    console.log("prevSelectedFeatureIndexes", this.prevSelectedFeatureIndexes.toArray());
+  }
+
   setupQuery(queryWidth, queryHeight) {
     this.width = queryWidth;
     this.height = queryHeight;
@@ -207,6 +302,7 @@ class Tracker {
       })
     }
     const targetImage = this.videoKernel(video);
+    console.log("target Image", targetImage.toArray());
 
     this.kernelIndex = 0; // reset kernelIndex
     const candidates = this._computeCandidates();
@@ -233,28 +329,50 @@ class Tracker {
     let selection = this._initializeSelection();
     for (let i = 0; i < AR2_DEFAULT_SEARCH_FEATURE_NUM; i++) {
       const newSelected = this._selectCandidate(selection, candidateTypes, candidateSXs, candidateSYs);
-      console.log("new selected", newSelected.toArray(), candidateSXsArr[newSelected.toArray()[0]]);
       const mappedTargetPosition = this._mapCandidate(targetImage, newSelected);
-      console.log("mappedTargetPosition", mappedTargetPosition.toArray());
       selection = this._combineSelection(selection, i, newSelected, mappedTargetPosition);
-      console.log("combined selection", selection.toArray());
     }
 
-    const result = null;
-    if (result !== null) {
-      this.prevResults.push(result);
-      if (this.prevResults.length > 3) {
-        this.prevResults.shift();
+    const finalSelection = selection.toArray();
+    const selectedFeatures = [];
+    for (let i = 0; i < finalSelection.length; i++) {
+      if (finalSelection[i][0] !== -1 && finalSelection[i][5] > AR2_SIM_THRESH) {
+        selectedFeatures.push({
+          pos2D: {x: finalSelection[i][3], y: finalSelection[i][4]},
+          pos3D: {x: finalSelection[i][1], y: finalSelection[i][2], z: 0},
+          sim: finalSelection[i][5]
+        });
       }
-    } else {
-      this.prevResults = [];
     }
-  }
+    console.log("finalSelection", finalSelection);
+    console.log('selected features', selectedFeatures);
+    if (selectedFeatures.length < 4) {
+      return null;
+    }
 
-  getLatest() {
-    if (this.prevResults.length === 0) return null;
+    const modelViewTransform = this.prevModelViewTransforms.toArray()[0];
+    const projectionTransform = this.projTransform;
 
-    return this.prevResults[this.prevResults.length-1].modelViewTransform;
+    const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
+    let err = null;
+    let newModelViewTransform = modelViewTransform;
+    let finalModelViewTransform = null;
+    for (let i = 0; i < inlierProbs.length; i++) {
+      let ret = _computeUpdatedTran({modelViewTransform: newModelViewTransform, selectedFeatures, projectionTransform, inlierProb: inlierProbs[i]});
+      err = ret.err;
+      newModelViewTransform = ret.newModelViewTransform;
+
+      if (err < AR2_TRACKING_THRESH) {
+        finalModelViewTransform = newModelViewTransform;
+        break;
+      }
+    }
+
+    if (finalModelViewTransform === null) return null;
+
+    this._updatePrevResults(finalModelViewTransform, finalSelection);
+
+    return finalModelViewTransform;
   }
 
   // first dimension: [featureIndex, mx, my, ix, iy, similarity]
@@ -358,11 +476,13 @@ class Tracker {
         } else if (this.thread.y === 1) {
           const u1 = computeScreenCoordiate(modelViewProjectionTransforms, this.thread.y-1, mx, my, 0);
           const u = computeScreenCoordiate(modelViewProjectionTransforms, this.thread.y, mx, my, 0);
+          if (u[0] === u1[0] && u[1] === u1[1]) return -1;
           return Math.floor(2 * u1[this.thread.x+1] - u[this.thread.x+1]);
         } else {
           const u1 = computeScreenCoordiate(modelViewProjectionTransforms, this.thread.y-2, mx, my, 0);
           const u2 = computeScreenCoordiate(modelViewProjectionTransforms, this.thread.y-1, mx, my, 0);
           const u = computeScreenCoordiate(modelViewProjectionTransforms, this.thread.y, mx, my, 0);
+          if (u[0] === u2[0] && u[1] === u2[1]) return -1;
           return Math.floor(3 * u1[this.thread.x+1] - 3 * u2[this.thread.x+1] + u[this.thread.x+1]);
         }
       }, {
@@ -375,10 +495,14 @@ class Tracker {
       const k3 = this.gpu.createKernel(function(targetImage, searchPoints, tem) {
         const {searchOneSize, templateSize, templateOneSize, targetWidth, targetHeight} = this.constants;
 
+        if (searchPoints[this.thread.z][0] === -1) return -1;
+
         const px = searchPoints[this.thread.z][0] - searchOneSize + this.thread.x;
         const py = searchPoints[this.thread.z][1] - searchOneSize + this.thread.y;
         if (px < 0 || px >= targetWidth) return -1;
         if (py < 0 || py >= targetHeight) return -1;
+
+        if (px === 495 && py ===  204) return targetImage[py * targetWidth + px];
 
         let sumPoint = 0;
         let sumPointSquare = 0;
@@ -410,6 +534,7 @@ class Tracker {
         sumPointTemplate -= sumPoint * sumTemplate / templateValidCount;
 
         const pointVar = Math.sqrt(sumPointSquare - sumPoint * sumPoint / templateValidCount);
+        if (pointVar == 0) return -1;
         const templateVar = Math.sqrt(sumTemplateSquare - sumTemplate * sumTemplate / templateValidCount);
         const coVar = sumPointTemplate / templateVar / pointVar;
 
@@ -466,19 +591,20 @@ class Tracker {
     const template = kernels[0](this.imagePixels, this.imageProperties, this.featurePoints, newSelected, this.prevModelViewProjectionTransforms, this.prevModelViewTransforms);
 
     const searchPoints = kernels[1](this.featurePoints, newSelected, this.prevModelViewProjectionTransforms);
+    console.log("targetImage", targetImage.toArray());
     const coVars = kernels[2](targetImage, searchPoints, template);
     const result = kernels[3](searchPoints, coVars);
     //console.log("template", template.toArray());
-    //console.log("search points", searchPoints.toArray());
-    //console.log("coVars", coVars.toArray());
+    console.log("search points", JSON.stringify(searchPoints.toArray()));
+    console.log("coVars", coVars.toArray());
     //console.log("result", result.toArray());
     return result;
   }
 
   _selectCandidate(selection, candidateTypes, candidateSXs, candidateSYs) {
     if (this.kernelIndex === this.kernels.length) {
-      const kernel = this.gpu.createKernel(function(selection, candidateTypes, candidateSXs, candidateSYs) {
-        const {selectionLength, candidateLength, targetWidth, targetHeight, simThreshold} = this.constants;
+      const kernel = this.gpu.createKernel(function(selection, candidateTypes, candidateSXs, candidateSYs, prevSelectedFeatureIndexes) {
+        const {prevKeep, selectionLength, candidateLength, targetWidth, targetHeight, simThreshold} = this.constants;
 
         let selected1 = -1;
         let selected2 = -1;
@@ -600,10 +726,111 @@ class Tracker {
           if (index2 !== -1) return index2;
           return -1;
         }
+        else if (selected4 === -1) {
+          const pos0 = [candidateSXs[selected1], candidateSYs[selected1]];
+          const pos1 = [candidateSXs[selected2], candidateSYs[selected2]];
+          const pos2 = [candidateSXs[selected3], candidateSYs[selected3]];
+
+          const [p2sin, p2cos] = getVectorAngle(pos0, pos1);
+          const [p3sin, p3cos] = getVectorAngle(pos0, pos2);
+
+          let dmax1 = 0.0;
+          let index1 = -1;
+          let dmax2 = 0.0;
+          let index2 = -1;
+          for (let i = 0; i < candidateLength; i++) {
+            if (candidateTypes[i] !== 0) {
+              let used = false;
+              for (let j = 0; j < selectionLength; j++) {
+                if (selection[j][0] === i) used = true;
+              }
+              if (!used
+                && candidateSXs[i] >= targetWidth/8 && candidateSXs[i] <= targetWidth * 7 / 8
+                && candidateSYs[i] >= targetHeight/8 && candidateSYs[i] <= targetHeight * 7 / 8) {
+
+                const cPos = [candidateSXs[i], candidateSYs[i]];
+                const [p4sin, p4cos] = getVectorAngle(pos0, cPos);
+
+                let q1 = [-1, -1];
+                let r1 = [-1, -1];
+                let r2 = [-1, -1];
+                if(((p3sin*p2cos - p3cos*p2sin) >= 0.0) && ((p4sin*p2cos - p4cos*p2sin) >= 0.0)) {
+                  if( p4sin*p3cos - p4cos*p3sin >= 0.0 ) {
+                    q1 = pos1; r1 = pos2; r2 = cPos;
+                  }
+                  else {
+                    q1 = pos1; r1 = cPos; r2 = pos2;
+                  }
+                }
+                else if(((p4sin*p3cos - p4cos*p3sin) >= 0.0) && ((p2sin*p3cos - p2cos*p3sin) >= 0.0)) {
+                  if( p4sin*p2cos - p4cos*p2sin >= 0.0 ) {
+                    q1 = pos2; r1 = pos1; r2 = cPos;
+                  }
+                  else {
+                    q1 = pos2; r1 = cPos; r2 = pos1;
+                  }
+                }
+                else if(((p2sin*p4cos - p2cos*p4sin) >= 0.0) && ((p3sin*p4cos - p3cos*p4sin) >= 0.0)) {
+                  if( p3sin*p2cos - p3cos*p2sin >= 0.0 ) {
+                    q1 = cPos; r1 = pos1; r2 = pos2;
+                  }
+                  else {
+                    q1 = cPos; r1 = pos2; r2 = pos1;
+                  }
+                }
+
+                const d = getTriangleArea(pos0, q1, r1)
+                        + getTriangleArea(pos0, r1, r2);
+
+                if (candidateTypes[i] === 1 && d > dmax1) {
+                  dmax1 = d;
+                  index1 = i;
+                }
+                else if (candidateTypes[i] === 2 && d > dmax2) {
+                  dmax2 = d;
+                  index2 = i;
+                }
+              }
+            }
+          }
+          if (index1 !== -1) return index1;
+          if (index2 !== -1) return index2;
+          return -1;
+        }
+        else {
+          // use previous selected features
+          //for (let p = 0; p < prevKeep; p++) {
+          for (let p = 0; p < 1; p++) {
+            for (let i = 0; i < selectionLength; i++) {
+              const featureIndex = prevSelectedFeatureIndexes[p][i];
+              if (featureIndex !== -1 && candidateTypes[featureIndex] === 1) { // prefer candidate type 1 over 2
+                let used = false;
+                for (let j = 0; j < selectionLength; j++) {
+                  if (selection[j][0] === featureIndex) used = true;
+                }
+                if (!used) {
+                  return featureIndex;
+                }
+              }
+            }
+          }
+
+          // maybe select random better?
+          for (let i = 0; i < candidateLength; i++) {
+            if (candidateTypes[i] === 1) { // prefer candidate type 1 over 2
+              let used = false;
+              for (let j = 0; j < selectionLength; j++) {
+                if (selection[j][0] === i) used = true;
+              }
+              if (!used) return i;
+            }
+          }
+        }
 
         return -1;
       }, {
         constants: {
+          prevKeep: PREV_KEEP,
           simThreshold: AR2_SIM_THRESH,
           selectionLength: AR2_DEFAULT_SEARCH_FEATURE_NUM,
           candidateLength: candidateSXs.output[0],
@@ -616,7 +843,7 @@ class Tracker {
       this.kernels.push(kernel);
     }
     const kernel = this.kernels[this.kernelIndex++];
-    const newSelected = kernel(selection, candidateTypes, candidateSXs, candidateSYs);
+    const newSelected = kernel(selection, candidateTypes, candidateSXs, candidateSYs, this.prevSelectedFeatureIndexes);
     return newSelected;
   }
 
@@ -698,6 +925,57 @@ class Tracker {
     return kernel(this.featurePoints, this.prevModelViewProjectionTransforms, this.prevModelViewTransforms);
   }
 }
+
+const _computeUpdatedTran = ({modelViewTransform, projectionTransform, selectedFeatures, inlierProb}) => {
+  let dx = 0;
+  let dy = 0;
+  let dz = 0;
+  for (let i = 0; i < selectedFeatures.length; i++) {
+    dx += selectedFeatures[i].pos3D.x;
+    dy += selectedFeatures[i].pos3D.y;
+    dz += selectedFeatures[i].pos3D.z;
+  }
+  dx /= selectedFeatures.length;
+  dy /= selectedFeatures.length;
+  dz /= selectedFeatures.length;
+
+  const worldCoords = [];
+  const screenCoords = [];
+  for (let i = 0; i < selectedFeatures.length; i++) {
+    screenCoords.push({x: selectedFeatures[i].pos2D.x, y: selectedFeatures[i].pos2D.y});
+    worldCoords.push({x: selectedFeatures[i].pos3D.x - dx, y: selectedFeatures[i].pos3D.y - dy, z: selectedFeatures[i].pos3D.z - dz});
+  }
+
+  const diffModelViewTransform = [[],[],[]];
+  for (let j = 0; j < 3; j++) {
+    for (let i = 0; i < 3; i++) {
+      diffModelViewTransform[j][i] = modelViewTransform[j][i];
+    }
+  }
+  diffModelViewTransform[0][3] = modelViewTransform[0][0] * dx + modelViewTransform[0][1] * dy + modelViewTransform[0][2] * dz + modelViewTransform[0][3];
+  diffModelViewTransform[1][3] = modelViewTransform[1][0] * dx + modelViewTransform[1][1] * dy + modelViewTransform[1][2] * dz + modelViewTransform[1][3];
+  diffModelViewTransform[2][3] = modelViewTransform[2][0] * dx + modelViewTransform[2][1] * dy + modelViewTransform[2][2] * dz + modelViewTransform[2][3];
+
+  let ret;
+  if (inlierProb < 1) {
+     ret = refineHomography({initialModelViewTransform: diffModelViewTransform, projectionTransform, worldCoords, screenCoords, isRobustMode: true, inlierProb});
+  } else {
+     ret = refineHomography({initialModelViewTransform: diffModelViewTransform, projectionTransform, worldCoords, screenCoords, isRobustMode: false});
+  }
+
+  const newModelViewTransform = [[],[],[]];
+  for (let j = 0; j < 3; j++) {
+    for (let i = 0; i < 3; i++) {
+      newModelViewTransform[j][i] = ret.modelViewTransform[j][i];
+    }
+  }
+  newModelViewTransform[0][3] = ret.modelViewTransform[0][3] - ret.modelViewTransform[0][0] * dx - ret.modelViewTransform[0][1] * dy - ret.modelViewTransform[0][2] * dz;
+  newModelViewTransform[1][3] = ret.modelViewTransform[1][3] - ret.modelViewTransform[1][0] * dx - ret.modelViewTransform[1][1] * dy - ret.modelViewTransform[1][2] * dz;
+  newModelViewTransform[2][3] = ret.modelViewTransform[2][3] - ret.modelViewTransform[2][0] * dx - ret.modelViewTransform[2][1] * dy - ret.modelViewTransform[2][2] * dz;
+
+
+  return {err: ret.err, newModelViewTransform};
+};
 
 module.exports = {
   Tracker,

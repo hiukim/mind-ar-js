@@ -62,8 +62,10 @@ class ImageTarget {
 
   track(queryImage, video) {
     this.tracker.track(queryImage);
-    this.tracker2.track(video);
     const updatedModelViewTransform = this.tracker.getLatest();
+
+    const updatedModelViewTransform2 = this.tracker2.track(video);
+    console.log("updatedModelViewTransform2", updatedModelViewTransform2, updatedModelViewTransform);
     if (updatedModelViewTransform === null) {
       this.isTracking = false;
     }
