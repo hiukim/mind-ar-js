@@ -140,16 +140,17 @@ class Detector {
     }
     this.numOctaves = numOctaves;
     this.kernels = [];
+    //this.gpu = new GPU({mode: 'webgl'});
     this.gpu = new GPU();
     gpu = this.gpu;
 
-    this.videoKernel = null;
+    this.inputKernel = null;
   }
 
-  detectVideo(video) {
-    if (this.videoKernel === null) {
-      this.videoKernel = gpu.createKernel(function(videoFrame) {
-        const pixel = videoFrame[this.constants.height-1-Math.floor(this.thread.x / this.constants.width)][this.thread.x % this.constants.width];
+  detect(input) {
+    if (this.inputKernel === null) {
+      this.inputKernel = gpu.createKernel(function(inputFrame) {
+        const pixel = inputFrame[this.constants.height-1-Math.floor(this.thread.x / this.constants.width)][this.thread.x % this.constants.width];
         return (pixel[0] + pixel[1] + pixel[2]) * 255 / 3;
       }, {
         constants: {width: this.width, height: this.height},
@@ -157,11 +158,11 @@ class Detector {
         pipeline: true,
       })
     }
-    const result = this.videoKernel(video);
-    return this.detect(result);
+    const result = this.inputKernel(input);
+    return this._detect(result);
   }
 
-  detect(imagedata) {
+  _detect(imagedata) {
     this.kernelIndex = 0; // reset kernelIndex
 
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {

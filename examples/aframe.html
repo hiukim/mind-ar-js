@@ -142,15 +142,16 @@
         },
 
         _startAR: async function() {
-          //this.controller = new MINDAR.Controller({});
-          this.controller = new MINDAR.Controller({useworker: false});
+          //this.controller = new MINDAR.Controller({useworker: false});
           //await this.controller.setup(this.AR_PROCESS_WIDTH, this.AR_PROCESS_HEIGHT);
 
           this._computeSizes(this.container, this.video);
 
           const {vw, vh, pw, ph, cw, ch, cx, cy, sw, sh, sx, sy, tw, th, tx, ty} = this.sizes;
+          this.controller = new MINDAR.Controller(pw, ph);
+
           //await this.controller.setup({inputWidth: pw, inputHeight: ph, smartMatching: true});
-          await this.controller.setup({inputWidth: pw, inputHeight: ph, smartMatching: false});
+          //await this.controller.setup({inputWidth: pw, inputHeight: ph, smartMatching: false});
 
           const proj = this.controller.getProjectionMatrix();
           //const fov = 2 * Math.atan(1/proj[5]) * 180 / Math.PI; // vertical fov

@@ -833,4 +833,3 @@ const _getTriangleArea = (p1, p2, p3) => {
 module.exports = {
   track
 }
-

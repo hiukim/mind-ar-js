@@ -159,6 +159,7 @@
           console.log("process res", res[0].worldMatrix);
           var _end = new Date().getTime();
           console.log('exec time process 1: ', _start, _end, _end - _start);
+          return;
 
           var _start = new Date().getTime();
           console.log("2 AR PROCESS....");
@@ -212,7 +213,6 @@
             }
           }
 
-          return;
           var _start = new Date().getTime();
           var controller = new MINDAR.Controller(pw, ph);
           //controller.addImageTarget({type: 'image', input: greyTargetImage});

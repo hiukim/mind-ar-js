@@ -33,25 +33,25 @@ class Detector {
     this.processData = new Uint8Array(width * height);
   }
 
-  detectVideo(video) {
-    this.workerProcessContext.drawImage(video, 0, 0, this.width, this.height);
+  detect(input) {
+    this.workerProcessContext.drawImage(input, 0, 0, this.width, this.height);
     const imageData = this.workerProcessContext.getImageData(0, 0, this.width, this.height);
 
     for (let i = 0; i < this.processData.length; i++) {
       const offset = i * 4;
       this.processData[i] = Math.floor((imageData.data[offset] + imageData.data[offset+1] + imageData.data[offset+2])/3);
     }
-    return this.detect(this.processData);
+    return this._detect(this.processData);
   }
 
-  detect(imageData) {
+  _detect(imageData) {
     const image = {data: imageData, width: this.width, height: this.height};
 
     const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
 
     const dogPyramid = buildDoGPyramid({gaussianPyramid: gaussianPyramid});
 
-    const featurePoints = _detect({gaussianPyramid: gaussianPyramid, dogPyramid: dogPyramid});
+    const featurePoints = _detectFeaturePoints({gaussianPyramid: gaussianPyramid, dogPyramid: dogPyramid});
 
     const descriptors = extract({pyramid: gaussianPyramid, points: featurePoints});
 
@@ -63,7 +63,7 @@ class Detector {
 }
 
 // Detect minima and maximum in Laplacian images
-const _detect = ({gaussianPyramid, dogPyramid}) => {
+const _detectFeaturePoints = ({gaussianPyramid, dogPyramid}) => {
   if (typeof window !== 'undefined' && window.DEBUG_TIME) {
     var _start = new Date().getTime();
   }

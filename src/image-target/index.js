@@ -1,8 +1,8 @@
 const {resize} = require("./utils/images.js");
 const {buildImageList} = require('./image-list.js');
 const {Matcher, compileMatching} = require('./matching/matcher.js');
-const {Tracker, compileTracking} = require('./tracking2/tracker.js');
-const {Tracker: Tracker2} = require('./trackingGPU/tracker.js');
+const {Tracker: Tracker2, compileTracking} = require('./tracking2/tracker.js');
+const {Tracker: Tracker} = require('./trackingGPU/tracker.js');
 const {estimateHomography} = require('./icp/estimate_homography.js');
 const {refineHomography} = require('./icp/refine_homography');
 
@@ -37,11 +37,14 @@ class ImageTarget {
   }
 
   setupQuery(queryWidth, queryHeight) {
+    this.queryWidth = queryWidth;
+    this.queryHeight = queryHeight;
+    this.tracker.setupQuery(queryWidth, queryHeight);
     this.tracker2.setupQuery(queryWidth, queryHeight);
   }
 
-  match(queryWidth, queryHeight, featurePoints) {
-    const matchResult = this.matcher.matchDetection(queryWidth, queryHeight, featurePoints);
+  match(featurePoints) {
+    const matchResult = this.matcher.matchDetection(this.queryWidth, this.queryHeight, featurePoints);
     if (matchResult === null) return null;
 
     const {screenCoords, worldCoords} = matchResult;
@@ -56,59 +59,15 @@ class ImageTarget {
     const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
 
     this.isTracking = true;
-    //this.tracker.detected(refinedModelViewTransform);
-    this.tracker2.detected(refinedModelViewTransform);
+    this.tracker.detected(refinedModelViewTransform);
   }
 
-  track(queryImage, video) {
-    //this.tracker.track(queryImage);
-    //const updatedModelViewTransform = this.tracker.getLatest();
-    const updatedModelViewTransform = this.tracker2.track(video, queryImage);
-    //console.log("updatedModelViewTransform2", updatedModelViewTransform2, updatedModelViewTransform);
+  track(input) {
+    const updatedModelViewTransform = this.tracker.track(input);
     if (updatedModelViewTransform === null) {
       this.isTracking = false;
     }
     return updatedModelViewTransform;
-  }
-
-  process(queryImage, featurePoints) {
-    //const processImage = Object.assign(queryImage, {dpi: 72});
-    const processImage = Object.assign(queryImage, {dpi: 1});
-
-    if (!this.isTracking) {
-      const matchResult = this.matcher.matchDetection(queryImage, featurePoints);
-      if (matchResult === null) return null;
-
-      const {screenCoords, worldCoords} = matchResult;
-
-      const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
-      console.log("initial matched model view transform", initialModelViewTransform);
-
-      if (initialModelViewTransform === null) return null;
-      //return initialModelViewTransform;
-
-      // TODO: maybe don't this refineHomography. result seems worse when the detected size is big
-      const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
-
-      console.log("initial refined model view transform", refinedModelViewTransform);
-
-      this.isTracking = true;
-      this.tracker.detected(refinedModelViewTransform);
-    }
-
-    if (this.isTracking) {
-      this.tracker.track(processImage);
-    }
-
-    const updatedModelViewTransform = this.tracker.getLatest();
-    //console.log("tracking updated model view transform", updatedModelViewTransform);
-    if (updatedModelViewTransform === null) {
-      this.isTracking = false;
-    }
-
-    return updatedModelViewTransform;
-    //return initialModelViewTransform;
-    //return refinedModelViewTransform;
   }
 }
 
