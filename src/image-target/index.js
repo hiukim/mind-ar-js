@@ -56,16 +56,15 @@ class ImageTarget {
     const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
 
     this.isTracking = true;
-    this.tracker.detected(refinedModelViewTransform);
+    //this.tracker.detected(refinedModelViewTransform);
     this.tracker2.detected(refinedModelViewTransform);
   }
 
   track(queryImage, video) {
-    this.tracker.track(queryImage);
-    const updatedModelViewTransform = this.tracker.getLatest();
-
-    const updatedModelViewTransform2 = this.tracker2.track(video);
-    console.log("updatedModelViewTransform2", updatedModelViewTransform2, updatedModelViewTransform);
+    //this.tracker.track(queryImage);
+    //const updatedModelViewTransform = this.tracker.getLatest();
+    const updatedModelViewTransform = this.tracker2.track(video, queryImage);
+    //console.log("updatedModelViewTransform2", updatedModelViewTransform2, updatedModelViewTransform);
     if (updatedModelViewTransform === null) {
       this.isTracking = false;
     }

@@ -2,14 +2,24 @@
   <head>
     <script src="https://www.lactame.com/lib/image-js/0.21.2/image.min.js"></script> 
     <script src="https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gpu.js@latest/dist/gpu-browser.min.js"></script>
     <script src="../dist/mindar.js"></script>
     <script>
       window.DEBUG_MATCH = true;
-      //window.DEBUG_TIME = true;
+      window.DEBUG_TIME = true;
       window.DEBUG_MATCH = false;
       window.DEBUG_TRACK = true;
-      //window.DEBUG_TRACK = false;
+      window.DEBUG_TRACK = false;
       window.debug = {};
+
+      var _start;
+      var _last;
+      _start = new Date().getTime();
+      _last = new Date().getTime();
+      const logTime = (title) => {
+        console.log(title + ': ' + (new Date().getTime() - _last).toString().padStart(3, '0') + ".");
+        _last = new Date().getTime();
+      }
 
       const EPSILON = 0.0001;
       const cmp = (a, b, ep) => {
@@ -64,10 +74,13 @@
         const greyImage = {
           width: _greyImage.width,
           height: _greyImage.height,
-          data: []
+          data: new Uint8Array(_greyImage.width * _greyImage.height)
         };
         for (let i = 0; i < _greyImage.data.length; i++) {
-          greyImage.data.push( Math.floor(_greyImage.data[i] / _greyImage.maxValue * 255));
+          greyImage.data[i] = Math.floor(_greyImage.data[i] / _greyImage.maxValue * 255);
+          //for (let j = 0; j < 100; j++) {
+          //  greyImage.data[i] += j;
+          //}
         }
         return greyImage;
       }
@@ -81,8 +94,10 @@
 
       document.addEventListener('DOMContentLoaded', function(event) {
         async function process() {
-          const queryfilename = 'card7_2';
+          //const queryfilename = 'card7_3';
+          const queryfilename = 'card7_3';
           const queryfilename2 = 'card7_2';
+          const queryfilename3 = 'card1_2';
           const msp = await fetch('./assets/debugMatch_' + queryfilename + '_' + ph + '_p1.msp');
           const msp2 = await fetch('./assets/debugMatch_' + queryfilename + '_' + ph + '_p2.msp');
           const msp3 = await fetch('./assets/debugMatch_' + queryfilename + '_' + ph + '_p3.msp');
@@ -97,61 +112,88 @@
           window.debugMatch = debugMatch;
 
           const filename = 'card7';
-          const compiledMSP = await fetch('./assets/' + filename + '.msp');
+          const compiledMSP = await fetch('./assets/new' + filename + '.msp');
           const compiled = msgpack.decode(new Uint8Array(await compiledMSP.arrayBuffer()));
 
           console.log("create controller");
-          var controller = new MINDAR.Controller({useworker: true});
+          //var controller = new MINDAR.Controller({useworker: true});
+          var controller = new MINDAR.Controller({useworker: false});
           console.log("controller", controller);
-          await controller.setup(pw, ph);
+          await controller.setup({inputWidth: pw, inputHeight: ph});
           console.log("controller setup");
+
+          const proj = controller.getProjectionMatrix();
+          console.log("proj", proj);
 
           await controller.addImageTarget({type: 'compiled', input: compiled});
 
           let queryImage = await IJS.Image.load('./assets/' + queryfilename + '.png');
           queryImage = queryImage.resize({width: pw, height: ph});
           document.getElementById('query-image').src = queryImage.toDataURL();
-          const greyQueryImage = getGreyImage(queryImage);
+          let queryImageEle = document.getElementById('query-image');
+          queryImageEle.width = pw;
+          queryImageEle.height = ph;
 
           let queryImage2 = await IJS.Image.load('./assets/' + queryfilename2 + '.png');
-          queryImage2 = queryImage.resize({width: pw, height: ph});
-          document.getElementById('query-image').src = queryImage2.toDataURL();
+          queryImage2 = queryImage2.resize({width: pw, height: ph});
+          document.getElementById('query-image2').src = queryImage2.toDataURL();
+          let queryImageEle2 = document.getElementById('query-image2');
+          queryImageEle2.width = pw;
+          queryImageEle2.height = ph;
+
+          let queryImage3 = await IJS.Image.load('./assets/' + queryfilename3 + '.png');
+          queryImage3 = queryImage3.resize({width: pw, height: ph});
+          document.getElementById('query-image3').src = queryImage3.toDataURL();
+          let queryImageEle3 = document.getElementById('query-image2');
+          queryImageEle3.width = pw;
+          queryImageEle3.height = ph;
+
+          var __start = new Date().getTime();
+          const greyQueryImage = getGreyImage(queryImage);
+          console.log('exec time grey CPU: ', new Date().getTime() - __start);
+
           const greyQueryImage2 = getGreyImage(queryImage2);
 
           var _start = new Date().getTime();
-          const res = await controller.process(greyQueryImage);
+          const res = await controller.process(queryImageEle);
+          console.log("process res", res[0].worldMatrix);
           var _end = new Date().getTime();
           console.log('exec time process 1: ', _start, _end, _end - _start);
 
-          return;
-
           var _start = new Date().getTime();
           console.log("2 AR PROCESS....");
-          window.debugMatch = debugMatch2;
-          const res2 = controller.process(greyQueryImage2);
+          const res2 = await controller.process(queryImageEle2);
+          console.log("process res2", res2[0].worldMatrix);
           var _end = new Date().getTime();
           console.log('exec time process 2: ', _start, _end, _end - _start);
 
           var _start = new Date().getTime();
           console.log("3 AR PROCESS....");
-          window.debugMatch = debugMatch3;
-          const res3 = controller.process(greyQueryImage);
+          const res3 = await controller.process(queryImageEle);
+          console.log("process res", res3[0].worldMatrix);
           var _end = new Date().getTime();
           console.log('exec time process 3: ', _start, _end, _end - _start);
 
           var _start = new Date().getTime();
           console.log("4 AR PROCESS....");
-          window.debugMatch = debugMatch4;
-          const res4 = controller.process(greyQueryImage2);
+          const res4 = await controller.process(queryImageEle);
+          console.log("process res", res4[0].worldMatrix);
           var _end = new Date().getTime();
           console.log('exec time process 4: ', _start, _end, _end - _start);
 
           var _start = new Date().getTime();
           console.log("5 AR PROCESS....");
-          window.debugMatch = debugMatch5;
-          const res5 = controller.process(greyQueryImage);
+          const res5 = await controller.process(queryImageEle2);
+          console.log("process res", res5[0].worldMatrix);
           var _end = new Date().getTime();
           console.log('exec time process 5: ', _start, _end, _end - _start);
+
+          var _start = new Date().getTime();
+          console.log("6 AR PROCESS....");
+          const res6 = await controller.process(queryImageEle2);
+          console.log("process res", res6[0].worldMatrix);
+          var _end = new Date().getTime();
+          console.log('exec time process 6: ', _start, _end, _end - _start);
           return;
 
           console.log("feature set count", featureSets.length, 'vs', debugContent.featureSets.length);
@@ -178,8 +220,6 @@
           var _end = new Date().getTime();
           console.log('exec time compile Image: ', _start, _end, _end - _start);
 
-          const proj = controller.getProjectionMatrix();
-          console.log("proj", proj);
 
           const ele = document.getElementById("test-image2");
           const canvas_process = document.getElementById('canvas');
@@ -220,9 +260,48 @@
         }
         process();
       });
+
+      const showImage = (targetImage, points) => {
+        const container = document.getElementById("container");
+        const canvas = document.createElement('canvas');
+        container.appendChild(canvas);
+        canvas.width  = targetImage.width;
+        canvas.height = targetImage.height;
+        canvas.style.width = canvas.width;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = new Uint32Array(imageData.data.buffer);
+
+        const alpha = (0xff << 24);
+        for (let c = 0; c < targetImage.width; c++) {
+          for (let r = 0; r < targetImage.height; r++) {
+            const pix = targetImage.data[r * targetImage.width + c];
+            data[r * canvas.width + c] = alpha | (pix << 16) | (pix << 8) | pix;
+          }
+        }
+
+        var pix = (0xff << 24) | (0x00 << 16) | (0xff << 8) | 0x00; // green
+        for (let i=0; i < points.length; ++i) {
+          const x = points[i].x;
+          const y = points[i].y;
+          const offset = (x + y * canvas.width);
+          data[offset] = pix;
+          for (var size = 1; size <= 3; size++) {
+            data[offset-size] = pix;
+            data[offset+size] = pix;
+            data[offset-size*canvas.width] = pix;
+            data[offset+size*canvas.width] = pix;
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
     </script>
   </head>
   <body>
     <img id="query-image"/>
+    <img id="query-image2"/>
+    <img id="query-image3"/>
+    <div id="container">
+    </div>
   </body>
 </html>

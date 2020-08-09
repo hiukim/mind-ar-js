@@ -18,10 +18,7 @@ const AR2_SEARCH_SIZE = 6;
 const SKIP_INTERVAL = 0;
 const KEEP_NUM = 3;
 
-let debugStartLog = false;
-
 const track = ({projectionTransform, featureSets, imageList, prevResults, targetImage, randomizer}) => {
-  console.log('targetimage1', targetImage);
   const prevModelViewProjectionTransforms = [];
   for (let i = 0;  i < prevResults.length; i++) {
     const t = buildModelViewProjectionTransform(projectionTransform, prevResults[i].modelViewTransform);
@@ -137,8 +134,8 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       }
     }
   }
-    console.log('candidates 1', candidates1);
-    console.log('candidates 2', candidates2);
+  //console.log('candidates 1', candidates1);
+  //console.log('candidates 2', candidates2);
 
   if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     console.log("candidates1: ", candidates1.length, window.debugMatch.candidates1.length);
@@ -181,10 +178,10 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     i++;
 
     pos[num] = [candidates[k].sx, candidates[k].sy];
-    console.log("select num", num, fromCandidates1, candidates[k]);
+    //console.log("select num", num, fromCandidates1, candidates[k]);
 
     const result = _tracking2dSub({targetImage, imageList, modelViewTransform, modelViewProjectionTransform, candidate: candidates[k], prevModelViewProjectionTransforms});
-    console.log("_tracking2dSub result", result);
+    //console.log("_tracking2dSub result", result);
 
     if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
       const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
@@ -402,7 +399,7 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
     console.log("search", mx, my, search, t2.search);
   }
-  console.log("search", JSON.stringify(search));
+ // console.log("search", JSON.stringify(search));
 
   // get best matching
   const mfImage = [];
@@ -445,8 +442,6 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
     const px = search[n][0];
     const py = search[n][1];
 
-    if (px === 495 && py === 204) debugStartLog = true;
-
     // -6, -2, +2, +6 (search size=6, skip=3)
     for (let j = py - ry; j <= py + ry; j += SKIP_INTERVAL + 1) {
       if( j - AR2_DEFAULT_TS * AR2_TEMP_SCALE <  0     ) continue;
@@ -460,7 +455,6 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
         mfImage[j * xsize + i] = 1; // Mark this pixel as matched.
 
         const wval = _computePointVal({i, j, tsize, xsize, targetImage, template, templateVlen, templateSum, templateValidNum});
-        if (debugStartLog) console.log("wval", wval);
 
         keepCandidates.push({
           x: i,
@@ -468,8 +462,6 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
           wval: wval
         })
       }
-
-      if (px === 495 && py === 204) debugStartLog = false;
     }
   }
 
@@ -570,8 +562,6 @@ const _computePointVal = ({i, j, tsize, xsize, targetImage, template, templateVl
     //console.log("done", window.debug.trackingSubIndex, sum1, sum2, sum3, t2);
     //console.log("matching sum", t2);
   }
-
-  if (debugStartLog) console.log("sum1", i, j, sum1);
 
   sum3 -= sum1 * templateSum / templateValidNum;
   const vlen = sum2 - sum1 * sum1 / templateValidNum;
@@ -791,7 +781,6 @@ const _selectTemplate = ({pos, prevSelectedFeatures, candidates, num, xsize, ysi
 
         if (prevSelectedFeatures[i].level === candidates[j].level
           && prevSelectedFeatures[i].num === candidates[j].num) {
-          console.log("from prev", candidates);
           return j;
         }
       }

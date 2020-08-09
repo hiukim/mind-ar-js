@@ -19,7 +19,8 @@ class Tracker {
     this._initializeGPU(this.gpu);
 
     this.featureSets = trackingData.featureSets;
-    this.projTransform = projectionTransform;
+    this.projectionTransformCPU = projectionTransform;
+    this.lastModelViewTransformCPU = null;
 
     this.featurePoints = this._buildFeaturePoints(trackingData.featureSets);
 
@@ -29,15 +30,11 @@ class Tracker {
 
     this.projectionTransform = this._initializeProjectionTransform(projectionTransform);
     this.randomizer = createRandomizer();
-    this.prevResults = [];
 
     this.videoKernel = null;
     this.detectedKernel = null;
     this.updatePrevResultsKernel = null;
     this.kernels = [];
-
-    console.log('imagePixels', this.imagePixels.toArray());
-    console.log('imageProperties', this.imageProperties.toArray());
   }
 
   _initializeProjectionTransform(projectionTransform) {
@@ -171,6 +168,8 @@ class Tracker {
   }
 
   detected(modelViewTransform) {
+    this.lastModelViewTransformCPU = modelViewTransform;
+
     if (this.detectedKernel === null) {
       const buildModelView = this.gpu.createKernel(function(data) {
         return data[this.thread.y][this.thread.x];
@@ -201,18 +200,11 @@ class Tracker {
     this.prevModelViewTransforms = this.detectedKernel[0](modelViewTransform);
     this.prevModelViewProjectionTransforms = this.detectedKernel[1](modelViewTransform, this.projectionTransform);
     this.prevSelectedFeatureIndexes = this.detectedKernel[2]();
-
-    console.log("detected", this.prevModelViewTransforms.toArray(), this.prevModelViewProjectionTransforms.toArray(), this.prevSelectedFeatureIndexes.toArray());
-
-    const selectedFeatureIndexes = [];
-    for (let i = 0; i < AR2_DEFAULT_SEARCH_FEATURE_NUM; i++) selectedFeatureIndexes[i] = -1;
-    this.prevResults = [{
-      modelViewTransform: modelViewTransform,
-      selectedFeatureIndexes: selectedFeatureIndexes
-    }];
   }
 
   _updatePrevResults(modelViewTransform, selection) {
+    this.lastModelViewTransformCPU = modelViewTransform;
+
     if (this.updatePrevResultsKernel === null) {
       const buildModelView = this.gpu.createKernel(function(modelViewTransforms, newModelViewTransform) {
         if (this.thread.z === 0) return newModelViewTransform[this.thread.y][this.thread.x];
@@ -281,8 +273,6 @@ class Tracker {
     this.prevModelViewTransforms = this.updatePrevResultsKernel[3](newPrevModelViewTransforms);
     this.prevModelViewProjectionTransforms = this.updatePrevResultsKernel[4](newPrevModelViewProjectionTransforms);
     this.prevSelectedFeatureIndexes = this.updatePrevResultsKernel[5](newPrevSelectedFeatureIndexes);
-
-    console.log("prevSelectedFeatureIndexes", this.prevSelectedFeatureIndexes.toArray());
   }
 
   setupQuery(queryWidth, queryHeight) {
@@ -290,7 +280,7 @@ class Tracker {
     this.height = queryHeight;
   }
 
-  track(video) {
+  track(video, queryImage) {
     if (this.videoKernel === null) {
       this.videoKernel = this.gpu.createKernel(function(videoFrame) {
         const pixel = videoFrame[this.constants.height-1-Math.floor(this.thread.x / this.constants.width)][this.thread.x % this.constants.width];
@@ -302,7 +292,6 @@ class Tracker {
       })
     }
     const targetImage = this.videoKernel(video);
-    console.log("target Image", targetImage.toArray());
 
     this.kernelIndex = 0; // reset kernelIndex
     const candidates = this._computeCandidates();
@@ -310,18 +299,6 @@ class Tracker {
     const candidateTypes = candidates.result;
     const candidateSXs = candidates.saveSX;
     const candidateSYs = candidates.saveSY;
-
-    const candidateTypesArr = candidateTypes.toArray();
-    const candidateSXsArr = candidateSXs.toArray();
-    const candidateSYsArr = candidateSYs.toArray();
-
-    const candidates1 = [];
-    const candidates2 = [];
-    for (let i = 0; i < candidateTypesArr.length; i++) {
-      if (candidateTypesArr[i] === 1) candidates1.push({sx: candidateSXsArr[i], sy: candidateSYsArr[i]});
-      if (candidateTypesArr[i] === 2) candidates2.push({sx: candidateSXsArr[i], sy: candidateSYsArr[i]});
-    }
-    console.log("candidates", candidates1, candidates2);
 
     // select feature one by one
     let i = 0;
@@ -333,7 +310,18 @@ class Tracker {
       selection = this._combineSelection(selection, i, newSelected, mappedTargetPosition);
     }
 
+
+    //var _start = new Date().getTime();
+    //const modelViewTransforms = this.prevModelViewTransforms.toArray();
+    //console.log("prevModelViewTransforms toarray", new Date().getTime() - _start);
+    //console.log("prevModelViewTransforms", this.prevModelViewTransforms, modelViewTransforms);
+    //const modelViewTransform = modelViewTransforms[0];
+
+    //var _start = new Date().getTime();
     const finalSelection = selection.toArray();
+    //console.log("finalSelection toarray", new Date().getTime() - _start);
+    //console.log("finalSelection", selection, finalSelection);
+
     const selectedFeatures = [];
     for (let i = 0; i < finalSelection.length; i++) {
       if (finalSelection[i][0] !== -1 && finalSelection[i][5] > AR2_SIM_THRESH) {
@@ -344,14 +332,14 @@ class Tracker {
         });
       }
     }
-    console.log("finalSelection", finalSelection);
-    console.log('selected features', selectedFeatures);
+    //console.log('selected features', selectedFeatures);
     if (selectedFeatures.length < 4) {
       return null;
     }
 
-    const modelViewTransform = this.prevModelViewTransforms.toArray()[0];
-    const projectionTransform = this.projTransform;
+    // TODO: translate and run in GPU
+    const modelViewTransform = this.lastModelViewTransformCPU;
+    const projectionTransform = this.projectionTransformCPU;
 
     const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
     let err = null;
@@ -361,6 +349,7 @@ class Tracker {
       let ret = _computeUpdatedTran({modelViewTransform: newModelViewTransform, selectedFeatures, projectionTransform, inlierProb: inlierProbs[i]});
       err = ret.err;
       newModelViewTransform = ret.newModelViewTransform;
+      //console.log("_computeUpdatedTran", err)
 
       if (err < AR2_TRACKING_THRESH) {
         finalModelViewTransform = newModelViewTransform;
@@ -502,8 +491,6 @@ class Tracker {
         if (px < 0 || px >= targetWidth) return -1;
         if (py < 0 || py >= targetHeight) return -1;
 
-        if (px === 495 && py ===  204) return targetImage[py * targetWidth + px];
-
         let sumPoint = 0;
         let sumPointSquare = 0;
         let sumTemplate = 0;
@@ -591,12 +578,11 @@ class Tracker {
     const template = kernels[0](this.imagePixels, this.imageProperties, this.featurePoints, newSelected, this.prevModelViewProjectionTransforms, this.prevModelViewTransforms);
 
     const searchPoints = kernels[1](this.featurePoints, newSelected, this.prevModelViewProjectionTransforms);
-    console.log("targetImage", targetImage.toArray());
     const coVars = kernels[2](targetImage, searchPoints, template);
     const result = kernels[3](searchPoints, coVars);
     //console.log("template", template.toArray());
-    console.log("search points", JSON.stringify(searchPoints.toArray()));
-    console.log("coVars", coVars.toArray());
+    //console.log("search points", JSON.stringify(searchPoints.toArray()));
+    //console.log("coVars", coVars.toArray());
     //console.log("result", result.toArray());
     return result;
   }

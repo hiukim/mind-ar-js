@@ -88,6 +88,7 @@ class Engine {
   }
 
   _buildQueryImage(video) {
+    this.workerProcessContext.clearRect(0, 0, this.inputWidth, this.inputHeight);
     this.workerProcessContext.drawImage(video, 0, 0, this.inputWidth, this.inputHeight);
     const imageData = this.workerProcessContext.getImageData(0, 0, this.inputWidth, this.inputHeight);
     for (let i = 0; i < this.processData.length; i++) {
