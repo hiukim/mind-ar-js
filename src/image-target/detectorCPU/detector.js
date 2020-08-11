@@ -25,15 +25,18 @@ class Detector {
   constructor(width, height) {
     this.width = width;
     this.height = height;
-
-    this.processCanvas = document.createElement('canvas');
-    this.processCanvas.width = width;
-    this.processCanvas.height = height;
-    this.workerProcessContext = this.processCanvas.getContext('2d');
-    this.processData = new Uint8Array(width * height);
+    this.processData = null;
   }
 
   detect(input) {
+    if (this.processData === null) {
+      this.processCanvas = document.createElement('canvas');
+      this.processCanvas.width = this.width;
+      this.processCanvas.height = this.height;
+      this.workerProcessContext = this.processCanvas.getContext('2d');
+      this.processData = new Uint8Array(this.width * this.height);
+    }
+    this.workerProcessContext.clearRect(0, 0, this.width, this.height);
     this.workerProcessContext.drawImage(input, 0, 0, this.width, this.height);
     const imageData = this.workerProcessContext.getImageData(0, 0, this.width, this.height);
 
@@ -41,10 +44,11 @@ class Detector {
       const offset = i * 4;
       this.processData[i] = Math.floor((imageData.data[offset] + imageData.data[offset+1] + imageData.data[offset+2])/3);
     }
-    return this._detect(this.processData);
+    console.log("process", this.processData);
+    return this.detectImageData(this.processData);
   }
 
-  _detect(imageData) {
+  detectImageData(imageData) {
     const image = {data: imageData, width: this.width, height: this.height};
 
     const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});

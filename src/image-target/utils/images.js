@@ -81,7 +81,8 @@ const resize = ({image, ratio}) => {
   const width = Math.round(image.width * ratio);
   const height = Math.round(image.height * ratio);
 
-  const imageData = new Float32Array(width * height);
+  //const imageData = new Float32Array(width * height);
+  const imageData = new Uint8Array(width * height);
   for (let i = 0; i < width; i++) {
     let si1 = Math.round(1.0 * i / ratio);
     let si2 = Math.round(1.0 * (i+1) / ratio) - 1;

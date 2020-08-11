@@ -4,7 +4,8 @@ const {refineHomography} = require('../icp/refine_homography.js');
 const AR2_TRACKING_CANDIDATE_MAX = 200
 
 const AR2_DEFAULT_SEARCH_FEATURE_NUM = 16;
-const AR2_TEMP_SCALE = 2;
+//const AR2_TEMP_SCALE = 2;
+const AR2_TEMP_SCALE = 1;
 const AR2_DEFAULT_TS = 6;
 const AR2_DEFAULT_TRACKING_SD_THRESH = 5.0;
 const AR2_SIM_THRESH = 0.5;
@@ -13,7 +14,8 @@ const AR2_TRACKING_THRESH = 5.0;
 //const AR2_TRACKING_THRESH = 0.2;// 5 is the default. 0.2 for debug
 const AR2_SEARCH_SIZE = 6;
 
-const SKIP_INTERVAL = 3;
+//const SKIP_INTERVAL = 3; //default
+const SKIP_INTERVAL = 0;
 const KEEP_NUM = 3;
 
 const track = ({projectionTransform, featureSets, imageList, prevResults, targetImage, randomizer}) => {
@@ -26,6 +28,8 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
   const modelViewTransform = prevResults[prevResults.length-1].modelViewTransform;
   const modelViewProjectionTransform = prevModelViewProjectionTransforms[prevModelViewProjectionTransforms.length-1];
 
+  console.log("modelViewProjectionTransform", modelViewProjectionTransform);
+
   if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     window.debug.trackFeatureIndex = -1;
     window.debug.trackingSubIndex = -1;
@@ -34,10 +38,12 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
 
   const candidates1 = [];
   const candidates2 = [];
+  let candidateIndex = -1;
   for (let j = 0; j < featureSets.length; j++) {
     const maxdpi = featureSets[j].maxdpi;
     const mindpi = featureSets[j].mindpi;
     for (let k = 0; k < featureSets[j].coords.length; k++) {
+      candidateIndex += 1;
       const {mx, my} = featureSets[j].coords[k];
       const u = computeScreenCoordiate(modelViewProjectionTransform, mx, my, 0);
       if (u === null) continue;
@@ -73,7 +79,8 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       vdir[0] /= vlen;
       vdir[1] /= vlen;
       vdir[2] /= vlen;
-      const vdirValue = vdir[0]*modelViewTransform[0][2] + vdir[1]*modelViewTransform[1][2] + vdir[2]*modelViewProjectionTransform[2][2];
+      //const vdirValue = vdir[0]*modelViewTransform[0][2] + vdir[1]*modelViewTransform[1][2] + vdir[2]*modelViewProjectionTransform[2][2];
+      const vdirValue = vdir[0]*modelViewTransform[0][2] + vdir[1]*modelViewTransform[1][2] + vdir[2]*modelViewTransform[2][2];
 
       if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         const v1 = [vdir[0], vdir[1], vdir[2], vdirValue];
@@ -95,11 +102,15 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       // dpi = 25.4d / 10 = 2.54d
       const dpi = [];
       if (d1 < d2) {
-        dpi[0] = Math.sqrt(d2) * 2.54; // because mx+10, moved 10. so do 25.4 / 10 = 2.54?
-        dpi[1] = Math.sqrt(d1) * 2.54;
+        //dpi[0] = Math.sqrt(d2) * 2.54; // because mx+10, moved 10. so do 25.4 / 10 = 2.54?
+        //dpi[1] = Math.sqrt(d1) * 2.54;
+        dpi[0] = Math.sqrt(d2) / 10;
+        dpi[1] = Math.sqrt(d1) / 10;
       } else {
-        dpi[0] = Math.sqrt(d1) * 2.54;
-        dpi[1] = Math.sqrt(d2) * 2.54;
+        //dpi[0] = Math.sqrt(d1) * 2.54;
+        //dpi[1] = Math.sqrt(d2) * 2.54;
+        dpi[0] = Math.sqrt(d1) / 10;
+        dpi[1] = Math.sqrt(d2) / 10;
       }
 
       if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
@@ -119,10 +130,12 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
         candidates = candidates2;
       }
       if (candidates !== null) {
-        candidates.push({level: j, num: k, sx: sx, sy: sy, mx, my, flag: false})
+        candidates.push({candidateIndex, level: j, num: k, sx: sx, sy: sy, mx, my, flag: false})
       }
     }
   }
+  //console.log('candidates 1', candidates1);
+  //console.log('candidates 2', candidates2);
 
   if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     console.log("candidates1: ", candidates1.length, window.debugMatch.candidates1.length);
@@ -149,8 +162,11 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
 
   while (i < AR2_DEFAULT_SEARCH_FEATURE_NUM) {
     let k = _selectTemplate({pos, prevSelectedFeatures, candidates, num, xsize: targetImage.width, ysize: targetImage.height, randomizer: randomizer});
-    //console.log("selected: ", num, k);
+
+    //console.log("selected: ", num, k, candidates[k]);
+
     if (k < 0 && fromCandidates1) {
+      console.log('switch to candidate2');
       fromCandidates1 = false;
       candidates = candidates2;
       continue;
@@ -162,8 +178,10 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     i++;
 
     pos[num] = [candidates[k].sx, candidates[k].sy];
+    //console.log("select num", num, fromCandidates1, candidates[k]);
 
     const result = _tracking2dSub({targetImage, imageList, modelViewTransform, modelViewProjectionTransform, candidate: candidates[k], prevModelViewProjectionTransforms});
+    //console.log("_tracking2dSub result", result);
 
     if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
       const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
@@ -189,7 +207,7 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     if (result === null) continue;
     if (result.sim <= AR2_SIM_THRESH) continue;
 
-    selectedFeatures.push(Object.assign({level: candidates[k].level, num: candidates[k].num}, result));
+    selectedFeatures.push(Object.assign({candidateIndex: candidates[k].candidateIndex, level: candidates[k].level, num: candidates[k].num}, result));
 
     num += 1;
     //if (num === 5) num = 0;
@@ -209,10 +227,13 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     }
   }
 
+  console.log("selectedFeatures1", selectedFeatures);
+
   if (selectedFeatures.length < 4) {
     return null;
     //return {modelViewTransform, selectedFeatures};
   }
+  //console.log('selected features', selectedFeatures);
 
   const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
   let err = null;
@@ -378,6 +399,7 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
     const t2 = window.debugMatch.tracking2dSub[window.debug.trackingSubIndex];
     console.log("search", mx, my, search, t2.search);
   }
+ // console.log("search", JSON.stringify(search));
 
   // get best matching
   const mfImage = [];
@@ -415,8 +437,10 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
 
   const keepCandidates = [];
   for (let n = 0; n < search.length; n++) {
-    const px = Math.floor(search[n][0]/(SKIP_INTERVAL + 1))*(SKIP_INTERVAL + 1) + (SKIP_INTERVAL + 1)/2;
-    const py = Math.floor(search[n][1]/(SKIP_INTERVAL + 1))*(SKIP_INTERVAL + 1) + (SKIP_INTERVAL + 1)/2;
+    //const px = Math.floor(search[n][0]/(SKIP_INTERVAL + 1))*(SKIP_INTERVAL + 1) + (SKIP_INTERVAL + 1)/2;
+    //const py = Math.floor(search[n][1]/(SKIP_INTERVAL + 1))*(SKIP_INTERVAL + 1) + (SKIP_INTERVAL + 1)/2;
+    const px = search[n][0];
+    const py = search[n][1];
 
     // -6, -2, +2, +6 (search size=6, skip=3)
     for (let j = py - ry; j <= py + ry; j += SKIP_INTERVAL + 1) {
@@ -497,10 +521,12 @@ const _tracking2dSub = ({targetImage, imageList, modelViewTransform, modelViewPr
   return {
     pos2D: {x: bx, y: by},
     pos3D: {x: mx, y: my, z: 0},
-    sim: wval2/ 10000.0
+    //sim: wval2/ 10000.0
+    sim: wval2
   }
 }
 
+// compute covariance between template and region centered at i, j
 const _computePointVal = ({i, j, tsize, xsize, targetImage, template, templateVlen, templateSum, templateValidNum}) => {
   let sum1 = 0;
   let sum2 = 0;
@@ -541,7 +567,8 @@ const _computePointVal = ({i, j, tsize, xsize, targetImage, template, templateVl
   const vlen = sum2 - sum1 * sum1 / templateValidNum;
   let wval = 0;
   if (vlen !== 0) {
-    wval = sum3 * 100 / templateVlen * 100 / Math.floor(Math.sqrt(vlen));
+    //wval = sum3 * 100 / templateVlen * 100 / Math.floor(Math.sqrt(vlen));
+    wval = sum3 / templateVlen / Math.sqrt(vlen);
     //wval = Math.floor(Math.floor(Math.floor(sum3) * 100 / Math.floor(templateVlen)) * 100 / Math.floor(Math.sqrt(vlen)));
     //console.log("wval", wval, templateVlen, vlen, templateValidNum);
   }
@@ -549,6 +576,7 @@ const _computePointVal = ({i, j, tsize, xsize, targetImage, template, templateVl
   if (typeof window !== 'undefined' && window.DEBUG_TRACK && !window.debug.skipMatchingSum) {
     //console.log("done", window.debug.trackingSubIndex, sum3, vlen, templateVlen, wval);
   }
+
 
   return wval;
 }
@@ -585,14 +613,16 @@ const _setTemplate = ({image, dpi, modelViewProjectionTransform, mx, my}) => {
 
       const {x: mx2, y: my2} = screenToMarkerCoordinate(modelViewProjectionTransform, sx2, sy2);
 
-      let ix = Math.floor(mx2 * dpi / 25.4 + 0.5);
+      //let ix = Math.floor(mx2 * dpi / 25.4 + 0.5);
+      let ix = Math.floor(mx2 * dpi + 0.5);
       if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
         // crazy hack for debugging....
         if (ix ===  163 &&  Math.abs(mx2-81.74991690104808)<0.000000001) ix = 164;
         //if (ix === -1 && mx2 === -1.0571840521437157) ix = 0;
       }
 
-      const iy = Math.floor(image.height - my2 * dpi / 25.4 + 0.5);
+      //const iy = Math.floor(image.height - my2 * dpi / 25.4 + 0.5);
+      const iy = Math.floor(image.height - my2 * dpi + 0.5);
       //console.log("ix iy", ix, iy, image.width, image.height, mx2, my2, dpi);
       if (ix < 0 || ix >= image.width) {
         template.push(null);
@@ -760,7 +790,8 @@ const _selectTemplate = ({pos, prevSelectedFeatures, candidates, num, xsize, ysi
     for (let i = 0; i < candidates.length; i++) {
       if (!candidates[i].flag)  available += 1;
     }
-    let pick = randomizer.nextInt(available);
+    //let pick = randomizer.nextInt(available);
+    let pick = 0;
     //let pick = Math.floor(Math.random() * available);
     for (let i = 0; i < candidates.length; i++) {
       if (!candidates[i].flag) {

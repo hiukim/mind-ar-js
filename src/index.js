@@ -1,7 +1,7 @@
-const {Controller} = require('./Controller');
-const {Utils} = require('./utils');
+const {Controller} = require('./controller');
+const {Compiler} = require('./compiler');
 
 module.exports = window.MINDAR = {
-  Utils,
   Controller,
+  Compiler
 }

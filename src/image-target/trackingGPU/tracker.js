@@ -18,11 +18,11 @@ class Tracker {
     this.gpu = new GPU();
     this._initializeGPU(this.gpu);
 
-    this.featureSets = trackingData.featureSets;
+    this.featureSets = trackingData;
     this.projectionTransformCPU = projectionTransform;
     this.lastModelViewTransformCPU = null;
 
-    this.featurePoints = this._buildFeaturePoints(trackingData.featureSets);
+    this.featurePoints = this._buildFeaturePoints(this.featureSets);
 
     const {imagePixels, imageProperties} = this._combineImageList(imageList);
     this.imagePixels = imagePixels;

@@ -159,10 +159,10 @@ class Detector {
       })
     }
     const result = this.inputKernel(input);
-    return this._detect(result);
+    return this.detectImageData(result);
   }
 
-  _detect(imagedata) {
+  detectImageData(imagedata) {
     this.kernelIndex = 0; // reset kernelIndex
 
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
@@ -194,8 +194,6 @@ class Detector {
       console.log('exec time until build gausian', new Date().getTime() - _start);
     }
 
-    logTime("gaussian");
-
     // Build difference of gaussian pyramid
     const dogPyramidImages = [];
     for (let i = 0; i < numOctaves; i++) {
@@ -208,8 +206,6 @@ class Detector {
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until build dog', new Date().getTime() - _start);
     }
-
-    logTime("dog");
 
     let prunedExtremas = this._initializePrune();
 
@@ -267,8 +263,6 @@ class Detector {
       }
     }
 
-    logTime("extrema");
-
     // compute the orientation angle of the extrema
     //  artoolkit picks mutiple angles (usually 1-3), but we pick one only for simplicity
     let extremaHistograms = this._initializeHistograms();
@@ -294,12 +288,8 @@ class Detector {
       console.log('exec time until combine', new Date().getTime() - _start);
     }
 
-    logTime("combines");
-
     // toArray() is very slow. kind of a performance bottleneck.
     const combinedExtremasArr = combinedExtremas.toArray();
-
-    logTime("extract");
 
     if (typeof window !== 'undefined' && window.DEBUG_TIME) {
       console.log('exec time until combine to array', new Date().getTime() - _start);

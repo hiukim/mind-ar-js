@@ -8,7 +8,7 @@ const PYRAMID_MIN_SIZE = 8;
 
 class Matcher {
   constructor(matchingData) {
-    this.keyframes = matchingData.keyframes;
+    this.keyframes = matchingData;
   }
 
   matchDetection(queryWidth, queryHeight, featurePoints) {
@@ -50,44 +50,6 @@ class Matcher {
   }
 }
 
-const _extractPoints = ({image}) => {
-  const detector = new Detector(image.width, image.height);
-  const ps = detector.detect(image.data);
-  const querypoints = [];
-  const dpi = 1.0;
-  for (let i = 0; i < ps.length; i++) {
-    querypoints.push({
-      x2D: ps[i].x,
-      y2D: ps[i].y,
-      x3D: (ps[i].x + 0.5) / image.dpi,
-      y3D: ((image.height-0.5) - ps[i].y) / image.dpi,
-      angle: ps[i].angle,
-      scale: ps[i].sigma,
-      maxima: ps[i].score > 0,
-      descriptors: ps[i].descriptors
-    })
-  }
-  return querypoints;
-}
-
-const _buildKeyframes = ({imageList}) => {
-  const keyframes = [];
-
-  for (let i = 0; i < imageList.length; i++) {
-    const image = imageList[i];
-    const keypoints = _extractPoints({image});
-    const pointsCluster = hierarchicalClusteringBuild({points: keypoints});
-    keyframes.push({points: keypoints, pointsCluster, width: image.width, height: image.height});
-  }
-  return keyframes;
-}
-
-const compileMatching = ({imageList}) => {
-  const keyframes = _buildKeyframes({imageList});
-  return {keyframes};
-}
-
 module.exports = {
-  Matcher,
-  compileMatching
+  Matcher
 }

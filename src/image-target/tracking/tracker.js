@@ -4,11 +4,22 @@ const {createRandomizer} = require('../utils/randomizer.js');
 
 class Tracker {
   constructor(trackingData, imageList, projectionTransform) {
-    this.featureSets = trackingData.featureSets;
+    this.featureSets = trackingData;
     this.imageList = imageList;
     this.projectionTransform = projectionTransform;
     this.randomizer = createRandomizer();
     this.prevResults = [];
+  }
+
+  setupQuery(queryWidth, queryHeight) {
+    this.inputWidth = queryWidth;
+    this.inputHeight = queryHeight;
+    const processCanvas = document.createElement('canvas');
+    processCanvas.width = this.inputWidth;
+    processCanvas.height = this.inputHeight;
+
+    this.workerProcessContext = processCanvas.getContext('2d');
+    this.processData = new Uint8Array(this.inputWidth * this.inputHeight);
   }
 
   detected(modelViewTransform) {
@@ -18,7 +29,10 @@ class Tracker {
     }];
   }
 
-  track(targetImage) {
+  // input is either html video/image
+  track(input) {
+    // TODO: if tracking multiple image target, we don't need to build targetImage multiple times
+    const targetImage = this._buildQueryImage(input);
     const result = track({
       projectionTransform: this.projectionTransform,
       featureSets: this.featureSets,
@@ -36,12 +50,21 @@ class Tracker {
     } else {
       this.prevResults = [];
     }
+
+    if (this.prevResults.length === 0) return null;
+    return this.prevResults[this.prevResults.length-1].modelViewTransform;
   }
 
-  getLatest() {
-    if (this.prevResults.length === 0) return null;
-
-    return this.prevResults[this.prevResults.length-1].modelViewTransform;
+  _buildQueryImage(video) {
+    this.workerProcessContext.clearRect(0, 0, this.inputWidth, this.inputHeight);
+    this.workerProcessContext.drawImage(video, 0, 0, this.inputWidth, this.inputHeight);
+    const imageData = this.workerProcessContext.getImageData(0, 0, this.inputWidth, this.inputHeight);
+    for (let i = 0; i < this.processData.length; i++) {
+      const offset = i * 4;
+      this.processData[i] = Math.floor((imageData.data[offset] + imageData.data[offset+1] + imageData.data[offset+2])/3);
+    }
+    const queryImage = {data: this.processData, width: this.inputWidth, height: this.inputHeight, dpi: 1};
+    return queryImage;
   }
 }
 
@@ -60,11 +83,11 @@ const _buildFeatureSets = ({imageList}) => {
     featureSet.coords = [];
     for (let j = 0; j < coords.length; j++) {
       featureSet.coords.push({
-        x: coords[j].x,
-        y: coords[j].y,
+        //x: coords[j].x,
+        //y: coords[j].y,
         mx: coords[j].mx,
         my: coords[j].my,
-        maxSim: coords[j].maxSim,
+        //maxSim: coords[j].maxSim,
       });
     }
     featureSets.push(featureSet);
