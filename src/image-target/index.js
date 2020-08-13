@@ -7,10 +7,11 @@ const {estimateHomography} = require('./icp/estimate_homography.js');
 const {refineHomography} = require('./icp/refine_homography');
 
 class ImageTarget {
-  constructor({projectionTransform, imageList, matchingData, trackingData}) {
+  constructor({projectionTransform, imageList, matchingData, trackingData, targetImage}) {
     this.imageList = imageList;
     this.matchingData = matchingData;
     this.trackingData = trackingData;
+    this.targetImage = targetImage;
     this.projectionTransform = projectionTransform;
 
     this.matcher = new Matcher(matchingData);

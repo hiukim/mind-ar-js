@@ -28,8 +28,6 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
   const modelViewTransform = prevResults[prevResults.length-1].modelViewTransform;
   const modelViewProjectionTransform = prevModelViewProjectionTransforms[prevModelViewProjectionTransforms.length-1];
 
-  console.log("modelViewProjectionTransform", modelViewProjectionTransform);
-
   if (typeof window !== 'undefined' && window.DEBUG_TRACK) {
     window.debug.trackFeatureIndex = -1;
     window.debug.trackingSubIndex = -1;
@@ -166,7 +164,6 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
     //console.log("selected: ", num, k, candidates[k]);
 
     if (k < 0 && fromCandidates1) {
-      console.log('switch to candidate2');
       fromCandidates1 = false;
       candidates = candidates2;
       continue;
@@ -226,8 +223,6 @@ const track = ({projectionTransform, featureSets, imageList, prevResults, target
       }
     }
   }
-
-  console.log("selectedFeatures1", selectedFeatures);
 
   if (selectedFeatures.length < 4) {
     return null;

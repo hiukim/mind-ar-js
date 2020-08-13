@@ -42,9 +42,9 @@ class Detector {
 
     for (let i = 0; i < this.processData.length; i++) {
       const offset = i * 4;
-      this.processData[i] = Math.floor((imageData.data[offset] + imageData.data[offset+1] + imageData.data[offset+2])/3);
+      //this.processData[i] = Math.floor((imageData.data[offset] + imageData.data[offset+1] + imageData.data[offset+2])/3);
+      this.processData[i] = (imageData.data[offset] + imageData.data[offset+1] + imageData.data[offset+2])/3;
     }
-    console.log("process", this.processData);
     return this.detectImageData(this.processData);
   }
 

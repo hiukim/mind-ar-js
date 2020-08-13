@@ -12,7 +12,7 @@ class Controller {
     this.trackingIndex = -1;
 
     const near = 10;
-    const far = 1000;
+    const far = 10000;
     const fovy = 45.0 * Math.PI / 180; // 45 in radian. field of view vertical
     const f = (this.inputHeight/2) / Math.tan(fovy/2);
     //     [fx  s cx]
@@ -26,8 +26,10 @@ class Controller {
 
     this.projectionMatrix = _glProjectionMatrix({
       projectionTransform: this.projectionTransform,
-      width: this.inputWidth - 1, // -1 is not necessary?
-      height: this.inputHeight - 1,
+      //width: this.inputWidth - 1, // -1 is not necessary?
+      //height: this.inputHeight - 1,
+      width: this.inputWidth,
+      height: this.inputHeight,
       near: near,
       far: far,
     });
@@ -57,6 +59,15 @@ class Controller {
       }
       resolve(true);
     });
+  }
+
+  getImageTargetDimensions() {
+    const dimensions = [];
+    for (let i = 0; i < this.imageTargets.length; i++) {
+      const targetImage = this.imageTargets[i].targetImage;
+      dimensions.push([targetImage.width, targetImage.height]);
+    }
+    return dimensions;
   }
 
   // input is either HTML video or HTML image

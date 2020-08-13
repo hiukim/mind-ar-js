@@ -117,10 +117,7 @@
 
           console.log("create controller");
           //var controller = new MINDAR.Controller({useworker: true});
-          var controller = new MINDAR.Controller({useworker: false});
-          console.log("controller", controller);
-          await controller.setup({inputWidth: pw, inputHeight: ph});
-          console.log("controller setup");
+          var controller = new MINDAR.Controller(pw, ph);
 
           const proj = controller.getProjectionMatrix();
           console.log("proj", proj);

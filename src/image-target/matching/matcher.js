@@ -1,7 +1,5 @@
 const {build: hierarchicalClusteringBuild} = require('./hierarchical-clustering.js');
 const {match} = require('./matching');
-//const {Detector} = require('../detectorGPU/detector.js');
-const {Detector} = require('../detectorCPU/detector.js');
 
 const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;
 const PYRAMID_MIN_SIZE = 8;
