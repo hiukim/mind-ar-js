@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@msgpack/msgpack": "^1.12.2",
     "gpu.js": "^2.9.4",
     "image-js": "^0.21.9",
     "ml-matrix": "^6.5.0",
