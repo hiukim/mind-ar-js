@@ -51,6 +51,11 @@ class ImageTarget {
     }
     return updatedModelViewTransform;
   }
+
+  dummyRun(input) {
+    this.tracker.detected([[0,0,0,0], [0,0,0,0], [0,0,0,0]]);
+    this.tracker.track(input);
+  }
 }
 
 module.exports = {

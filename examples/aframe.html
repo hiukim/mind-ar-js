@@ -80,7 +80,6 @@
         },
 
         _startVideo: function() {
-          console.log("start video");
           this.video = document.createElement('video');
 
           this.video.setAttribute('autoplay', '');
@@ -156,6 +155,10 @@
               el.setupMarker(imageTargetDimensions[targetIndex]);
             }
           }
+
+          await this.controller.dummyRun(this.video);
+          container.querySelector(".mindar-loading-overlay").style.display = "none";
+
           this.processReady = true;
         },
 
@@ -187,7 +190,7 @@
 
         schema: {
           imageTargetSrc: {type: 'string'},
-          showStats: {type: 'boolean', default: "false"}
+          showStats: {type: 'boolean', default: false}
         },
 
         init: function() {
@@ -201,6 +204,10 @@
 
       AFRAME.registerComponent('mindar-image-target', {
         dependencies: ['mindar-system'],
+
+        schema: {
+          targetIndex: {type: 'number'},
+        },
 
         postMatrix: null, // rescale the anchor to make width of 1 unit = physical width of card
 
@@ -264,25 +271,46 @@
         width: 100%;
         height: 100%;
       }
+      .displayAR-container .mindar-loading-overlay {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        background: white;
+        opacity: 0.5;
+        z-index: 2;
+      }
+      .displayAR-container .mindar-loading-overlay .content {
+        font-size: 30px;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+      }
     </style>
   </head>
   <body>
-    <button id="playButton">Play</button>
     <span id="debug"></span>
 
     <div class="displayAR-container">
-      <a-scene mindar="imageTargetSrc: ./assets/card1.mind; showStats: true" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false">
+      <div class="mindar-loading-overlay">
+        <div class="content">Loading...</div>
+        <button id="playButton">Play</button>
+      </div>
+
+      <a-scene mindar="imageTargetSrc: ./assets/card1.mind; showStats: true" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
           <img id="card" src="./assets/card1.png" />
         </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity mindar-image-target="targetIndex: 0">
+        <a-entity mindar-image-target="targetIndex: 2">
           <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
         </a-entity>
 
-        <a-entity mindar-image-target="targetIndex: 2">
+        <a-entity mindar-image-target="targetIndex: 0">
           <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
           </a-plane>
           <a-entity rotation="90 0 0">

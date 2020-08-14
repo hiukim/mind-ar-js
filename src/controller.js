@@ -61,6 +61,14 @@ class Controller {
     });
   }
 
+  // warm up gpu - build kernels is slow
+  dummyRun(input) {
+    this.detector.detect(input);
+    for (let i = 0; i < this.imageTargets.length; i++) {
+      this.imageTargets[i].dummyRun(input);
+    }
+  }
+
   getImageTargetDimensions() {
     const dimensions = [];
     for (let i = 0; i < this.imageTargets.length; i++) {

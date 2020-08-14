@@ -280,7 +280,7 @@ class Tracker {
     this.height = queryHeight;
   }
 
-  track(video, queryImage) {
+  track(video) {
     if (this.videoKernel === null) {
       this.videoKernel = this.gpu.createKernel(function(videoFrame) {
         const pixel = videoFrame[this.constants.height-1-Math.floor(this.thread.x / this.constants.width)][this.thread.x % this.constants.width];
