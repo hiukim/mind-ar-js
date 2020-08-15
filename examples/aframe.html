@@ -103,6 +103,8 @@
               console.log("video ready...", this.video);
               this.video.setAttribute('width', this.video.videoWidth);
               this.video.setAttribute('height', this.video.videoHeight);
+              $("#debug").html('video'+this.video.videoWidth+'x'+this.video.videoHeight);
+
               this._startAR();
             });
             this.video.srcObject = stream;
@@ -299,14 +301,14 @@
         <button id="playButton">Play</button>
       </div>
 
-      <a-scene mindar="imageTargetSrc: ./assets/card1.mind; showStats: true" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      <a-scene mindar="imageTargetSrc: ./assets/cards1.mind; showStats: true" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
           <img id="card" src="./assets/card1.png" />
         </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity mindar-image-target="targetIndex: 2">
+        <a-entity mindar-image-target="targetIndex: 1">
           <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
         </a-entity>
 

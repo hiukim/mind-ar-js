@@ -3,8 +3,8 @@ const {Cumsum} = require('../utils/cumsum');
 const SEARCH_SIZE1 = 10;
 const SEARCH_SIZE2 = 2;
 
-//const TEMPLATE_SIZE = 22 // 22 is default from artoolkit
-const TEMPLATE_SIZE = 6;
+const TEMPLATE_SIZE = 22 // DEFAULT
+//const TEMPLATE_SIZE = 6;
 const TEMPLATE_SD_THRESH = 5.0;
 const MAX_SIM_THRESH = 0.95;
 

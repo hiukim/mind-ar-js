@@ -22,9 +22,9 @@
         const proj = controller.getProjectionMatrix();
         console.log("proj", proj);
 
-        await controller.addImageTargets('./assets/target7_gpu.mind');
+        await controller.addImageTargets('./assets/cards1_7.mind');
 
-        const queryImage = await loadImage('./assets/card7_2.png');
+        const queryImage = await loadImage('../tests/card7_2.png');
         const result = await controller.process(queryImage);
         for (let i = 0; i < result.length; i++) {
           console.log("result", JSON.stringify(result[i]));

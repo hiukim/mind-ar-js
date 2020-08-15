@@ -1,15 +1,15 @@
 const {refineHomography} = require('../icp/refine_homography.js');
-const {createRandomizer} = require('../utils/randomizer.js');
 const {GPU} = require('gpu.js');
 
 const AR2_DEFAULT_SEARCH_FEATURE_NUM = 16;
 const AR2_DEFAULT_TS = 6;
 const AR2_SEARCH_SIZE = 6;
-const AR2_SIM_THRESH = 0.5;
+
+const AR2_SIM_THRESH = 0.5; // default
 //const AR2_SIM_THRESH = 0.2; // 0.5 is default. 0.2 for debug
-//
-const AR2_TRACKING_THRESH = 5.0;
-//const AR2_TRACKING_THRESH = 0.2;// 5 is the default. 0.2 for debug
+
+const AR2_TRACKING_THRESH = 5.0; // default
+//const AR2_TRACKING_THRESH = 100; //
 
 const PREV_KEEP = 3;
 
@@ -29,7 +29,6 @@ class Tracker {
     this.imageProperties = imageProperties; // [ [width, height, dpi] ]
 
     this.projectionTransform = this._initializeProjectionTransform(projectionTransform);
-    this.randomizer = createRandomizer();
 
     this.videoKernel = null;
     this.detectedKernel = null;
@@ -309,7 +308,6 @@ class Tracker {
       const mappedTargetPosition = this._mapCandidate(targetImage, newSelected);
       selection = this._combineSelection(selection, i, newSelected, mappedTargetPosition);
     }
-
 
     //var _start = new Date().getTime();
     //const modelViewTransforms = this.prevModelViewTransforms.toArray();
