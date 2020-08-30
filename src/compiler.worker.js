@@ -1,6 +1,6 @@
 const {extract} = require('./image-target/tracking/extractor.js');
-//const {Detector} = require('./image-target/detectorGPU/detector.js'); // gpu startup is very slow
-const {Detector} = require('./image-target/detectorCPU/detector.js');
+const {Detector} = require('./image-target/detectorGPU/detector.js'); // gpu startup is very slow
+//const {Detector} = require('./image-target/detectorCPU/detector.js');
 const {build: hierarchicalClusteringBuild} = require('./image-target/matching/hierarchical-clustering.js');
 const {buildImageList} = require('./image-target/image-list.js');
 
@@ -36,6 +36,7 @@ const _extractMatchingFeatures = (imageList) => {
     const detector = new Detector(image.width, image.height);
     const ps = detector.detectImageData(image.data);
 
+    /*
     const keypoints = [];
     const dpi = 1.0;
     for (let i = 0; i < ps.length; i++) {
@@ -51,7 +52,11 @@ const _extractMatchingFeatures = (imageList) => {
       })
     }
     const pointsCluster = hierarchicalClusteringBuild({points: keypoints});
-    keyframes.push({points: keypoints, pointsCluster, width: image.width, height: image.height});
+    keyframes.push({points: keypoints, pointsCluster, width: image.width, height: image.height, scale: image.dpi});
+    */
+
+    const pointsCluster = hierarchicalClusteringBuild({points: ps});
+    keyframes.push({points: ps, pointsCluster, width: image.width, height: image.height, scale: image.dpi});
   }
   return keyframes;
 }

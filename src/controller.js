@@ -1,6 +1,5 @@
 const {ImageTarget} = require('./image-target/index.js');
 const {Detector} = require('./image-target/detectorGPU/detector.js');
-//const {Detector} = require('./image-target/detectorCPU/detector.js');
 const {Compiler} = require('./compiler.js');
 
 class Controller {
@@ -80,8 +79,6 @@ class Controller {
 
   // input is either HTML video or HTML image
   process(input) {
-    logTime("engine process");
-
     if (this.trackingIndex === -1) {
       let featurePoints = this.detector.detect(input);
       for (let i = 0; i < this.imageTargets.length; i++) {

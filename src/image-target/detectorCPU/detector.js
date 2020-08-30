@@ -59,19 +59,22 @@ class Detector {
 
     const descriptors = extract({pyramid: gaussianPyramid, points: featurePoints});
 
+    const finalPoints = [];
     for (let i = 0; i < featurePoints.length; i++) {
       featurePoints[i].descriptors = descriptors[i];
+      finalPoints.push({
+        maxima: featurePoints[i].score > 0,
+        x: featurePoints[i].x,
+        y: featurePoints[i].y,
+        descriptors: descriptors[i],
+      })
     }
-    return featurePoints;
+    return finalPoints;
   }
 }
 
 // Detect minima and maximum in Laplacian images
 const _detectFeaturePoints = ({gaussianPyramid, dogPyramid}) => {
-  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-    var _start = new Date().getTime();
-  }
-
   const originalWidth = dogPyramid.images[0].width;
   const originalHeight = dogPyramid.images[0].height;
 
@@ -97,26 +100,14 @@ const _detectFeaturePoints = ({gaussianPyramid, dogPyramid}) => {
     let hasPadOneHeight = false;
 
     if ( Math.floor(image0.width/2) == image1.width) {
-      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-        var __start = new Date().getTime();
-      }
       image0 = downsampleBilinear({image: image0});
-      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-        console.log('exec time downsampleBilinear', image0.width, new Date().getTime() - __start);
-      }
     }
 
     if ( Math.floor(image1.width/2) == image2.width) {
       hasUpsample = true;
       hasPadOneWidth = image1.width % 2 === 1;
       hasPadOneHeight = image1.height % 2 === 1;
-      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-        var __start = new Date().getTime();
-      }
       image2 = upsampleBilinear({image: image2, padOneWidth: hasPadOneWidth, padOneHeight: hasPadOneHeight});
-      if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-        console.log('exec time upsampleBilinear', new Date().getTime() - __start);
-      }
     }
 
     const width = image1.width;
@@ -241,35 +232,10 @@ const _detectFeaturePoints = ({gaussianPyramid, dogPyramid}) => {
     }
   }
 
-  if (typeof window !== 'undefined' && window.DEBUG) {
-    const fps = window.debugContent.featurePoints2[window.debug.keyframeIndex];
-    console.log("featurepoints2", featurePoints.length, 'vs', fps.length);
-    for (let i = 0; i < fps.length; i++) {
-      const fp1 = featurePoints[i];
-      const fp2 = fps[i];
-      //if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'spScale', 'edgeScore'])) {
-      if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma'])) {
-        console.log("INCORRECT featurepoint2", fp1, fp2);
-      }
-    }
-  }
-
-  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-    console.log('exec time DETECTION first extract', new Date().getTime() - _start);
-  }
-
   const prunedFeaturePoints = _pruneFeatures({featurePoints: featurePoints, width: originalWidth, height: originalHeight});
-
-  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-    console.log('exec time DETECTION prune', new Date().getTime() - _start);
-  }
 
   const orientedFeaturePoints = [];
   for (let i = 0; i < prunedFeaturePoints.length; i++) {
-    if (typeof window !== 'undefined' && window.DEBUG) {
-      window.debug.orientationComputeIndex = i;
-    }
-
     const fp = prunedFeaturePoints[i];
     const octaveSigma = fp.sigma * (1.0 / Math.pow(2, fp.octave));
 
@@ -282,25 +248,6 @@ const _detectFeaturePoints = ({gaussianPyramid, dogPyramid}) => {
       }, prunedFeaturePoints[i]));
     }
   }
-
-  if (typeof window !== 'undefined' && window.DEBUG) {
-    const fps = window.debugContent.featurePoints4[window.debug.keyframeIndex];
-    console.log("featurepoints4", orientedFeaturePoints.length, 'vs', fps.length);
-    for (let i = 0; i < fps.length; i++) {
-      const fp1 = orientedFeaturePoints[i];
-      const fp2 = fps[i];
-      //if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'spScale', 'edgeScore', 'angle'])) {
-      if (!window.cmpObj(fp1, fp2, ['x', 'y', 'score', 'sigma', 'angle'])) {
-        console.log("INCORRECT featurepoint4", fp1, fp2);
-        return;
-      }
-    }
-  }
-
-  if (typeof window !== 'undefined' && window.DEBUG_TIME) {
-    console.log('exec time DETECTION compute oriented', new Date().getTime() - _start);
-  }
-
   return orientedFeaturePoints;
 }
 
@@ -319,20 +266,6 @@ const _computeOrientation = (options) => {
   const y0 = Math.max(0, y - Math.floor(radius + 0.5));
   const y1 = Math.min(image.height-1, y + Math.floor(radius + 0.5));
 
-  if (typeof window !== 'undefined' && window.DEBUG) {
-    const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
-    if (Math.floor(o.x + 0.5) !== x || Math.floor(o.y + 0.5) !== y) {
-      console.log("INCORRECT orientation input");
-    }
-    if (x0 !== o.x0 || x1 !== o.x1 || y0 !== o.y0 || y1 !== o.y1) {
-      console.log("INCORRECT xy range");
-    }
-    if (radius2 !== o.radius2) {
-      console.log("INCORRECT radius", radius, radius2, o.radius, o.radius2);
-    }
-    window.debug.fbinIndex = -1;
-  }
-
   const histogram = [];
   for (let i = 0; i < ORIENTATION_NUM_BINS; i++) {
     histogram.push(0);
@@ -343,10 +276,6 @@ const _computeOrientation = (options) => {
     const dy2 = dy * dy;
 
     for (let xp = x0; xp <= x1; xp++) {
-      if (typeof window !== 'undefined' && window.DEBUG) {
-        window.debug.fbinIndex += 1;
-      }
-
       const dx = xp - x;
       const dx2 = dx * dx;
 
@@ -368,41 +297,10 @@ const _computeOrientation = (options) => {
       const b2 = (bin + 1) % ORIENTATION_NUM_BINS;
       const magnitude = w * mag;
 
-      if (typeof window !== 'undefined' && window.DEBUG) {
-        const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
-        if (Math.abs(fbin - o.fbins[window.debug.fbinIndex]) > 0.001) {
-          console.log("INCORRECT fbin", r2, radius2, fbin, 'vs', o.fbins[window.debug.fbinIndex]);
-        }
-        const details = o.fbinDetails[window.debug.fbinIndex];
-        if (b1 !== details.b1 || b2 !== details.b2) {
-          console.log("INCORRECT b1b2", b1, b2, details.b1, details.b2);
-        }
-        if (Math.abs(w1 - details.w1) > 0.001 || Math.abs(w2 - details.w2) > 0.001) {
-          console.log("INCORRECT w1w2", w1, w2, details.w1, details.w2);
-        }
-        if (Math.abs(details.magnitude - magnitude) > 0.001) {
-          console.log("INCORRECT mag: ", magnitude, details.magnitude);
-        }
-      }
-
       histogram[b1] += w1 * magnitude;
       histogram[b2] += w2 * magnitude;
     }
   }
-  //console.log("correct histograms", JSON.stringify(histogram));
-
-  if (typeof window !== 'undefined' && window.DEBUG) {
-    const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
-    for (let i = 0; i < histogram.length; i++) {
-      if (Math.abs(o.histograms[i] - histogram[i]) > 0.001) {
-        console.log("INCORRECT histogram", i, window.debug.orientationComputeIndex, JSON.stringify(o.histograms), JSON.stringify(histogram));
-        console.log(o, 'vs', {x, y, sigma, octave });
-        break;
-      }
-    }
-  }
-
-  //console.log("ori: ", x, y, octave, scale, gwSigma, gwScale, radius, radius2, JSON.stringify(histogram));
 
   // The orientation histogram is smoothed with a Gaussian
   // sigma=1
@@ -417,16 +315,6 @@ const _computeOrientation = (options) => {
       histogram[j] = kernel[0] * old[(j - 1 + histogram.length) % histogram.length]
                     + kernel[1] * old[j]
                     + kernel[2] * old[(j+1) % histogram.length];
-    }
-  }
-
-  if (typeof window !== 'undefined' && window.DEBUG) {
-    const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
-    for (let i = 0; i < histogram.length; i++) {
-      if (Math.abs(o.smoothedHistograms[i] - histogram[i]) > 0.001) {
-        console.log("INCORRECT smoothed histogram", i, window.debug.orientationComputeIndex, JSON.stringify(o.smoothedHistograms), JSON.stringify(histogram));
-        break;
-      }
     }
   }
 
@@ -465,14 +353,6 @@ const _computeOrientation = (options) => {
         // Find the critical point of a quadratic. y = A*x^2 + B*x + C
         if (A != 0) {
           fbin = -B / (2 * A);
-        }
-      }
-
-      if (typeof window !== 'undefined' && window.DEBUG) {
-        const o = window.debugContent.orientationCompute[window.debug.keyframeIndex][window.debug.orientationComputeIndex];
-        if (!window.cmp(fbin, o.histfbins[i])) {
-          console.log("INCORRECT orientation fbin", i, fbin, 'vs', o.histfbins[i], o.histAs[i], o.histBs[i], o.histCs[i]);
-          console.log("hist", histogram[i], histogram[prev], histogram[next], ORIENTATION_PEAK_THRESHOLD * maxHeight);
         }
       }
 

@@ -1,18 +1,3 @@
-/*
-const getProjectionTransform = () => {
-  // TODO: non-hardcoded camera matrix?
-  //     [fx  s cx]
-  // K = [ 0 fx cy]
-  //     [ 0  0  1]
-  const KData = [
-    [ 304.68270459335025, 0, 161.7239532470703],
-    [ 0, 303.2606118015537, 118.80326843261719],
-    [ 0, 0, 1.0]
-  ];
-  return KData;
-}
-*/
-
 const buildModelViewProjectionTransform = (projectionTransform, modelViewTransform) => {
   const modelViewProjectionTransform = [[],[],[]];
   for (let j = 0; j < 3; j++ ) {
@@ -37,7 +22,6 @@ const applyModelViewProjectionTransform = (modelViewProjectionTransform, x, y, z
 
 const computeScreenCoordiate = (modelViewProjectionTransform, x, y, z) => {
   const {x: ux, y: uy, z: uz} = applyModelViewProjectionTransform(modelViewProjectionTransform, x, y, z);
-  //console.log("x, y, z", ux, uy, uz);
   if( Math.abs(uz) < 0.000001 ) return null;
   return {x: ux/uz, y: uy/uz};
 }
@@ -59,7 +43,6 @@ const screenToMarkerCoordinate = (modelViewProjectionTransform, sx, sy) => {
 
 module.exports = {
   screenToMarkerCoordinate,
-  //getProjectionTransform,
   buildModelViewProjectionTransform,
   applyModelViewProjectionTransform,
   computeScreenCoordiate

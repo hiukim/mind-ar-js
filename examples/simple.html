@@ -12,25 +12,23 @@
         })
       }
 
-      const logTime = (title) => {};
-
       const process = async () => {
-        const pw = 640;
-        const ph = 480;
+        const inputWidth = 640;
+        const inputHeight = 480;
 
-        const controller = new MINDAR.Controller(pw, ph);
+        const controller = new MINDAR.Controller(inputWidth, inputHeight);
         const proj = controller.getProjectionMatrix();
-        console.log("proj", proj);
+        console.log("projection matrix", proj);
 
-        await controller.addImageTargets('./assets/cards1_7.mind');
+        await controller.addImageTargets('../tests/card7cpu.mind');
 
         const queryImage = await loadImage('../tests/card7_2.png');
         const result = await controller.process(queryImage);
+
         for (let i = 0; i < result.length; i++) {
-          console.log("result", JSON.stringify(result[i]));
+          console.log("world matrix", JSON.stringify(result[i]));
         }
       }
-
       process();
     </script>
   </head>

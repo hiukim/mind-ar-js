@@ -1,5 +1,3 @@
-const {resize} = require("./utils/images.js");
-const {buildImageList} = require('./image-list.js');
 const {Matcher} = require('./matching/matcher.js');
 //const {Tracker: Tracker} = require('./tracking/tracker.js');
 const {Tracker: Tracker} = require('./trackingGPU/tracker.js');
@@ -27,21 +25,16 @@ class ImageTarget {
 
   match(featurePoints) {
     const matchResult = this.matcher.matchDetection(this.queryWidth, this.queryHeight, featurePoints);
-    if (matchResult === null) return null;
+    if (matchResult === null) return;
 
     const {screenCoords, worldCoords} = matchResult;
 
     const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
-    console.log("initial matched model view transform", initialModelViewTransform);
 
-    if (initialModelViewTransform === null) return null;
-    //return initialModelViewTransform;
-
-    // TODO: maybe don't this refineHomography. result seems worse when the detected size is big
-    const {modelViewTransform: refinedModelViewTransform, err} = refineHomography({initialModelViewTransform, projectionTransform: this.projectionTransform, worldCoords, screenCoords});
+    if (initialModelViewTransform === null) return;
 
     this.isTracking = true;
-    this.tracker.detected(refinedModelViewTransform);
+    this.tracker.detected(initialModelViewTransform);
   }
 
   track(input) {

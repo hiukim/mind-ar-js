@@ -35,7 +35,7 @@
           const kpmPoints = data.matchingData[i].points;
           const points2 = [];
           for (let j = 0; j < kpmPoints.length; j++) {
-            points2.push({x: Math.round(kpmPoints[j].x2D), y: Math.round(kpmPoints[j].y2D)});
+            points2.push({x: Math.round(kpmPoints[j].x), y: Math.round(kpmPoints[j].y)});
           }
           showImage(image, points2);
         }

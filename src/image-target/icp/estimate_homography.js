@@ -1,5 +1,4 @@
 const {Matrix, inverse} = require('ml-matrix');
-const {applyModelViewProjectionTransform, buildModelViewProjectionTransform, computeScreenCoordiate} = require('./utils.js');
 
 // build world matrix with list of matching worldCoords|screenCoords
 //
@@ -48,21 +47,6 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
   const ATAInv = inverse(ATA);
   const C = ATAInv.mmul(ATB).to1DArray();
 
-  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
-    for (let j = 0; j < A.data.length; j++) {
-      for (let i = 0; i < A.data[j].length; i++) {
-        if (!window.cmp(A.data[j][i], window.debugMatch.matA[j][i], 0.1)) {
-          console.log("INCORRECT A", j, i, A.data[j][i], window.debugMatch.matA[j][i]);
-        }
-      }
-    }
-    for (let j = 0; j < C.length; j++) {
-      if (!window.cmp(C[j], window.debugMatch.matC[j], 0.001)) {
-        console.log("INCORRECT C", j, C[j], window.debugMatch.matC[j]);
-      }
-    }
-  }
-
   const H = new Matrix([
     [C[0], C[1], C[2]],
     [C[3], C[4], C[5]],
@@ -74,24 +58,6 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
 
   const _KInvH = KInv.mmul(H);
   const KInvH = _KInvH.to1DArray();
-
-  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
-    const dv = window.debugMatch.v;
-    const dt = window.debugMatch.t;
-    const dKInvH = [
-      [dv[0][0],dv[1][0],dt[0]],
-      [dv[0][1],dv[1][1],dt[1]],
-      [dv[0][2],dv[1][2],dt[2]]
-    ];
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) {
-        if(!window.cmp(_KInvH.data[i][j], dKInvH[i][j])) {
-          console.log("INCORRECT KInvH", i, j, KInvH.data, dKInvH);
-          break;
-        }
-      }
-    }
-  }
 
   const norm1 = Math.sqrt( KInvH[0] * KInvH[0] + KInvH[3] * KInvH[3] + KInvH[6] * KInvH[6]);
   const norm2 = Math.sqrt( KInvH[1] * KInvH[1] + KInvH[4] * KInvH[4] + KInvH[7] * KInvH[7]);
@@ -128,17 +94,6 @@ const estimateHomography = ({screenCoords, worldCoords, projectionTransform}) =>
     [rotate[3], rotate[4], rotate[5], tran[1]],
     [rotate[6], rotate[7], rotate[8], tran[2]]
   ];
-
-  if (typeof window !== 'undefined' && window.DEBUG_MATCH) {
-    console.log("initialModelViewTransform", initialModelViewTransform, window.debugMatch.initMatXw2Xc);
-    for (let j = 0; j < initialModelViewTransform.length; j++) {
-      for (let i = 0; i < initialModelViewTransform[j].length; i++) {
-        if (!window.cmp(initialModelViewTransform[j][i], window.debugMatch.initMatXw2Xc[j][i], 0.0001)) {
-          console.log("INCORRECT initialModelViewTransform", j, i, initialModelViewTransform[j][i], window.debugMatch.initMatXw2Xc[j][i]);
-        }
-      }
-    }
-  }
 
   return initialModelViewTransform;
 };
