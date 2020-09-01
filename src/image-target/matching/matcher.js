@@ -27,7 +27,7 @@ class Matcher {
       })
     }
 
-    return {screenCoords, worldCoords};
+    return {screenCoords, worldCoords, keyframeIndex: result.keyframeIndex};
   }
 }
 

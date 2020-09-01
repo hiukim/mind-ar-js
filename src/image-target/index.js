@@ -1,6 +1,7 @@
 const {Matcher} = require('./matching/matcher.js');
 //const {Tracker: Tracker} = require('./tracking/tracker.js');
 const {Tracker: Tracker} = require('./trackingGPU/tracker.js');
+const {Tracker: Tracker2} = require('./trackingGPU/tracker2.js');
 const {estimateHomography} = require('./icp/estimate_homography.js');
 const {refineHomography} = require('./icp/refine_homography');
 
@@ -13,32 +14,36 @@ class ImageTarget {
     this.projectionTransform = projectionTransform;
 
     this.matcher = new Matcher(matchingData);
-    this.tracker = new Tracker(trackingData, imageList, projectionTransform);
+    //this.tracker = new Tracker(trackingData, imageList, projectionTransform);
+    this.tracker2 = new Tracker2(trackingData, imageList, projectionTransform);
     this.isTracking = false;
   }
 
   setupQuery(queryWidth, queryHeight) {
     this.queryWidth = queryWidth;
     this.queryHeight = queryHeight;
-    this.tracker.setupQuery(queryWidth, queryHeight);
+    //this.tracker.setupQuery(queryWidth, queryHeight);
+    this.tracker2.setupQuery(queryWidth, queryHeight);
   }
 
   match(featurePoints) {
     const matchResult = this.matcher.matchDetection(this.queryWidth, this.queryHeight, featurePoints);
     if (matchResult === null) return;
 
-    const {screenCoords, worldCoords} = matchResult;
+    const {screenCoords, worldCoords, keyframeIndex} = matchResult;
 
     const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
 
     if (initialModelViewTransform === null) return;
 
     this.isTracking = true;
-    this.tracker.detected(initialModelViewTransform);
+    //this.tracker.detected(initialModelViewTransform);
+    this.tracker2.detected(initialModelViewTransform, keyframeIndex);
   }
 
   track(input) {
-    const updatedModelViewTransform = this.tracker.track(input);
+    //const updatedModelViewTransform = this.tracker.track(input);
+    const updatedModelViewTransform = this.tracker2.track(input);
     if (updatedModelViewTransform === null) {
       this.isTracking = false;
     }
@@ -46,8 +51,10 @@ class ImageTarget {
   }
 
   dummyRun(input) {
-    this.tracker.detected([[0,0,0,0], [0,0,0,0], [0,0,0,0]]);
-    this.tracker.track(input);
+    //this.tracker.detected([[0,0,0,0], [0,0,0,0], [0,0,0,0]]);
+    //this.tracker.track(input);
+    this.tracker2.detected([[0,0,0,0], [0,0,0,0], [0,0,0,0]]);
+    this.tracker2.track(input);
   }
 }
 

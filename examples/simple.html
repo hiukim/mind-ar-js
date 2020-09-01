@@ -23,10 +23,12 @@
         await controller.addImageTargets('../tests/card7cpu.mind');
 
         const queryImage = await loadImage('../tests/card7_2.png');
-        const result = await controller.process(queryImage);
 
-        for (let i = 0; i < result.length; i++) {
-          console.log("world matrix", JSON.stringify(result[i]));
+        for (let i = 0; i < 2; i++) {
+          const result = await controller.process(queryImage);
+          for (let i = 0; i < result.length; i++) {
+            console.log("world matrix", JSON.stringify(result[i]));
+          }
         }
       }
       process();

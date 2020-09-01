@@ -515,6 +515,7 @@ class Tracker {
             }
           }
         }
+
         // TODO: maybe just sum template only when point is also valid?
         sumPointTemplate -= sumPoint * sumTemplate / templateValidCount;
 
@@ -579,9 +580,9 @@ class Tracker {
     const coVars = kernels[2](targetImage, searchPoints, template);
     const result = kernels[3](searchPoints, coVars);
     //console.log("template", template.toArray());
-    //console.log("search points", JSON.stringify(searchPoints.toArray()));
+    console.log("search points 1", JSON.stringify(searchPoints.toArray()));
     //console.log("coVars", coVars.toArray());
-    //console.log("result", result.toArray());
+    //console.log("result 1", result.toArray());
     return result;
   }
 
