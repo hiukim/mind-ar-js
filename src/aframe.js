@@ -14,6 +14,8 @@ AFRAME.registerSystem('mindar-system', {
   },
 
   tick: function() {
+    return;
+
     if (this.mainStats) this.mainStats.update();
 
     if (this.processReady) {
@@ -103,7 +105,24 @@ AFRAME.registerSystem('mindar-system', {
       vh = vw / videoRatio;
     }
 
-    this.controller = new Controller(video.videoWidth, video.videoHeight);
+    this.controller = new Controller(video.videoWidth, video.videoHeight, (data) => {
+      //console.log('controller on update', data);
+      if (data.type === 'processDone') {
+        if (this.mainStats) this.mainStats.update();
+      }
+      else if (data.type === 'workerDone') {
+        if (this.workerStats) this.workerStats.update();
+      }
+      else if (data.type === 'updateMatrix') {
+        const {targetIndex, worldMatrix} = data;
+
+        for (let i = 0; i < this.anchorEntities.length; i++) {
+          if (this.anchorEntities[i].targetIndex === targetIndex) {
+            this.anchorEntities[i].el.updateWorldMatrix(worldMatrix);
+          }
+        }
+      }
+    });
 
     const proj = this.controller.getProjectionMatrix();
     const fov = 2 * Math.atan(1/proj[5] / vh * container.clientHeight ) * 180 / Math.PI; // vertical fov
@@ -123,8 +142,7 @@ AFRAME.registerSystem('mindar-system', {
     this.video.style.width = vw + "px";
     this.video.style.height = vh + "px";
 
-    await this.controller.addImageTargets(this.imageTargetSrc);
-    const imageTargetDimensions = this.controller.getImageTargetDimensions();
+    const {dimensions: imageTargetDimensions} = await this.controller.addImageTargets(this.imageTargetSrc);
 
     for (let i = 0; i < this.anchorEntities.length; i++) {
       const {el, targetIndex} = this.anchorEntities[i];
@@ -136,6 +154,7 @@ AFRAME.registerSystem('mindar-system', {
     await this.controller.dummyRun(this.video);
     container.querySelector(".mindar-loading-overlay").style.display = "none";
 
+    this.controller.processVideo(this.video);
     this.processReady = true;
   },
 

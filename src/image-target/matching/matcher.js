@@ -1,17 +1,18 @@
 const {match} = require('./matching');
 
 class Matcher {
-  constructor(matchingData,) {
-    this.keyframes = matchingData;
+  constructor(queryWidth, queryHeight) {
+    this.queryWidth = queryWidth;
+    this.queryHeight = queryHeight;
   }
 
-  matchDetection(queryWidth, queryHeight, featurePoints) {
-    const result = match({keyframes: this.keyframes, querypoints: featurePoints, querywidth: queryWidth, queryheight: queryHeight});
+  matchDetection(keyframes, featurePoints) {
+    const result = match({keyframes: keyframes, querypoints: featurePoints, querywidth: this.queryWidth, queryheight: this.queryHeight});
     if (result === null) return null;
 
     const screenCoords = [];
     const worldCoords = [];
-    const keyframe = this.keyframes[result.keyframeIndex];
+    const keyframe = keyframes[result.keyframeIndex];
 
     for (let i = 0; i < result.matches.length; i++) {
       const querypointIndex = result.matches[i].querypointIndex;

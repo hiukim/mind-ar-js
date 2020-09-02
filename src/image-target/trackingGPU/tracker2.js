@@ -2,53 +2,48 @@ const {refineHomography} = require('../icp/refine_homography.js');
 const {buildModelViewProjectionTransform} = require('../icp/utils.js');
 const {GPU} = require('gpu.js');
 
-const AR2_DEFAULT_SEARCH_FEATURE_NUM = 16;
 const AR2_DEFAULT_TS = 6;
 const AR2_SEARCH_SIZE = 6;
-
-//const AR2_SIM_THRESH = 0.5; // default
 const AR2_SIM_THRESH = 0.9;
 
-const AR2_TRACKING_THRESH = 5.0; // default
-
 class Tracker {
-  constructor(trackingData, imageList, projectionTransform) {
+  constructor(trackingDataList, imageListList, projectionTransform, inputWidth, inputHeight) {
     this.gpu = new GPU();
     this._initializeGPU(this.gpu);
 
-    this.featureSets = trackingData;
     this.projectionTransform = projectionTransform;
+    this.width = inputWidth;
+    this.height = inputHeight;
 
-    const points = [];
-    for (let j = 0; j < this.featureSets.length; j++) {
-      for (let k = 0; k < this.featureSets[j].coords.length; k++) {
-        const {mx, my} = this.featureSets[j].coords[k];
-        points.push([mx, my, j]);
+    this.allFeaturePointsList = [];
+    this.featurePointsList = [];
+    this.imagePixelsList = [];
+    this.imagePropertiesList = [];
+
+    for (let i = 0; i < trackingDataList.length; i++) {
+      const featureSets = trackingDataList[i];
+      const imageList = imageListList[i];
+
+      const points = [];
+      for (let j = 0; j < featureSets.length; j++) {
+        for (let k = 0; k < featureSets[j].coords.length; k++) {
+          const {mx, my} = featureSets[j].coords[k];
+          points.push([mx, my, j]);
+        }
       }
-    }
-    this.allFeaturePoints = points;
+      this.allFeaturePointsList[i] = points;
+      this.featurePointsList[i] = this._buildFeaturePoints(points);
 
-    this.featurePoints = this._buildFeaturePoints(this.allFeaturePoints);
-    const {imagePixels, imageProperties} = this._combineImageList(imageList);
-    this.imagePixels = imagePixels;
-    this.imageProperties = imageProperties; // [ [width, height, dpi] ]
+      const {imagePixels, imageProperties} = this._combineImageList(imageList);
+      this.imagePixelsList[i] = imagePixels;
+      this.imagePropertiesList[i] = imageProperties; // [ [width, height, dpi] ]
+    }
 
     this.videoKernel = null;
-    this.detectedKernel = null;
-    this.updatePrevResultsKernel = null;
     this.kernels = [];
   }
 
-  detected(modelViewTransform) {
-    this.lastModelViewTransform = modelViewTransform;
-  }
-
-  setupQuery(queryWidth, queryHeight) {
-    this.width = queryWidth;
-    this.height = queryHeight;
-  }
-
-  track(video) {
+  track(video, lastModelViewTransform, targetIndex) {
     if (this.videoKernel === null) {
       this.videoKernel = this.gpu.createKernel(function(videoFrame) {
         const pixel = videoFrame[this.constants.height-1-Math.floor(this.thread.x / this.constants.width)][this.thread.x % this.constants.width];
@@ -65,15 +60,22 @@ class Tracker {
 
     const targetImage = this.videoKernel(video);
 
+    this.lastModelViewTransform = lastModelViewTransform;
+
     const modelViewProjectionTransform = buildModelViewProjectionTransform(this.projectionTransform, this.lastModelViewTransform);
 
-    const searchPoints = this._computeSearchPoints(this.featurePoints, modelViewProjectionTransform);
+    const featurePoints = this.featurePointsList[targetIndex];
+    const imagePixels = this.imagePixelsList[targetIndex];
+    const imageProperties = this.imagePropertiesList[targetIndex];
+    const allFeaturePoints = this.allFeaturePointsList[targetIndex];
 
-    const templates = this._buildTemplates(this.imagePixels, this.imageProperties, this.featurePoints, searchPoints, modelViewProjectionTransform);
+    const searchPoints = this._computeSearchPoints(featurePoints, modelViewProjectionTransform);
 
-    const similarities = this._computeSimilarity(targetImage, searchPoints, templates);
+    const templates = this._buildTemplates(imagePixels, imageProperties, featurePoints, searchPoints, modelViewProjectionTransform);
 
-    const best = this._pickBest(searchPoints, similarities);
+    const similarities = this._computeSimilarity(featurePoints, targetImage, searchPoints, templates);
+
+    const best = this._pickBest(featurePoints, searchPoints, similarities);
 
     const bestArr = best.toArray();
 
@@ -82,38 +84,15 @@ class Tracker {
       if (bestArr[i][2] > AR2_SIM_THRESH) {
         selectedFeatures.push({
           pos2D: {x: bestArr[i][0], y: bestArr[i][1]},
-          pos3D: {x: this.allFeaturePoints[i][0], y: this.allFeaturePoints[i][1], z: 0},
+          pos3D: {x: allFeaturePoints[i][0], y: allFeaturePoints[i][1], z: 0},
           sim: bestArr[i][2]
         });
       }
     }
-    console.log("selecte features", selectedFeatures);
     if (selectedFeatures.length < 4) {
       return null;
     }
-
-    const modelViewTransform = this.lastModelViewTransform;
-    const projectionTransform = this.projectionTransform;
-
-    const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
-    let err = null;
-    let newModelViewTransform = modelViewTransform;
-    let finalModelViewTransform = null;
-    for (let i = 0; i < inlierProbs.length; i++) {
-      let ret = _computeUpdatedTran({modelViewTransform: newModelViewTransform, selectedFeatures, projectionTransform, inlierProb: inlierProbs[i]});
-      err = ret.err;
-      newModelViewTransform = ret.newModelViewTransform;
-      //console.log("_computeUpdatedTran", err)
-
-      if (err < AR2_TRACKING_THRESH) {
-        finalModelViewTransform = newModelViewTransform;
-        break;
-      }
-    }
-
-    if (finalModelViewTransform === null) return null;
-    this.lastModelViewTransform = finalModelViewTransform;
-    return finalModelViewTransform;
+    return selectedFeatures;
   }
 
   _computeSearchPoints(featurePoints, modelViewProjectionTransform) {
@@ -127,7 +106,7 @@ class Tracker {
         return Math.floor(u[2] + 0.5); // y
       }, {
         pipeline: true,
-        output: [2, this.featurePoints.dimensions[1]]
+        output: [2, featurePoints.dimensions[1]]
       });
       this.kernels.push(k);
     }
@@ -173,7 +152,7 @@ class Tracker {
       }, {
         constants: {templateOneSize},
         pipeline: true,
-        output: [templateSize, templateSize, this.featurePoints.dimensions[1]]
+        output: [templateSize, templateSize, featurePoints.dimensions[1]]
       });
       this.kernels.push(k);
     }
@@ -182,7 +161,7 @@ class Tracker {
     return result;
   }
 
-  _computeSimilarity(targetImage, searchPoints, tem) {
+  _computeSimilarity(featurePoints, targetImage, searchPoints, tem) {
     const templateOneSize = AR2_DEFAULT_TS;
     const templateSize = templateOneSize * 2 + 1;
     const searchOneSize = AR2_SEARCH_SIZE;
@@ -249,7 +228,7 @@ class Tracker {
           targetHeight: this.height
         },
         pipeline: true,
-        output: [searchSize * searchSize, this.featurePoints.dimensions[1]],
+        output: [searchSize * searchSize, featurePoints.dimensions[1]],
       });
       this.kernels.push(k);
     }
@@ -258,7 +237,7 @@ class Tracker {
     return result;
   }
 
-  _pickBest(searchPoints, similarities) {
+  _pickBest(featurePoints, searchPoints, similarities) {
     const searchOneSize = AR2_SEARCH_SIZE;
     const searchSize = searchOneSize * 2 + 1;
 
@@ -286,7 +265,7 @@ class Tracker {
           searchSize,
         },
         pipeline: true,
-        output: [3, this.featurePoints.dimensions[1]], // [x, y, coVar]
+        output: [3, featurePoints.dimensions[1]], // [x, y, coVar]
       });
 
       this.kernels.push(k);
@@ -370,57 +349,6 @@ class Tracker {
     return {imagePixels: imagePixels, imageProperties: properties};
   }
 }
-
-const _computeUpdatedTran = ({modelViewTransform, projectionTransform, selectedFeatures, inlierProb}) => {
-  let dx = 0;
-  let dy = 0;
-  let dz = 0;
-  for (let i = 0; i < selectedFeatures.length; i++) {
-    dx += selectedFeatures[i].pos3D.x;
-    dy += selectedFeatures[i].pos3D.y;
-    dz += selectedFeatures[i].pos3D.z;
-  }
-  dx /= selectedFeatures.length;
-  dy /= selectedFeatures.length;
-  dz /= selectedFeatures.length;
-
-  const worldCoords = [];
-  const screenCoords = [];
-  for (let i = 0; i < selectedFeatures.length; i++) {
-    screenCoords.push({x: selectedFeatures[i].pos2D.x, y: selectedFeatures[i].pos2D.y});
-    worldCoords.push({x: selectedFeatures[i].pos3D.x - dx, y: selectedFeatures[i].pos3D.y - dy, z: selectedFeatures[i].pos3D.z - dz});
-  }
-
-  const diffModelViewTransform = [[],[],[]];
-  for (let j = 0; j < 3; j++) {
-    for (let i = 0; i < 3; i++) {
-      diffModelViewTransform[j][i] = modelViewTransform[j][i];
-    }
-  }
-  diffModelViewTransform[0][3] = modelViewTransform[0][0] * dx + modelViewTransform[0][1] * dy + modelViewTransform[0][2] * dz + modelViewTransform[0][3];
-  diffModelViewTransform[1][3] = modelViewTransform[1][0] * dx + modelViewTransform[1][1] * dy + modelViewTransform[1][2] * dz + modelViewTransform[1][3];
-  diffModelViewTransform[2][3] = modelViewTransform[2][0] * dx + modelViewTransform[2][1] * dy + modelViewTransform[2][2] * dz + modelViewTransform[2][3];
-
-  let ret;
-  if (inlierProb < 1) {
-     ret = refineHomography({initialModelViewTransform: diffModelViewTransform, projectionTransform, worldCoords, screenCoords, isRobustMode: true, inlierProb});
-  } else {
-     ret = refineHomography({initialModelViewTransform: diffModelViewTransform, projectionTransform, worldCoords, screenCoords, isRobustMode: false});
-  }
-
-  const newModelViewTransform = [[],[],[]];
-  for (let j = 0; j < 3; j++) {
-    for (let i = 0; i < 3; i++) {
-      newModelViewTransform[j][i] = ret.modelViewTransform[j][i];
-    }
-  }
-  newModelViewTransform[0][3] = ret.modelViewTransform[0][3] - ret.modelViewTransform[0][0] * dx - ret.modelViewTransform[0][1] * dy - ret.modelViewTransform[0][2] * dz;
-  newModelViewTransform[1][3] = ret.modelViewTransform[1][3] - ret.modelViewTransform[1][0] * dx - ret.modelViewTransform[1][1] * dy - ret.modelViewTransform[1][2] * dz;
-  newModelViewTransform[2][3] = ret.modelViewTransform[2][3] - ret.modelViewTransform[2][0] * dx - ret.modelViewTransform[2][1] * dy - ret.modelViewTransform[2][2] * dz;
-
-
-  return {err: ret.err, newModelViewTransform};
-};
 
 module.exports = {
   Tracker

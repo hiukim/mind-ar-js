@@ -1,3 +1,4 @@
+const Worker = require("./controller.worker.js");
 const {Tracker} = require('./image-target/trackingGPU/tracker2.js');
 const {Detector} = require('./image-target/detectorGPU/detector.js');
 const {Matcher} = require('./image-target/matching/matcher.js');
@@ -9,7 +10,7 @@ const INTERPOLATION_FACTOR = 10;
 const MISS_COUNT_TOLERANCE = 10;
 
 class Controller {
-  constructor(inputWidth, inputHeight) {
+  constructor(inputWidth, inputHeight, onUpdate) {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.detector = new Detector(this.inputWidth, this.inputHeight);
@@ -17,6 +18,7 @@ class Controller {
     this.trackingIndex = -1;
     this.trackingMatrix = null;
     this.trackingMissCount = 0;
+    this.onUpdate = onUpdate;
 
     const near = 10;
     const far = 10000;
@@ -38,6 +40,19 @@ class Controller {
       near: near,
       far: far,
     });
+
+    this.worker = new Worker();
+
+    this.workerMatchDone = null;
+    this.workerTrackDone = null;
+    this.worker.onmessage = (e) => {
+      if (e.data.type === 'matchDone' && this.workerMatchDone !== null) {
+        this.workerMatchDone(e.data);
+      }
+      if (e.data.type === 'trackDone' && this.workerTrackDone !== null) {
+        this.workerTrackDone(e.data);
+      }
+    }
   }
 
   getProjectionMatrix() {
@@ -51,35 +66,108 @@ class Controller {
       const buffer = await content.arrayBuffer();
       const dataList = compiler.importData(buffer);
 
+      const trackingDataList = [];
+      const matchingDataList = [];
+      const imageListList = [];
+      const dimensions = [];
       for (let i = 0; i < dataList.length; i++) {
-        this.imageTargets.push({
-          targetImage: dataList[i].targetImage,
-          matcher: new Matcher(dataList[i].matchingData),
-          tracker: new Tracker(dataList[i].trackingData, dataList[i].imageList, this.projectionTransform),
-        });
-        this.imageTargets[i].tracker.setupQuery(this.inputWidth, this.inputHeight);
+        matchingDataList.push(dataList[i].matchingData);
+        trackingDataList.push(dataList[i].trackingData);
+        imageListList.push(dataList[i].imageList);
+        dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
       }
-      resolve(true);
+      this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
+
+      this.worker.postMessage({
+        type: 'setup',
+        inputWidth: this.inputWidth,
+        inputHeight: this.inputHeight,
+        projectionTransform: this.projectionTransform,
+        matchingDataList,
+      });
+
+      resolve({dimensions: dimensions});
     });
   }
 
   // warm up gpu - build kernels is slow
   dummyRun(input) {
     this.detector.detect(input);
-    for (let i = 0; i < this.imageTargets.length; i++) {
-      this.imageTargets[i].tracker.detected([[0,0,0,0], [0,0,0,0], [0,0,0,0]]);
-      this.imageTargets[i].tracker.track(input);
-    }
+    this.tracker.track(input, [[0,0,0,0], [0,0,0,0], [0,0,0,0]], 0);
   }
 
-  getImageTargetDimensions() {
-    const dimensions = [];
-    for (let i = 0; i < this.imageTargets.length; i++) {
-      const targetImage = this.imageTargets[i].targetImage;
-      dimensions.push([targetImage.width, targetImage.height]);
-    }
-    return dimensions;
+  processVideo(input) {
+    let featurePoints = null;
+    let selectedFeatures = null;
+
+    let processing = false;
+    setInterval(() => {
+      if (!processing) {
+        processing = true;
+
+        if (this.trackingIndex === -1) {
+          featurePoints = this.detector.detect(input);
+        } else {
+          selectedFeatures = this.tracker.track(input, this.lastModelViewTransform, this.trackingIndex);
+        }
+        this.onUpdate({type: 'processDone'});
+        processing = false;
+      }
+    }, 10);
+
+    let workerRunning = false;
+    setInterval(async () => {
+      if (!workerRunning) {
+        workerRunning = true;
+
+        if (this.trackingIndex === -1) {
+          if (featurePoints !== null) {
+            const {targetIndex, modelViewTransform} = await this.match(featurePoints);
+            if (targetIndex !== -1) {
+              this.trackingIndex = targetIndex;
+              this.lastModelViewTransform = modelViewTransform;
+            }
+          }
+        } else {
+          let modelViewTransform = null;
+          if (selectedFeatures !== null) {
+            modelViewTransform = await this.track(this.lastModelViewTransform, selectedFeatures);
+          }
+          this.lastModelViewTransform = modelViewTransform;
+
+          const worldMatrix = modelViewTransform === null? null: _glModelViewMatrix(modelViewTransform);
+          this.trackingMatrix = worldMatrix;
+          if (worldMatrix === null) {
+            this.trackingIndex = -1;
+          }
+          this.onUpdate({type: 'updateMatrix', targetIndex: this.trackingIndex, worldMatrix: worldMatrix});
+        }
+
+        this.onUpdate({type: 'workerDone'});
+
+        workerRunning = false;
+      }
+    }, 10);
   }
+
+  match(featurePoints) {
+    return new Promise(async (resolve, reject) => {
+      this.worker.postMessage({type: 'match', featurePoints: featurePoints});
+      this.workerMatchDone = (data) => {
+        resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform});
+      }
+    });
+  }
+
+  track(modelViewTransform, selectedFeatures) {
+    return new Promise(async (resolve, reject) => {
+      this.worker.postMessage({type: 'track', modelViewTransform, selectedFeatures: selectedFeatures});
+      this.workerTrackDone = (data) => {
+        resolve(data.modelViewTransform);
+      }
+    });
+  }
+
 
   // input is either HTML video or HTML image
   process(input) {
@@ -91,6 +179,7 @@ class Controller {
         if (matchResult === null) continue;
 
         const {screenCoords, worldCoords, keyframeIndex} = matchResult;
+        this.worker.postMessage({type: 'estimate', featurePoints: featurePoints});
 
         const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
         if (initialModelViewTransform === null) continue;

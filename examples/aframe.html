@@ -18,6 +18,32 @@
           }
         });
       });
+
+      AFRAME.registerComponent('autoscale', {
+        schema: {type: 'number', default: 1},
+        init: function () {
+          this.scale();
+          this.el.addEventListener('object3dset', () => this.scale());
+        },
+        scale: function () {
+          const el = this.el;
+          const span = this.data;
+          const mesh = el.getObject3D('mesh');
+
+          if (!mesh) return;
+
+          // Compute bounds.
+          const bbox = new THREE.Box3().setFromObject(mesh);
+
+          // Normalize scale.
+          const scale = span / bbox.getSize().length();
+          mesh.scale.set(scale, scale, scale);
+
+          // Recenter.
+          const offset = bbox.getCenter().multiplyScalar(scale);
+          mesh.position.sub(offset);
+        }
+      });
     </script>
 
     <style>
@@ -58,7 +84,7 @@
         <button id="playButton">Play</button>
       </div>
 
-      <a-scene mindar="imageTargetSrc: ../tests/card2.mind; showStats: true" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      <a-scene mindar="imageTargetSrc: ./tests/card2.mind; showStats: true" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
           <img id="card" src="./assets/card1.png" />
           <a-asset-item id="avatarModel" src="./assets/softmind/scene.gltf"></a-asset-item>

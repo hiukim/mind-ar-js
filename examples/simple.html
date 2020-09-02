@@ -16,7 +16,9 @@
         const inputWidth = 640;
         const inputHeight = 480;
 
-        const controller = new MINDAR.Controller(inputWidth, inputHeight);
+        const controller = new MINDAR.Controller(inputWidth, inputHeight, (data) => {
+          console.log('controller on update', data);
+        });
         const proj = controller.getProjectionMatrix();
         console.log("projection matrix", proj);
 

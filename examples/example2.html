@@ -1,0 +1,74 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
+    <script src="../dist/mindar.js"></script>
+
+    <script>
+      $(document).ready(function() {
+        let started = false;
+        $("#playButton").click(() => {
+          const sceneEl = document.querySelector('a-scene');
+          const arSystem = sceneEl.systems['mindar-system'];
+          if (!started) {
+            arSystem.start();
+            started = true;
+          } else {
+            arSystem.stop();
+          }
+        });
+      });
+    </script>
+
+    <style>
+      body {
+        margin: 0;
+      }
+      .example-container {
+        overflow: hidden;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+      .example-container .mindar-loading-overlay {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        background: white;
+        opacity: 0.5;
+        z-index: 2;
+      }
+      .example-container .mindar-loading-overlay .content {
+        font-size: 30px;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="example-container">
+      <div class="mindar-loading-overlay">
+        <div class="content">Loading...</div>
+        <button id="playButton">Play</button>
+      </div>
+
+      <a-scene mindar="imageTargetSrc: ./assets/band-example/band.mind; showStats: true" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        <a-assets>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0">
+          <a-cylinder position="0.5 0.5 0" rotation="0 0 0" radius="0.1" height="1" color="#FFC65D"></a-cylinder>
+        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 1">
+          <a-cylinder position="0.5 0.5 0" rotation="0 0 0" radius="0.1" height="1" color="#00C65D"></a-cylinder>
+        </a-entity>
+      </a-scene>
+    </div>
+  </body>
+</html>

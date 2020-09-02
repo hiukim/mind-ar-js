@@ -1,5 +1,5 @@
 const {extract} = require('./image-target/tracking/extractor.js');
-const {Detector} = require('./image-target/detectorGPU/detector.js'); // gpu startup is very slow
+const {Detector} = require('./image-target/detectorGPU/detector.js');
 //const {Detector} = require('./image-target/detectorCPU/detector.js');
 const {build: hierarchicalClusteringBuild} = require('./image-target/matching/hierarchical-clustering.js');
 const {buildImageList} = require('./image-target/image-list.js');
@@ -10,10 +10,11 @@ onmessage = (msg) => {
     const {targetImages} = data;
     const list = [];
     for (let i = 0; i < targetImages.length; i++) {
-      console.log("compiling...", i);
       const targetImage = targetImages[i];
       const imageList = buildImageList(targetImage);
+      console.log("compiling tracking...", i);
       const trackingData = _extractTrackingFeatures(imageList);
+      console.log("compiling matching...", i);
       const matchingData = _extractMatchingFeatures(imageList);
       list.push({
         targetImage,
@@ -35,26 +36,6 @@ const _extractMatchingFeatures = (imageList) => {
     const image = imageList[i];
     const detector = new Detector(image.width, image.height);
     const ps = detector.detectImageData(image.data);
-
-    /*
-    const keypoints = [];
-    const dpi = 1.0;
-    for (let i = 0; i < ps.length; i++) {
-      keypoints.push({
-        x2D: ps[i].x,
-        y2D: ps[i].y,
-        x3D: (ps[i].x + 0.5) / image.dpi,
-        y3D: ((image.height-0.5) - ps[i].y) / image.dpi,
-        angle: ps[i].angle,
-        scale: ps[i].sigma,
-        maxima: ps[i].score > 0,
-        descriptors: ps[i].descriptors
-      })
-    }
-    const pointsCluster = hierarchicalClusteringBuild({points: keypoints});
-    keyframes.push({points: keypoints, pointsCluster, width: image.width, height: image.height, scale: image.dpi});
-    */
-
     const pointsCluster = hierarchicalClusteringBuild({points: ps});
     keyframes.push({points: ps, pointsCluster, width: image.width, height: image.height, scale: image.dpi});
   }
