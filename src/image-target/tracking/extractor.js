@@ -22,7 +22,7 @@ const OCCUPANCY_SIZE = 24 * 2 / 3;
  * @param {int} options.height image height
  */
 const extract = (image) => {
-  const {data: imageData, width, height, dpi} = image;
+  const {data: imageData, width, height, scale} = image;
 
   // Step 1 - filter out interesting points. Interesting points have strong pixel value changed across neighbours
   const isPixelSelected = [width * height];
@@ -163,7 +163,7 @@ const extract = (image) => {
 
 const _selectFeature = (options) => {
   let {image, featureMap, templateSize, searchSize, occSize, maxSimThresh, minSimThresh, sdThresh, imageDataCumsum, imageDataSqrCumsum} = options;
-  const {data: imageData, width, height, dpi} = image;
+  const {data: imageData, width, height, scale} = image;
 
   //console.log("params: ", templateSize, templateSize, occSize, maxSimThresh, minSimThresh, sdThresh);
 
@@ -238,13 +238,8 @@ const _selectFeature = (options) => {
     }
 
     coords.push({
-      //x: cx,
-      //y: cy,
-      //mx: 1.0 * cx / dpi * 25.4,
-      //my: 1.0 * (height - cy) / dpi * 25.4,
-      mx: 1.0 * cx / dpi,
-      my: 1.0 * (height - cy) / dpi,
-      //maxSim: minSim,
+      mx: 1.0 * cx / scale,
+      my: 1.0 * (height - cy) / scale,
     })
 
     num += 1;

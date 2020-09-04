@@ -25,7 +25,7 @@
           const coords = data.trackingData[i].coords;
           const points = [];
           for (let j = 0; j < coords.length; j++) {
-            points.push({x: coords[j].mx * image.dpi, y: image.height - coords[j].my * image.dpi});
+            points.push({x: coords[j].mx * image.scale, y: image.height - coords[j].my * image.scale});
           }
           showImage(image, points);
         }
@@ -142,6 +142,15 @@
     </style>
   </head>
   <body>
+    <div>
+      <p>Usage:</p>
+      <ol>
+        <li>drop target images (e.g. .png) into the drop zone. (can drop multiple)</li>
+        <li>click "Start". It could take a while (especially for large image)</li>
+        <li>When done, some debug images will shown, and you can visualize the feature points.</li>
+        <li>click "download" to get a targets.mind file, which is used in the AR webpage</li>
+      </ol>
+    </div>
     <button id="startButton">Start</button>
     <button id="downloadButton">Download</button>
     <div id="dropzone" class="dropzone"></div>

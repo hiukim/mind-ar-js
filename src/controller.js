@@ -1,5 +1,5 @@
 const Worker = require("./controller.worker.js");
-const {Tracker} = require('./image-target/trackingGPU/tracker2.js');
+const {Tracker} = require('./image-target/trackingGPU/tracker.js');
 const {Detector} = require('./image-target/detectorGPU/detector.js');
 const {Matcher} = require('./image-target/matching/matcher.js');
 const {estimateHomography} = require('./image-target/icp/estimate_homography.js');
@@ -220,19 +220,19 @@ class Controller {
 
   workerMatch(featurePoints, skipTargetIndexes) {
     return new Promise(async (resolve, reject) => {
-      this.worker.postMessage({type: 'match', featurePoints: featurePoints, skipTargetIndexes});
       this.workerMatchDone = (data) => {
         resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform});
       }
+      this.worker.postMessage({type: 'match', featurePoints: featurePoints, skipTargetIndexes});
     });
   }
 
   workerTrack(modelViewTransform, selectedFeatures) {
     return new Promise(async (resolve, reject) => {
-      this.worker.postMessage({type: 'track', modelViewTransform, selectedFeatures: selectedFeatures});
       this.workerTrackDone = (data) => {
         resolve(data.modelViewTransform);
       }
+      this.worker.postMessage({type: 'track', modelViewTransform, selectedFeatures: selectedFeatures});
     });
   }
 

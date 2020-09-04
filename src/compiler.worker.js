@@ -6,6 +6,7 @@ const {buildImageList} = require('./image-target/image-list.js');
 onmessage = (msg) => {
   const {data} = msg;
   if (data.type === 'compile') {
+    console.log("worker compile...");
     const {targetImages} = data;
     const list = [];
     for (let i = 0; i < targetImages.length; i++) {
@@ -33,10 +34,11 @@ const _extractMatchingFeatures = (imageList) => {
   const keyframes = [];
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
+    // TODO: can improve performance greatly if reuse the same detector. just need to handle resizing the kernel outputs
     const detector = new Detector(image.width, image.height);
     const ps = detector.detectImageData(image.data);
     const pointsCluster = hierarchicalClusteringBuild({points: ps});
-    keyframes.push({points: ps, pointsCluster, width: image.width, height: image.height, scale: image.dpi});
+    keyframes.push({points: ps, pointsCluster, width: image.width, height: image.height, scale: image.scale});
   }
   return keyframes;
 }
@@ -49,8 +51,6 @@ const _extractTrackingFeatures = (imageList) => {
 
     const featureSet = {};
     featureSet.scale = i;
-    featureSet.mindpi = (i === imageList.length-1)? imageList[i].dpi * 0.5: imageList[i+1].dpi;
-    featureSet.maxdpi = (i === 0)? imageList[i].dpi * 2: (imageList[i].dpi * 0.8 + imageList[i-1].dpi * 0.2);
     featureSet.coords = [];
     for (let j = 0; j < coords.length; j++) {
       featureSet.coords.push({
