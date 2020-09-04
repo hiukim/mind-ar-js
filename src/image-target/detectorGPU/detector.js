@@ -142,7 +142,9 @@ class Detector {
     if (this.inputKernel === null) {
       this.inputKernel = this.gpu.createKernel(function(inputFrame) {
         const pixel = inputFrame[this.constants.height-1-Math.floor(this.thread.x / this.constants.width)][this.thread.x % this.constants.width];
-        return (pixel[0] + pixel[1] + pixel[2]) * 255 / 3;
+        //return (pixel[0] + pixel[1] + pixel[2]) * 255 / 3;
+        // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color/596241#596241
+        return 255 * (0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]);
       }, {
         constants: {width: this.width, height: this.height},
         output: [this.width * this.height],

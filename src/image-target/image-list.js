@@ -1,6 +1,5 @@
 const {resize} = require("./utils/images.js");
 
-//const DEFAULT_DPI = 72;
 const DEFAULT_DPI = 1;
 const MIN_IMAGE_PIXEL_SIZE = 28;
 
@@ -29,8 +28,6 @@ const buildImageList = (inputImage) => {
     const h = inputImage.height * dpiList[i] / dpi;
     imageList.push(Object.assign(resize({image: inputImage, ratio: dpiList[i]/dpi}), {dpi: dpiList[i]}));
   }
-
-  //return [imageList[0]];
 
   return imageList;
 }

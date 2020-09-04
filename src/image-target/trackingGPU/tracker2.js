@@ -1,4 +1,3 @@
-const {refineHomography} = require('../icp/refine_homography.js');
 const {buildModelViewProjectionTransform} = require('../icp/utils.js');
 const {GPU} = require('gpu.js');
 
@@ -20,6 +19,8 @@ class Tracker {
     this.imagePixelsList = [];
     this.imagePropertiesList = [];
 
+    let maxFeaturePointsCount = 0;
+
     for (let i = 0; i < trackingDataList.length; i++) {
       const featureSets = trackingDataList[i];
       const imageList = imageListList[i];
@@ -32,11 +33,16 @@ class Tracker {
         }
       }
       this.allFeaturePointsList[i] = points;
-      this.featurePointsList[i] = this._buildFeaturePoints(points);
+
+      maxFeaturePointsCount = Math.max(maxFeaturePointsCount, points.length);
 
       const {imagePixels, imageProperties} = this._combineImageList(imageList);
       this.imagePixelsList[i] = imagePixels;
       this.imagePropertiesList[i] = imageProperties; // [ [width, height, dpi] ]
+    }
+
+    for (let i = 0; i < trackingDataList.length; i++) {
+      this.featurePointsList[i] = this._buildFeaturePoints(this.allFeaturePointsList[i], maxFeaturePointsCount);
     }
 
     this.videoKernel = null;
@@ -60,9 +66,7 @@ class Tracker {
 
     const targetImage = this.videoKernel(video);
 
-    this.lastModelViewTransform = lastModelViewTransform;
-
-    const modelViewProjectionTransform = buildModelViewProjectionTransform(this.projectionTransform, this.lastModelViewTransform);
+    const modelViewProjectionTransform = buildModelViewProjectionTransform(this.projectionTransform, lastModelViewTransform);
 
     const featurePoints = this.featurePointsList[targetIndex];
     const imagePixels = this.imagePixelsList[targetIndex];
@@ -88,9 +92,6 @@ class Tracker {
           sim: bestArr[i][2]
         });
       }
-    }
-    if (selectedFeatures.length < 4) {
-      return null;
     }
     return selectedFeatures;
   }
@@ -276,14 +277,15 @@ class Tracker {
   }
 
   // first dimension: [x, y, keyframeIndex]
-  _buildFeaturePoints(featurePoints) {
-    const kernel = this.gpu.createKernel(function(data) {
+  _buildFeaturePoints(featurePoints, maxFeaturePointsCount) {
+    const kernel = this.gpu.createKernel(function(data, length) {
+      if (this.thread.y >= length) return -1;
       return data[this.thread.y][this.thread.x];
     }, {
       pipeline: true,
-      output: [3, featurePoints.length]
+      output: [3, maxFeaturePointsCount] // make all target has same number of feature points, so to share the same kernel
     });
-    const result = kernel(featurePoints);
+    const result = kernel(featurePoints, featurePoints.length);
     return result;
   }
 

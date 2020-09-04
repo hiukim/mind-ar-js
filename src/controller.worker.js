@@ -19,10 +19,14 @@ onmessage = (msg) => {
   }
 
   else if (data.type === 'match') {
+    const skipTargetIndexes = data.skipTargetIndexes;
+
     let matchedTargetIndex = -1;
     let matchedModelViewTransform = null;
 
     for (let i = 0; i < matchingDataList.length; i++) {
+      if (skipTargetIndexes.includes(i)) continue;
+
       const matchResult = matcher.matchDetection(matchingDataList[i], data.featurePoints);
       if (matchResult === null) continue;
 

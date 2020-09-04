@@ -22,16 +22,13 @@
         const proj = controller.getProjectionMatrix();
         console.log("projection matrix", proj);
 
-        await controller.addImageTargets('../tests/card7cpu.mind');
+        //await controller.addImageTargets('../tests/card7cpu.mind');
+        await controller.addImageTargets('./assets/card-example/card.mind');
 
-        const queryImage = await loadImage('../tests/card7_2.png');
-
-        for (let i = 0; i < 2; i++) {
-          const result = await controller.process(queryImage);
-          for (let i = 0; i < result.length; i++) {
-            console.log("world matrix", JSON.stringify(result[i]));
-          }
-        }
+        //const queryImage = await loadImage('../tests/card7_2.png');
+        const queryImage = await loadImage('./assets/card-example/card.png');
+        
+        const result = await controller.processImage(queryImage);
       }
       process();
     </script>

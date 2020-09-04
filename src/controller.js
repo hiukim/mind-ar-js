@@ -20,6 +20,9 @@ class Controller {
     this.trackingMissCount = 0;
     this.onUpdate = onUpdate;
 
+    this.maxTrack = 1; // technically can tracking multiple. but too slow in practice
+    this.imageTargetStates = [];
+
     const near = 10;
     const far = 10000;
     const fovy = 45.0 * Math.PI / 180; // 45 in radian. field of view vertical
@@ -75,6 +78,8 @@ class Controller {
         trackingDataList.push(dataList[i].trackingData);
         imageListList.push(dataList[i].imageList);
         dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
+
+        this.imageTargetStates[i] = {isTracking: false};
       }
       this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
 
@@ -96,20 +101,46 @@ class Controller {
     this.tracker.track(input, [[0,0,0,0], [0,0,0,0], [0,0,0,0]], 0);
   }
 
+  /**
+   * continue process the video
+   * There currently two separate threads:
+   *
+   * 1. main thread
+   *   this thread mainly call the gpu and do the first part of the computation
+   * 2. worker thread
+   *   this thread run in CPU and use the computation from the first part
+   *
+   * Other than two separate threads, there are also two, somehow, indepedent jobs
+   *
+   * 1. detection and match (slow)
+   *   This extract FREAK features and try to find a match among the targets
+   * 2. track (fast)
+   *   Once a target is initialized matched, we can try to keep track of it
+   *
+   */
   processVideo(input) {
     let featurePoints = null;
-    let selectedFeatures = null;
+    let trackingFeatures = [];
+    for (let i = 0; i < this.imageTargetStates.length; i++) {
+      trackingFeatures[i] = null;
+    }
 
     let processing = false;
     setInterval(() => {
       if (!processing) {
         processing = true;
 
-        if (this.trackingIndex === -1) {
-          featurePoints = this.detector.detect(input);
-        } else {
-          selectedFeatures = this.tracker.track(input, this.lastModelViewTransform, this.trackingIndex);
+        let trackingCount = 0;
+        for (let i = 0; i < this.imageTargetStates.length; i++) {
+          if (this.imageTargetStates[i].isTracking) {
+            trackingFeatures[i] = this.tracker.track(input, this.imageTargetStates[i].lastModelViewTransform, i);
+            trackingCount += 1;
+          }
         }
+        if (trackingCount < this.maxTrack) { // only run detector when matching is required
+          featurePoints = this.detector.detect(input);
+        }
+
         this.onUpdate({type: 'processDone'});
         processing = false;
       }
@@ -120,27 +151,64 @@ class Controller {
       if (!workerRunning) {
         workerRunning = true;
 
-        if (this.trackingIndex === -1) {
-          if (featurePoints !== null) {
-            const {targetIndex, modelViewTransform} = await this.match(featurePoints);
-            if (targetIndex !== -1) {
-              this.trackingIndex = targetIndex;
-              this.lastModelViewTransform = modelViewTransform;
+        let trackingCount = 0;
+        for (let i = 0; i < this.imageTargetStates.length; i++) {
+          if (this.imageTargetStates[i].isTracking) {
+            trackingCount += 1;
+          }
+        }
+
+        if (trackingCount < this.maxTrack && featurePoints !== null) {
+          const skipTargetIndexes = [];
+          for (let i = 0; i < this.imageTargetStates.length; i++) {
+            if (this.imageTargetStates[i].isTracking) {
+              skipTargetIndexes.push(i);
             }
           }
-        } else {
-          let modelViewTransform = null;
-          if (selectedFeatures !== null) {
-            modelViewTransform = await this.track(this.lastModelViewTransform, selectedFeatures);
-          }
-          this.lastModelViewTransform = modelViewTransform;
 
-          const worldMatrix = modelViewTransform === null? null: _glModelViewMatrix(modelViewTransform);
-          this.trackingMatrix = worldMatrix;
-          if (worldMatrix === null) {
-            this.trackingIndex = -1;
+          const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, skipTargetIndexes);
+          if (targetIndex !== -1) {
+            this.imageTargetStates[targetIndex].isTracking = true;
+            this.imageTargetStates[targetIndex].missCount = 0;
+            this.imageTargetStates[targetIndex].lastModelViewTransform = modelViewTransform;
+            this.imageTargetStates[targetIndex].trackingMatrix = null;
           }
-          this.onUpdate({type: 'updateMatrix', targetIndex: this.trackingIndex, worldMatrix: worldMatrix});
+        }
+
+        for (let i = 0; i < this.imageTargetStates.length; i++) {
+          if (this.imageTargetStates[i].isTracking && trackingFeatures[i] !== null) {
+            let modelViewTransform = null;
+            if (trackingFeatures[i].length >= 4) {
+              modelViewTransform = await this.workerTrack(this.imageTargetStates[i].lastModelViewTransform, trackingFeatures[i]);
+            }
+
+            if (modelViewTransform === null) {
+              this.imageTargetStates[i].missCount += 1;
+              if (this.imageTargetStates[i].missCount > MISS_COUNT_TOLERANCE) {
+                this.imageTargetStates[i].isTracking = false;
+                trackingFeatures[i] = null;
+                this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
+              }
+            } else {
+              this.imageTargetStates[i].lastModelViewTransform = modelViewTransform;
+
+              const worldMatrix = _glModelViewMatrix(modelViewTransform);
+
+              if (this.imageTargetStates[i].trackingMatrix === null) {
+                this.imageTargetStates[i].trackingMatrix = worldMatrix;
+              } else {
+                for (let j = 0; j < worldMatrix.length; j++) {
+                  this.imageTargetStates[i].trackingMatrix[j] = this.imageTargetStates[i].trackingMatrix[j] + (worldMatrix[j] - this.imageTargetStates[i].trackingMatrix[j]) / INTERPOLATION_FACTOR;
+                }
+              }
+
+              const clone = [];
+              for (let j = 0; j < worldMatrix.length; j++) {
+                clone[j] = this.imageTargetStates[i].trackingMatrix[j];
+              }
+              this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
+            }
+          }
         }
 
         this.onUpdate({type: 'workerDone'});
@@ -150,16 +218,16 @@ class Controller {
     }, 10);
   }
 
-  match(featurePoints) {
+  workerMatch(featurePoints, skipTargetIndexes) {
     return new Promise(async (resolve, reject) => {
-      this.worker.postMessage({type: 'match', featurePoints: featurePoints});
+      this.worker.postMessage({type: 'match', featurePoints: featurePoints, skipTargetIndexes});
       this.workerMatchDone = (data) => {
         resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform});
       }
     });
   }
 
-  track(modelViewTransform, selectedFeatures) {
+  workerTrack(modelViewTransform, selectedFeatures) {
     return new Promise(async (resolve, reject) => {
       this.worker.postMessage({type: 'track', modelViewTransform, selectedFeatures: selectedFeatures});
       this.workerTrackDone = (data) => {
@@ -168,63 +236,22 @@ class Controller {
     });
   }
 
+  // html image. this function is mostly for debugging purpose
+  // but it demonstrates the whole process. good for development
+  async processImage(input) {
+    let featurePoints = this.detector.detect(input);
+    console.log("featurePoints", featurePoints);
+    const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
+    console.log("match", targetIndex, modelViewTransform);
+    if (targetIndex === -1) return;
 
-  // input is either HTML video or HTML image
-  process(input) {
-    if (this.trackingIndex === -1) {
-      let featurePoints = this.detector.detect(input);
-      for (let i = 0; i < this.imageTargets.length; i++) {
-        const imageTarget = this.imageTargets[i];
-        const matchResult = imageTarget.matcher.matchDetection(this.inputWidth, this.inputHeight, featurePoints);
-        if (matchResult === null) continue;
+    const trackFeatures = this.tracker.track(input, modelViewTransform, targetIndex);
+    const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
+    console.log("track", modelViewTransform2);
 
-        const {screenCoords, worldCoords, keyframeIndex} = matchResult;
-        this.worker.postMessage({type: 'estimate', featurePoints: featurePoints});
-
-        const initialModelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
-        if (initialModelViewTransform === null) continue;
-
-        imageTarget.tracker.detected(initialModelViewTransform, keyframeIndex);
-
-        this.trackingIndex = i;
-        this.trackingMissCount = 0;
-        this.trackingMatrix = _glModelViewMatrix(initialModelViewTransform);
-        break;
-      }
-    }
-
-    if (this.trackingIndex !== -1) {
-      const imageTarget = this.imageTargets[this.trackingIndex];
-      const modelViewTransform = imageTarget.tracker.track(input);
-      const worldMatrix = modelViewTransform === null? null: _glModelViewMatrix(modelViewTransform);
-
-      if (worldMatrix === null) {
-        this.trackingMissCount += 1;
-        if (this.trackingMissCount > MISS_COUNT_TOLERANCE) {
-          this.trackingIndex = -1;
-          this.trackingMatrix = null;
-        }
-      } else {
-        // interpolate matrix
-        for (let i = 0; i < this.trackingMatrix.length; i++) {
-          this.trackingMatrix[i] = this.trackingMatrix[i] + (worldMatrix[i] - this.trackingMatrix[i]) / INTERPOLATION_FACTOR;
-        }
-      }
-    }
-
-    const result = [];
-    for (let i = 0; i < this.imageTargets.length; i++) {
-      if (this.trackingIndex === i) {
-        const finalWorldMatrix = [];
-        for (let i = 0; i < this.trackingMatrix.length; i++) {
-          finalWorldMatrix[i] = this.trackingMatrix[i];
-        }
-        result[i] = {worldMatrix: finalWorldMatrix};
-      } else {
-        result[i] = {worldMatrix: null};
-      }
-    }
-    return result;
+    if (modelViewTransform2 === null) return;
+    const worldMatrix = _glModelViewMatrix(modelViewTransform);
+    console.log("world matrix", worldMatrix);
   }
 }
 

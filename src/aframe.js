@@ -14,17 +14,6 @@ AFRAME.registerSystem('mindar-system', {
   },
 
   tick: function() {
-    return;
-
-    if (this.mainStats) this.mainStats.update();
-
-    if (this.processReady) {
-      if (!this.processingImage) {
-        if (this.workerStats) this.workerStats.update();
-        this.processingImage = true;
-        this._processImage();
-      }
-    }
   },
 
   setup: function({imageTargetSrc, showStats}) {
@@ -129,9 +118,9 @@ AFRAME.registerSystem('mindar-system', {
     const near = proj[14] / (proj[10] - 1.0);
     const far = proj[14] / (proj[10] + 1.0);
     const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
-    console.log("loaded proj: ", proj, ". fov: ", fov, ". near: ", near, ". far: ", far, ". ratio: ", ratio);
+    //console.log("loaded proj: ", proj, ". fov: ", fov, ". near: ", near, ". far: ", far, ". ratio: ", ratio);
     const newRatio = container.clientWidth / container.clientHeight;
-    console.log("newCam", fov, ratio, newRatio);
+    //console.log("newCam", fov, ratio, newRatio);
     const newCam = new AFRAME.THREE.PerspectiveCamera(fov, newRatio, near, far);
 
     const camera = container.getElementsByTagName("a-camera")[0];
@@ -157,19 +146,6 @@ AFRAME.registerSystem('mindar-system', {
     this.controller.processVideo(this.video);
     this.processReady = true;
   },
-
-  _processImage: async function() {
-    const result = await this.controller.process(this.video);
-
-    for (let i = 0; i < this.anchorEntities.length; i++) {
-      const {el, targetIndex} = this.anchorEntities[i];
-      if (targetIndex < result.length) {
-        el.updateWorldMatrix(result[targetIndex].worldMatrix);
-      }
-    }
-
-    this.processingImage = false;
-  }
 });
 
 AFRAME.registerComponent('mindar', {
@@ -177,15 +153,18 @@ AFRAME.registerComponent('mindar', {
 
   schema: {
     imageTargetSrc: {type: 'string'},
-    showStats: {type: 'boolean', default: false}
+    showStats: {type: 'boolean', default: false},
+    autoStart: {type: 'boolean', default: true}
   },
 
   init: function() {
     const arSystem = this.el.sceneEl.systems['mindar-system'];
     arSystem.setup({imageTargetSrc: this.data.imageTargetSrc, showStats: this.data.showStats});
-    this.el.sceneEl.addEventListener('renderstart', () => {
-      // arSystem.start();
-    });
+    if (this.data.autoStart) {
+      this.el.sceneEl.addEventListener('renderstart', () => {
+        arSystem.start();
+      });
+    }
   }
 });
 

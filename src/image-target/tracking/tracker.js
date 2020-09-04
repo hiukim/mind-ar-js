@@ -1,3 +1,4 @@
+// deprecated
 const {extract} = require('./extractor');
 const {track} = require('./tracking');
 const {createRandomizer} = require('../utils/randomizer.js');
