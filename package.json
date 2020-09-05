@@ -20,7 +20,7 @@
     "aframe": "^1.0.4",
     "aframe-extras": "^6.1.0",
     "gpu.js": "^2.9.4",
-    "image-js": "^0.21.9",
+    "image-js": "^0.28.0",
     "ml-matrix": "^6.5.0",
     "stats-js": "^1.0.1",
     "terser-webpack-plugin": "^4.1.0",
