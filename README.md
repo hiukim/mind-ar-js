@@ -4,13 +4,13 @@
 
 mind-ar-js is a lightweight library for web augmented reality. It features:
 
-1. Written in pure javascript, end-to-end from the underlying computer vision engine to frontend
+:star: Written in pure javascript, end-to-end from the underlying computer vision engine to frontend
 
-2. Utilize gpu (through webgl) and web worker for performance
+:star: Utilize gpu (through webgl) and web worker for performance
 
-3. Support natural feature tracking (i.e. image target), with multiple targets
+:star: Support natural feature tracking (i.e. image target), with multiple targets
 
-4. Developer friendly. Easy setup, and With AFRAME extension, get your app starts with only 10 lines of codes
+:star: Developer friendly. Easy setup, and With AFRAME extension, get your app starts with only 10 lines of codes
 
 # Demo
 <a href="https://youtu.be/hgVB9HpQpqY" target="_blank"><img src="https://hiukim.github.io/mind-ar-js/screenshots/card-demo.png" 
@@ -114,6 +114,10 @@ run `> npm run build`. A `mindar.prod.js` will be generated. That's the library.
 run `> npm run watch`. This is observe the file changes in `src` folder and continueously build a `mindar.js` inside the `dist` folder. The examples inside the `examples` folder is using this development build. You can open this examples in browser to start debug/development. 
 
 The examples should run in desktop browser and they are just html files, so it's easy to start development. However, because it requires camera access, so you need a webcam. Also, you need to run the html file with some localhost web server. Simply opening the files won't work.
+
+For example, you can install this chrome plugin to start a local server: `https://chrome.google.com/webstore/detail/web-server-for-chrome/ofhbbkphhbklhfoeikjpcbhemlocgigb?hl=en`
+
+If you want to test on mobile device, I would normally use `ngrok` (https://ngrok.com/) to tunnel the request. 
 
 #### examples explained
 1. `examples/example1.html` and `examples/example2.html` are basically the demo examples in the above section. They are using the wrapped aframe extension.
