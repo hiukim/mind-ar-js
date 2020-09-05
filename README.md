@@ -97,6 +97,40 @@ If you are graphics designer or 3D artists and can contribute to the visual, tha
 
 Whatever you can think of. It's an opensource web AR framework for everyone! 
 
+# Development Guide
+
+#### Directories explained
+
+1. `/src` folder contains majority of the source code
+2. `/dist` folder contains the built library
+3. `/examples` folder contains examples to test out the built library in dist
+
+#### To create a production build
+
+run `> npm run build`. A `mindar.prod.js` will be generated. That's the library. The production built is currently not minimized. There is some issue that required fixing.
+
+#### For development
+
+run `> npm run watch`. This is observe the file changes in `src` folder and continueously build a `mindar.js` inside the `dist` folder. The examples inside the `examples` folder is using this development build. You can open this examples in browser to start debug/development. 
+
+The examples should run in desktop browser and they are just html files, so it's easy to start development. However, because it requires camera access, so you need a webcam. Also, you need to run the html file with some localhost web server. Simply opening the files won't work.
+
+#### examples explained
+1. `examples/example1.html` and `examples/example2.html` are basically the demo examples in the above section. They are using the wrapped aframe extension.
+
+2. `examples/simple.html` is a simple test to run the underlying API. There is no visual, you need to open the console.log to see some messages.
+
+3. `examples/compile.html` is the page to compile target images
+
+#### src explained
+1. `src/image-target` contains all the AR algorithms. (There will be more details coming up regarding those algorithms)
+
+2. `src/controller.js` serves kind of a API for external applications that use the AR algorithms. It handles the control flow of the application.
+
+3. `src/aframe.js` is the AFRAME extension wrapper. It uses `controller.js`
+
+4. `src/compiler.js` is the API for compiling target image.
+
 # Credits
 The computer vision idea is borrowed from artoolkit (i.e. https://github.com/artoolkitx/artoolkit5). Unfortunately, the library doesn't seems to be maintained anymore.
 
