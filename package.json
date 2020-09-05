@@ -6,8 +6,11 @@
   "scripts": {
     "test": "node ./tests/index.js",
     "test-match": "node ./tests/matching.js",
-    "watch": "webpack --watch",
-    "build": "webpack"
+    "watch": "webpack --watch --config webpack.config.dev.cjs",
+    "build": "webpack --config webpack.config.prod.cjs"
+  },
+  "engines": {
+    "node": ">=12.0.0"
   },
   "type": "module",
   "author": "",
@@ -20,6 +23,7 @@
     "image-js": "^0.21.9",
     "ml-matrix": "^6.5.0",
     "stats-js": "^1.0.1",
+    "terser-webpack-plugin": "^4.1.0",
     "tinyqueue": "^2.0.3"
   },
   "devDependencies": {
