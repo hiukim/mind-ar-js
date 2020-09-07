@@ -19,7 +19,7 @@
     "@msgpack/msgpack": "^1.12.2",
     "aframe": "^1.0.4",
     "aframe-extras": "^6.1.0",
-    "gpu.js": "^2.9.4",
+    "gpu.js": "git://github.com/hiukim/gpu.js.git#fix-safari",
     "image-js": "^0.28.0",
     "ml-matrix": "^6.5.0",
     "stats-js": "^1.0.1",
