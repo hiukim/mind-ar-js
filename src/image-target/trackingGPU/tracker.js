@@ -8,7 +8,6 @@ const AR2_SIM_THRESH = 0.9;
 class Tracker {
   constructor(trackingDataList, imageListList, projectionTransform, inputWidth, inputHeight) {
     this.gpu = new GPU();
-    this._initializeGPU(this.gpu);
 
     this.projectionTransform = projectionTransform;
     this.width = inputWidth;
@@ -99,12 +98,25 @@ class Tracker {
   _computeSearchPoints(featurePoints, modelViewProjectionTransform) {
     if (this.kernelIndex === this.kernels.length) {
       const k = this.gpu.createKernel(function(featurePoints, modelViewProjectionTransform) {
-        const mx = featurePoints[this.thread.y][0];
-        const my = featurePoints[this.thread.y][1];
-        const u = computeScreenCoordiate(modelViewProjectionTransform, mx, my, 0);
+        const x = featurePoints[this.thread.y][0];
+        const y = featurePoints[this.thread.y][1];
 
-        if (this.thread.x === 0) return Math.floor(u[1] + 0.5); // x
-        return Math.floor(u[2] + 0.5); // y
+        // compute screen coordinate
+        const ux = modelViewProjectionTransform[0][0] * x + modelViewProjectionTransform[0][1] * y
+           + modelViewProjectionTransform[0][3];
+        const uy = modelViewProjectionTransform[1][0] * x + modelViewProjectionTransform[1][1] * y
+           + modelViewProjectionTransform[1][3];
+        const uz = modelViewProjectionTransform[2][0] * x + modelViewProjectionTransform[2][1] * y
+           + modelViewProjectionTransform[2][3];
+
+        if( Math.abs(uz) < 0.000001 ) return -1;
+
+        const u = [ux/uz, uy/uz];
+
+        if (this.thread.x === 0) {
+          return Math.floor(ux/uz + 0.5); // x
+        }
+        return Math.floor(uy/uz + 0.5); // y
       }, {
         pipeline: true,
         output: [2, featurePoints.dimensions[1]]
@@ -131,9 +143,18 @@ class Tracker {
         const sx2 = sx + (this.thread.x - templateOneSize);
         const sy2 = sy + (this.thread.y - templateOneSize);
 
-        const m = screenToMarkerCoordinate(modelViewProjectionTransform, sx2, sy2);
-        const mx2 = m[0];
-        const my2 = m[1];
+        // compute screenToMarker coordinate
+        const c11 = modelViewProjectionTransform[2][0] * sx2 - modelViewProjectionTransform[0][0];
+        const c12 = modelViewProjectionTransform[2][1] * sx2 - modelViewProjectionTransform[0][1];
+        const c21 = modelViewProjectionTransform[2][0] * sy2 - modelViewProjectionTransform[1][0];
+        const c22 = modelViewProjectionTransform[2][1] * sy2 - modelViewProjectionTransform[1][1];
+        const b1  = modelViewProjectionTransform[0][3] - modelViewProjectionTransform[2][3] * sx2;
+        const b2  = modelViewProjectionTransform[1][3] - modelViewProjectionTransform[2][3] * sy2;
+
+        const m = c11 * c22 - c12 * c21;
+
+        const mx2 = (c22 * b1 - c12 * b2) / m;
+        const my2 = (c11 * b2 - c21 * b1) / m;
 
         const imageWidth = imageProperties[level][0];
         const imageHeight = imageProperties[level][1];
@@ -189,8 +210,8 @@ class Tracker {
         let sumTemplateSquare = 0;
         let sumPointTemplate = 0;
         let templateValidCount = 0;
-        for (let j = 0; j < templateSize; j++) {
-          for (let i = 0; i < templateSize; i++) {
+        for (let j = 0; j < this.constants.templateSize; j++) {
+          for (let i = 0; i < this.constants.templateSize; i++) {
             if (tem[j][i] !== -1) {
               const py2 = py - templateOneSize + j;
               const px2 = px - templateOneSize + i;
@@ -287,35 +308,6 @@ class Tracker {
     });
     const result = kernel(featurePoints, featurePoints.length);
     return result;
-  }
-
-  _initializeGPU(gpu) {
-    gpu.addFunction(function computeScreenCoordiate(modelViewProjectionTransforms, x, y, z) {
-      const ux = modelViewProjectionTransforms[0][0] * x + modelViewProjectionTransforms[0][1] * y
-         + modelViewProjectionTransforms[0][2] * z + modelViewProjectionTransforms[0][3];
-      const uy = modelViewProjectionTransforms[1][0] * x + modelViewProjectionTransforms[1][1] * y
-         + modelViewProjectionTransforms[1][2] * z + modelViewProjectionTransforms[1][3];
-      const uz = modelViewProjectionTransforms[2][0] * x + modelViewProjectionTransforms[2][1] * y
-         + modelViewProjectionTransforms[2][2] * z + modelViewProjectionTransforms[2][3];
-      if( Math.abs(uz) < 0.000001 ) return [0, 0, 0];
-      // first number indicates has valid result
-      return [1, ux/uz, uy/uz];
-    });
-
-    gpu.addFunction(function screenToMarkerCoordinate(modelViewProjectionTransform, sx, sy) {
-      const c11 = modelViewProjectionTransform[2][0] * sx - modelViewProjectionTransform[0][0];
-      const c12 = modelViewProjectionTransform[2][1] * sx - modelViewProjectionTransform[0][1];
-      const c21 = modelViewProjectionTransform[2][0] * sy - modelViewProjectionTransform[1][0];
-      const c22 = modelViewProjectionTransform[2][1] * sy - modelViewProjectionTransform[1][1];
-      const b1  = modelViewProjectionTransform[0][3] - modelViewProjectionTransform[2][3] * sx;
-      const b2  = modelViewProjectionTransform[1][3] - modelViewProjectionTransform[2][3] * sy;
-
-      const m = c11 * c22 - c12 * c21;
-      return [
-        (c22 * b1 - c12 * b2) / m,
-        (c11 * b2 - c21 * b1) / m
-      ]
-    });
   }
 
   _combineImageList(imageList) {

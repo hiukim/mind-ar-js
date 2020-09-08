@@ -191,6 +191,7 @@ class Detector {
     }
 
     let prunedExtremas = this._initializePrune();
+    //let prunedExtremas2 = this._initializePrune();
 
     // Find feature points (i.e. extremas in dog images)
     for (let k = 1; k < dogPyramidImages.length - 1; k++) {
@@ -232,9 +233,11 @@ class Detector {
 
       // find all extrema for image1
       const extremasResult = this._buildExtremas(image0, image1, image2, octave, scale, startI, startJ, endI, endJ);
+      //const extremasResult2 = this._buildExtremas2(image0, image1, image2, octave, scale, startI, startJ, endI, endJ);
 
       // combine this extrema with the existing
-      prunedExtremas = this._applyPrune(k, prunedExtremas, extremasResult, image1.width, image1.height);
+      //prunedExtremas2 = this._applyPrune2(k, prunedExtremas2, extremasResult2, image1.width, image1.height);
+      prunedExtremas = this._applyPrune(k, prunedExtremas, extremasResult, image1.width, image1.height, octave, scale);
     }
 
     // compute the orientation angle of the extrema
@@ -246,6 +249,7 @@ class Detector {
       const gaussianIndex = octave * PYRAMID_NUM_SCALES_PER_OCTAVES + scale;
       const gaussianImage = pyramidImages[gaussianIndex]
       const gradientResult = this._computeGradients(gaussianImage);
+      //const gradientResult2 = this._computeGradients2(gaussianImage);
 
       extremaHistograms = this._computeOrientationHistograms(extremaHistograms, gradientResult, prunedExtremas, k, gaussianImage.width, gaussianImage.height);
     }
@@ -254,6 +258,8 @@ class Detector {
 
     // compute the FREAK descriptors for extremas
     const extremaFreaks = this._computeExtremaFreak(pyramidImages, numOctaves, prunedExtremas, extremaAngles);
+    //const extremaFreaks2 = this._computeExtremaFreak2(pyramidImages, numOctaves, prunedExtremas, extremaAngles);
+
     const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
 
     // combine all needed data and return to CPU together
@@ -492,7 +498,7 @@ class Detector {
           const numBins = this.constants.numBins;
 
           let maxIndex = 0;
-          for (let i = 1; i < numBins; i++) {
+          for (let i = 1; i < this.constants.numBins; i++) {
             if (histograms[this.thread.z][this.thread.y][i] > histograms[this.thread.z][this.thread.y][maxIndex]) {
               maxIndex = i;
             }
@@ -550,7 +556,150 @@ class Detector {
     return result;
   }
 
-  _applyPrune(dogIndex, prunedExtremas, extremasResult, width, height) {
+  _applyPrune(dogIndex, prunedExtremas, extremaScores, width, height, octave, scale) {
+    const dogNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES - 1;
+
+    if (this.kernelIndex === this.kernels.length) {
+      const subkernels = [];
+
+      subkernels.push( //dummy
+        this.gpu.createKernel(function() {
+          return -1;
+        }, {
+          output: [1, NUM_BUCKETS],
+          pipeline: true,
+        })
+      );
+
+      // compute the orders one by one, and store the index as:
+      //  if maxIndex < 0: it means coming from the existing prunedExtremas. the position is (-maxIndex-1);
+      //        e.g. -1 -> 0, -2 -> 1, -3 -> 2
+      //  if maxIndex >= 0: it means coming from the new extremas. the position is the pixel index
+      for (let i = 0; i < MAX_FEATURES_PER_BUCKET; i++) {
+        subkernels.push(
+          this.gpu.createKernel(function(orders, prunedExtremas, extremaScores) {
+            const bucketPointIndex = this.thread.x;
+            const bucketIndex = this.thread.y;
+            const orderIndex = this.constants.orderIndex;
+            if (bucketPointIndex < orderIndex) return orders[this.thread.y][this.thread.x];
+
+            const width = this.constants.width;
+            const height= this.constants.height;
+            const numBucketsPerDimension = this.constants.numBucketsPerDimension;
+            const dx = this.constants.bucketWidth;
+            const dy = this.constants.bucketHeight;
+
+            const bucketX = bucketIndex % numBucketsPerDimension;
+            const bucketY = Math.floor(bucketIndex / numBucketsPerDimension);
+
+            let currentPrunedMaxIndex = -1;
+            for (let i = 0; i < this.constants.orderIndex; i++) {
+              if (orders[bucketIndex][i] < 0) currentPrunedMaxIndex -= 1;
+            }
+            let maxIndex = currentPrunedMaxIndex;
+            let maxScore = Math.abs(prunedExtremas[bucketIndex][-1 * currentPrunedMaxIndex - 1][0]); // score at propertyIndex 0
+            maxScore = Math.max(maxScore, 0.0001); // safeguard, but probably not needed
+
+            let startX = Math.floor(bucketX * dx);
+            let startY = Math.floor(bucketY * dy);
+
+            for (let ii = 0; ii < this.constants.bucketWidth; ii++) {
+              const i = startX + ii;
+              for (let jj = 0; jj < this.constants.bucketHeight; jj++) {
+                const j = startY + jj;
+
+                const pointIndex = j * width + i;
+                const pointScore = Math.abs(extremaScores[pointIndex]);
+                if (pointScore > maxScore) {
+                  let selected = false;
+                  for (let k = 0; k < this.constants.orderIndex; k++) {
+                    if (orders[bucketIndex][k] === pointIndex) selected = true;
+                  }
+                  if (!selected) {
+                    maxScore = pointScore;
+                    maxIndex = pointIndex;
+                  }
+                }
+              }
+            }
+            return maxIndex;
+          }, {
+            constants: {
+              bucketWidth: width / NUM_BUCKETS_PER_DIMENSION,
+              bucketHeight: height / NUM_BUCKETS_PER_DIMENSION,
+              width: width,
+              height: height,
+              numBucketsPerDimension: NUM_BUCKETS_PER_DIMENSION,
+              orderIndex: i
+            },
+            output: [i+1, NUM_BUCKETS],
+            pipeline: true,
+          })
+        )
+      }
+
+      subkernels.push(
+        this.gpu.createKernel(function(orders, prunedExtremas, extremaScores) {
+          const dogIndex = this.constants.dogIndex;
+          const scale = this.constants.scale;
+          const octave = this.constants.octave;
+          const width = this.constants.width;
+          const dogNumScalesPerOctaves = this.constants.dogNumScalesPerOctaves;
+
+          const propertyIndex = this.thread.x;
+          const bucketPointIndex = this.thread.y;
+          const bucketIndex = this.thread.z;
+          const maxIndex = orders[bucketIndex][bucketPointIndex];
+          if (maxIndex < 0) {
+            return prunedExtremas[bucketIndex][-1 * maxIndex -1][propertyIndex];
+          } else {
+            if (propertyIndex === 0) {
+              return extremaScores[maxIndex];
+            }
+            if (propertyIndex === 1) {
+              const mK = Math.pow(2, 1.0 / dogNumScalesPerOctaves);
+              const newSigma = Math.pow(mK, scale) * (1 << octave);
+              return newSigma;
+            }
+            if (propertyIndex === 2) {
+              const posI = maxIndex % width;
+              return posI * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
+            }
+            if (propertyIndex === 3) {
+              const posJ = Math.floor(maxIndex / width);
+              return posJ * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
+            }
+            if (propertyIndex === 4) {
+              return dogIndex;
+            }
+          }
+        }, {
+          constants: {
+            dogIndex: dogIndex,
+            octave: octave,
+            scale: scale,
+            width: width,
+            dogNumScalesPerOctaves: dogNumScalesPerOctaves,
+          },
+          output: [5, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS], // first dimension: [score, sigma, x, y, dogIndex]
+          pipeline: true,
+        })
+      );
+      this.kernels.push(subkernels);
+    }
+
+    const subkernels = this.kernels[this.kernelIndex++];
+    let c = 0;
+    let orders = subkernels[c++](); // dummy
+    for (let i = 0; i < MAX_FEATURES_PER_BUCKET; i++) {
+      orders = subkernels[c++](orders, prunedExtremas, extremaScores); // build max index one by one
+    }
+    // pack the result
+    const result = subkernels[c++](orders, prunedExtremas, extremaScores);
+    return result;
+  }
+
+  _applyPrune2(dogIndex, prunedExtremas, extremasResult, width, height) {
     const extremaScores = extremasResult.result;
     const extremaSigmas = extremasResult.saveSigma;
     const extremaXs = extremasResult.saveX;
@@ -673,6 +822,78 @@ class Detector {
 
   _computeGradients(image) {
     if (this.kernelIndex === this.kernels.length) {
+      const k1 = this.gpu.createKernel(function(data) {
+        const width = this.constants.width;
+        const height = this.constants.height;
+
+        const i = this.thread.x % width;
+        const j = Math.floor(this.thread.x / width);
+        const prevJ = j > 0? j - 1: j;
+        const nextJ = j < height - 1? j + 1: j;
+        const prevI = i > 0? i - 1: i;
+        const nextI = i < width - 1? i + 1: i;
+        const dx = data[j * width + nextI] - data[j * width + prevI];
+        const dy = data[nextJ * width + i] - data[prevJ * width + i];
+
+        const mag = Math.sqrt(dx * dx + dy * dy);
+        return mag;
+      }, {
+        constants: {width: image.width, height: image.height},
+        output: [image.width * image.height],
+        pipeline: true,
+      });
+
+      const k2 = this.gpu.createKernel(function(data) {
+        const width = this.constants.width;
+        const height = this.constants.height;
+
+        const i = this.thread.x % width;
+        const j = Math.floor(this.thread.x / width);
+        const prevJ = j > 0? j - 1: j;
+        const nextJ = j < height - 1? j + 1: j;
+        const prevI = i > 0? i - 1: i;
+        const nextI = i < width - 1? i + 1: i;
+        const dx = data[j * width + nextI] - data[j * width + prevI];
+        const dy = data[nextJ * width + i] - data[prevJ * width + i];
+
+        // seems like gpu atan2 doesn't handle dx === 0 well
+        // angle = Math.atan2(dy, dx); can someone verify correctness?
+        let angle = 0;
+        if (dx === 0 && dy === 0) angle = 0;
+        else if (dy === 0) {
+          if (dx < 0) angle = Math.PI;
+          else angle = 0;
+        }
+        else if (dx === 0) {
+          if (dy < 0) angle = -Math.PI / 2;
+          else angle = Math.PI / 2;
+        }
+        else {
+          angle = Math.atan2(Math.abs(dy), Math.abs(dx));
+          if (dx < 0 && dy > 0) angle = Math.PI - angle;
+          else if (dx < 0 && dy < 0) angle = -(Math.PI - angle);
+          else if (dx > 0 && dy < 0) angle = -angle;
+        }
+        angle += Math.PI;
+
+        return angle;
+      }, {
+        constants: {width: image.width, height: image.height},
+        output: [image.width * image.height],
+        pipeline: true,
+      });
+
+      this.kernels.push([k1, k2]);
+    }
+
+    const [k1, k2] = this.kernels[this.kernelIndex++];
+    const saveMag = k1(image.data);
+    const result = k2(image.data);
+    return {result, saveMag};
+  }
+
+  _computeGradients2(image) {
+    if (this.kernelIndex === this.kernels.length) {
       this.kernels.push(
         this.gpu.createKernelMap({
           saveMag: function(a) {return a}
@@ -737,8 +958,9 @@ class Detector {
           let l = 0;
           let r = numFreakPoints - 1;
           let startAt = 0;
-          const maxloop = 7; // l=0, r=36. max num of loops = m = 18,9,5,3,2,1,
-          for (let i = 0; i < maxloop; i++) {
+
+          // max loop needed = 7, l=0, r=36. max num of loops = m = 18,9,5,3,2,1,
+          for (let i = 0; i < 7; i++) {
             if (l !== r) {
               let m = Math.ceil((l + r) / 2);
               startAt = (numFreakPoints-m + numFreakPoints-1) * m / 2;
@@ -799,6 +1021,168 @@ class Detector {
   }
 
   _computeExtremaFreak(pyramidImages, gaussianNumOctaves, prunedExtremas, prunedExtremasAngles) {
+    if (this.kernelIndex === this.kernels.length) {
+      const subkernels = [];
+
+      // unforutnately, kernelMap is not supported in some device. so we duplicate similar computations for 3 times
+      //  for 1) x, 2) y and 3) imageIndex
+      for (let i = 0; i < 3; i++) {
+        subkernels.push(
+          this.gpu.createKernel(function(prunedExtremas, prunedExtremasAngles, freakPoints) {
+            const gaussianNumOctaves = this.constants.gaussianNumOctaves;
+            const gaussianNumScalesPerOctaves = this.constants.gaussianNumScalesPerOctaves;
+            const expansionFactor = this.constants.expansionFactor;
+            const propertyType = this.constants.propertyType;
+
+            const bucketPointIndex = this.thread.y;
+            const bucketIndex = this.thread.z;
+
+            const mK = Math.pow(2, 1.0 / (gaussianNumScalesPerOctaves-1));
+            const oneOverLogK = 1.0 / Math.log(mK);
+
+            const inputX = prunedExtremas[bucketIndex][bucketPointIndex][2];
+            const inputY = prunedExtremas[bucketIndex][bucketPointIndex][3];
+            const inputSigma = prunedExtremas[bucketIndex][bucketPointIndex][1];
+            const inputAngle = prunedExtremasAngles[bucketIndex][bucketPointIndex][0];
+
+            const freakSigma = freakPoints[this.thread.x][0];
+            const freakX = freakPoints[this.thread.x][1];
+            const freakY = freakPoints[this.thread.x][2];
+
+            // Ensure the scale of the similarity transform is at least "1".
+            const transformScale = Math.max(1, inputSigma * expansionFactor);
+            const c = transformScale * Math.cos(inputAngle);
+            const s = transformScale * Math.sin(inputAngle);
+            // similarity matrix
+            // const S = [
+            //  c, -s, x,
+            //  s, c, y,
+            //  0, 0, 1
+            //]
+            const S0 = c;
+            const S1 = -s;
+            const S2 = inputX;
+            const S3 = s;
+            const S4 = c;
+            const S5 = inputY;
+
+            const sigma = transformScale * freakSigma;
+            let octave = Math.floor(Math.log2(sigma));
+            const fscale = Math.log(sigma / Math.pow(2, octave)) * oneOverLogK;
+            let scale = Math.round(fscale);
+
+            // sgima of last scale = sigma of the first scale in next octave
+            // prefer coarser octaves for efficiency
+            if (scale === gaussianNumScalesPerOctaves - 1) {
+              octave = octave + 1;
+              scale = 0;
+            }
+            // clip octave and scale
+            if (octave < 0) {
+              octave = 0;
+              scale = 0;
+            }
+            if (octave >= gaussianNumOctaves) {
+              octave = gaussianNumOctaves - 1;
+              scale = gaussianNumScalesPerOctaves - 1;
+            }
+
+            // for downsample point
+            const imageIndex = octave * gaussianNumScalesPerOctaves + scale;
+            const a = 1.0 / (Math.pow(2, octave));
+            const b = 0.5 * a - 0.5;
+
+            if (propertyType === 0) {
+              const x = S0 * freakX + S1 * freakY + S2;
+              let xp = x * a + b; // x in octave
+              return xp;
+            }
+
+            if (propertyType === 1) {
+              const y = S3 * freakX + S4 * freakY + S5;
+              let yp = y * a + b; // y in octave
+              return yp
+            }
+
+            return imageIndex;
+          }, {
+            constants: {
+              gaussianNumOctaves: gaussianNumOctaves,
+              gaussianNumScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES,
+              expansionFactor: FREAK_EXPANSION_FACTOR,
+              propertyType: i
+            },
+            output: [FREAKPOINTS.length, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+            pipeline: true,
+          })
+        )
+      }
+
+      subkernels.push(
+        this.gpu.createKernel(function() {
+          return 0;
+        }, {
+          output: [FREAKPOINTS.length, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+          pipeline: true,
+        })
+      );
+
+      for (let i = 0; i < pyramidImages.length; i++) {
+        subkernels.push(
+          this.gpu.createKernel(function(freakResult, imageData, xps, yps, imageIndexes) {
+            const gaussianIndex = this.constants.gaussianIndex;
+            const width = this.constants.width;
+            const height = this.constants.height;
+
+            if (imageIndexes[this.thread.z][this.thread.y][this.thread.x] !== gaussianIndex) {
+              return freakResult[this.thread.z][this.thread.y][this.thread.x];
+            }
+
+            let xp = xps[this.thread.z][this.thread.y][this.thread.x];
+            let yp = yps[this.thread.z][this.thread.y][this.thread.x];
+
+            // bilinear interpolation
+            xp = Math.max(0, Math.min(xp, width - 2));
+            yp = Math.max(0, Math.min(yp, height - 2));
+
+            const x0 = Math.floor(xp);
+            const x1 = x0 + 1;
+            const y0 = Math.floor(yp);
+            const y1 = y0 + 1;
+            const value = (x1-xp) * (y1-yp) * imageData[y0 * width + x0]
+                        + (xp-x0) * (y1-yp) * imageData[y0 * width + x1]
+                        + (x1-xp) * (yp-y0) * imageData[y1 * width + x0]
+                        + (xp-x0) * (yp-y0) * imageData[y1 * width + x1];
+            return value;
+          }, {
+            constants: {
+              gaussianIndex: i,
+              width: pyramidImages[i].width,
+              height: pyramidImages[i].height
+            },
+            output: [FREAKPOINTS.length, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+            pipeline: true,
+          })
+        )
+      }
+      this.kernels.push(subkernels);
+    }
+    const subkernels = this.kernels[this.kernelIndex++];
+
+    // compute the locations of all freak points
+    const xps = subkernels[0](prunedExtremas, prunedExtremasAngles, FREAKPOINTS);
+    const yps = subkernels[1](prunedExtremas, prunedExtremasAngles, FREAKPOINTS);
+    const imageIndexes = subkernels[2](prunedExtremas, prunedExtremasAngles, FREAKPOINTS);
+
+    // compute the interpolated values of each freak coordinates (this values is used to build the freak descriptors)
+    let freakResult = subkernels[3]();
+    for (let i = 0; i < pyramidImages.length; i++) {
+      freakResult = subkernels[i+4](freakResult, pyramidImages[i].data, xps, yps, imageIndexes);
+    }
+    return freakResult;
+  }
+
+  _computeExtremaFreak2(pyramidImages, gaussianNumOctaves, prunedExtremas, prunedExtremasAngles) {
     if (this.kernelIndex === this.kernels.length) {
       const subkernels = [];
 
@@ -960,6 +1344,136 @@ class Detector {
     const dogNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES - 1;
 
     if (this.kernelIndex === this.kernels.length) {
+      const k = this.gpu.createKernel(function(data0, data1, data2, startI, startJ, endI, endJ) {
+        const LAPLACIAN_SQR_THRESHOLD = this.constants.LAPLACIAN_SQR_THRESHOLD;
+        const MAX_SUBPIXEL_DISTANCE_SQR = this.constants.MAX_SUBPIXEL_DISTANCE_SQR;
+        const EDGE_HESSIAN_THRESHOLD = this.constants.EDGE_HESSIAN_THRESHOLD;
+        const width = this.constants.width;
+        const height = this.constants.height;
+
+        const pos = this.thread.x;
+        const posI = pos % width;
+        const posJ = Math.floor(pos / width);
+        if (posI < startI || posI > endI || posJ < startJ || posJ > endJ) return 0;
+
+        const v = data1[pos];
+        if (v * v < LAPLACIAN_SQR_THRESHOLD) return 0;
+
+        let isMax = true;
+        for (let d = 0; d < 9; d++) {
+          const i = d % 3;
+          const j = Math.floor(d / 3);
+          const pos2 = pos + (j-1) * width + (i-1);
+          if (data1[pos] <= data0[pos2]) {isMax = false; break;};
+          if (data1[pos] <= data2[pos2]) {isMax = false; break;};
+          if (pos !== pos2 && data1[pos] <= data1[pos2]) {isMax = false; break;};
+        }
+
+        let isMin = false;
+        if (!isMax) {
+          isMin = true;
+          for (let d = 0; d < 9; d++) {
+            const i = d % 3;
+            const j = Math.floor(d / 3);
+            const pos2 = pos + (j-1) * width + (i-1);
+            if (data1[pos] >= data0[pos2]) {isMin = false; break};
+            if (data1[pos] >= data2[pos2]) {isMin = false; break};
+            if (pos !== pos2 && data1[pos] >= data1[pos2]) {isMin = false; break};
+          }
+        }
+        if (!isMax && !isMin) return 0;
+
+        // Step 2: sub-pixel refinement (I'm not sure what that means. Any educational ref?)
+
+        // Compute spatial derivatives
+        const dx = 0.5 * (data1[pos + 1] - data1[pos - 1]);
+        const dy = 0.5 * (data1[pos + width] - data1[pos - width]);
+        const dxx = data1[pos + 1] + data1[pos - 1] - 2 * data1[pos];
+        const dyy = data1[pos + width] + data1[pos - width] - 2 * data1[pos];
+        const dxy = 0.25 * (data1[pos - width -1] + data1[pos + width + 1] - data1[pos - width +1] - data1[pos + width - 1]);
+
+        // Compute scale derivates
+        const ds = 0.5 * (data2[pos] - data0[pos]);
+        const dss = data2[pos] + data0[pos] - 2 * data1[pos];
+        const dxs = 0.25 * ((data0[pos-1] - data0[pos+1]) + (-data2[pos-1] + data2[pos+1]));
+        const dys = 0.25 * ((data0[pos-width] - data0[pos+width]) + (-data2[pos-width] + data2[pos+width]));
+
+        // Solve Hessian A * u = b;
+        const A0 = dxx;
+        const A1 = dxy;
+        const A2 = dxs;
+        const A3 = dxy;
+        const A4 = dyy;
+        const A5 = dys;
+        const A6 = dxs;
+        const A7 = dys;
+        const A8 = dss;
+        const b0 = -dx;
+        const b1 = -dy;
+        const b2 = -ds;
+
+        const detA = A0 * A4 * A8
+                  - A0 * A5 * A5
+                  - A4 * A2 * A2
+                  - A8 * A1 * A1
+                  + 2 * A1 * A2 * A5;
+
+        if ( Math.abs(detA) < 0.0000001) return 0; // determinant undefined. no solution
+
+        // B = inverse of A
+        const B0 = A4 * A8 - A5 * A7;
+        const B1 = A2 * A7 - A1 * A8;
+        const B2 = A1 * A5 - A2 * A4;
+        const B3 = B1;
+        const B4 = A0 * A8 - A2 * A6;
+        const B5 = A2 * A3 - A0 * A5;
+        const B6 = B2;
+        const B7 = B5;
+        const B8 = A0 * A4 - A1 * A3;
+
+        const u0 = (B0 * b0 + B1 * b1 + B2 * b2) / detA;
+        const u1 = (B3 * b0 + B4 * b1 + B5 * b2) / detA;
+        const u2 = (B6 * b0 + B7 * b1 + B8 * b2) / detA;
+
+        // If points move too much in the sub-pixel update, then the point probably unstable.
+        if (u0 * u0 + u1 * u1 > MAX_SUBPIXEL_DISTANCE_SQR) return 0;
+
+        // compute edge score
+        const det = (dxx * dyy) - (dxy * dxy);
+        if (det === 0) return 0;
+
+        const edgeScore = (dxx + dyy) * (dxx + dyy) / det;
+        if (Math.abs(edgeScore) >= EDGE_HESSIAN_THRESHOLD ) return 0;
+
+        const score = v - (b0 * u0 + b1 * u1 + b2 * u2);
+        if (score * score < LAPLACIAN_SQR_THRESHOLD) return 0;
+
+        return score;
+      }, {
+        constants: {
+          LAPLACIAN_SQR_THRESHOLD: LAPLACIAN_SQR_THRESHOLD,
+          MAX_SUBPIXEL_DISTANCE_SQR: MAX_SUBPIXEL_DISTANCE_SQR,
+          EDGE_HESSIAN_THRESHOLD: EDGE_HESSIAN_THRESHOLD,
+          width: image1.width,
+          height: image1.height,
+        },
+        output: [image1.width * image1.height],
+        pipeline: true,
+      });
+
+      this.kernels.push([k]);
+    }
+    const [k] = this.kernels[this.kernelIndex++];
+    const result = k(image0.data, image1.data, image2.data, startI, startJ, endI, endJ);
+    return result;
+  }
+
+  _buildExtremas2(image0, image1, image2, octave, scale, startI, startJ, endI, endJ) {
+    const originalWidth = this.width;
+    const originalHeight = this.height;
+    const dogNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES - 1;
+
+    if (this.kernelIndex === this.kernels.length) {
       this.kernels.push(
         // return
         //  1. score: how strong is the extrema. (the larger the difference of gaussian value, the stronger)
@@ -1084,17 +1598,19 @@ class Detector {
           // original y = y*2^n + 2^(n-1) - 0.5
           let originalX = posI * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
           let originalY = posJ * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
-          originalX = originalX + u0 * Math.pow(2, octave);
-          originalY = originalY + u1 * Math.pow(2, octave);
+          //originalX = originalX + u0 * Math.pow(2, octave);
+          //originalY = originalY + u1 * Math.pow(2, octave);
           if (originalX < 0 || originalX >= originalWidth || originalY < 0 || originalY >= originalHeight) return 0;
 
           const spScale = Math.min(Math.max(0, scale + u2), dogNumScalesPerOctaves);
           const mK = Math.pow(2, 1.0 / dogNumScalesPerOctaves);
-          const newSigma = Math.pow(mK, spScale) * (1 << octave);
+          //const newSigma = Math.pow(mK, spScale) * (1 << octave);
+          const newSigma = Math.pow(mK, scale) * (1 << octave);
 
           saveSigma(newSigma);
           saveX(originalX);
           saveY(originalY);
+
           return score;
         }, {
           constants: {
