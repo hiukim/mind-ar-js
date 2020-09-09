@@ -134,7 +134,7 @@ class Detector {
     }
     this.numOctaves = numOctaves;
     this.kernels = [];
-    this.gpu = new GPU();
+    this.gpu = new GPU({mode: "webgl"});
     this.inputKernel = null;
   }
 
@@ -367,7 +367,8 @@ class Detector {
           const bucketIndex = this.thread.z;
 
           const thisDogIndex = prunedExtremas[bucketIndex][bucketPointIndex][4];
-          if (dogIndex !== thisDogIndex) {
+          //if (dogIndex !== thisDogIndex) {
+          if (Math.abs(dogIndex - thisDogIndex) > 0.1) {
             return extremaHistograms[this.thread.z][this.thread.y][this.thread.x];
           }
 
@@ -613,7 +614,8 @@ class Detector {
                 if (pointScore > maxScore) {
                   let selected = false;
                   for (let k = 0; k < this.constants.orderIndex; k++) {
-                    if (orders[bucketIndex][k] === pointIndex) selected = true;
+                    //if (orders[bucketIndex][k] === pointIndex) selected = true;
+                    if ( Math.abs(orders[bucketIndex][k] - pointIndex) < 0.1) selected = true;
                   }
                   if (!selected) {
                     maxScore = pointScore;
@@ -640,6 +642,7 @@ class Detector {
 
       subkernels.push(
         this.gpu.createKernel(function(orders, prunedExtremas, extremaScores) {
+
           const dogIndex = this.constants.dogIndex;
           const scale = this.constants.scale;
           const octave = this.constants.octave;
@@ -649,12 +652,13 @@ class Detector {
           const propertyIndex = this.thread.x;
           const bucketPointIndex = this.thread.y;
           const bucketIndex = this.thread.z;
-          const maxIndex = orders[bucketIndex][bucketPointIndex];
+          const maxIndex = Math.round(orders[bucketIndex][bucketPointIndex]); // weird roudning problem in safari.... can't index properly if Math.round missing
+
           if (maxIndex < 0) {
             return prunedExtremas[bucketIndex][-1 * maxIndex -1][propertyIndex];
           } else {
             if (propertyIndex === 0) {
-              return extremaScores[maxIndex];
+              return extremaScores[Math.round(maxIndex)];
             }
             if (propertyIndex === 1) {
               const mK = Math.pow(2, 1.0 / dogNumScalesPerOctaves);
@@ -990,6 +994,21 @@ class Detector {
         this.gpu.createKernel(function(freakValues) {
           const comparisonCount = this.constants.comparisonCount;
           const x = this.thread.x;
+
+          /*
+          let temp = 0;
+          for (let i = 0; i < 24; i++) {
+            const index = this.thread.x * 24 + i;
+            if (index < comparisonCount && freakValues[this.thread.z][this.thread.y][index] === 1) {
+              temp += (1 << (23-i));
+              //temp += 1;
+            }
+            //temp = temp * 2;
+          }
+          //temp /= 2;
+          return temp;
+          */
+
           const start = 24 * x;
           const end = start + 24;
           let temp = 0;
@@ -999,8 +1018,7 @@ class Detector {
             }
             temp = temp * 2;
           }
-          temp /= 2;
-
+          //temp /= 2;
           return temp;
         }, {
           constants: {
@@ -1009,6 +1027,7 @@ class Detector {
           },
           output: [FREAK_24BIT_DESCRIPTOR_COUNT, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
           pipeline: true,
+          useLegacyEncoder: true,
         })
       );
 
@@ -1016,7 +1035,9 @@ class Detector {
     }
     const subkernels = this.kernels[this.kernelIndex++];
     const result = subkernels[0](freakResult);
+    console.log("descriptor comparison", result.toArray());
     const result2 = subkernels[1](result);
+    console.log("descriptor", result2.toArray());
     return result2;
   }
 
@@ -1045,9 +1066,10 @@ class Detector {
             const inputSigma = prunedExtremas[bucketIndex][bucketPointIndex][1];
             const inputAngle = prunedExtremasAngles[bucketIndex][bucketPointIndex][0];
 
-            const freakSigma = freakPoints[this.thread.x][0];
-            const freakX = freakPoints[this.thread.x][1];
-            const freakY = freakPoints[this.thread.x][2];
+            const xIndex = Math.round(this.thread.x);
+            const freakSigma = freakPoints[xIndex][0];
+            const freakX = freakPoints[xIndex][1];
+            const freakY = freakPoints[xIndex][2];
 
             // Ensure the scale of the similarity transform is at least "1".
             const transformScale = Math.max(1, inputSigma * expansionFactor);
@@ -1134,7 +1156,8 @@ class Detector {
             const width = this.constants.width;
             const height = this.constants.height;
 
-            if (imageIndexes[this.thread.z][this.thread.y][this.thread.x] !== gaussianIndex) {
+            //if (imageIndexes[this.thread.z][this.thread.y][this.thread.x] !== gaussianIndex) {
+            if (Math.abs(imageIndexes[this.thread.z][this.thread.y][this.thread.x] - gaussianIndex) > 0.1) {
               return freakResult[this.thread.z][this.thread.y][this.thread.x];
             }
 
@@ -1179,6 +1202,7 @@ class Detector {
     for (let i = 0; i < pyramidImages.length; i++) {
       freakResult = subkernels[i+4](freakResult, pyramidImages[i].data, xps, yps, imageIndexes);
     }
+    console.log("freak result", freakResult.toArray());
     return freakResult;
   }
 
