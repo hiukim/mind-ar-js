@@ -119,12 +119,16 @@ AFRAME.registerSystem('mindar-system', {
     const far = proj[14] / (proj[10] + 1.0);
     const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
     //console.log("loaded proj: ", proj, ". fov: ", fov, ". near: ", near, ". far: ", far, ". ratio: ", ratio);
-    const newRatio = container.clientWidth / container.clientHeight;
-    //console.log("newCam", fov, ratio, newRatio);
-    const newCam = new AFRAME.THREE.PerspectiveCamera(fov, newRatio, near, far);
-
-    const camera = container.getElementsByTagName("a-camera")[0];
-    camera.getObject3D('camera').projectionMatrix = newCam.projectionMatrix;
+    const newAspect = container.clientWidth / container.clientHeight;
+    const cameraEle = container.getElementsByTagName("a-camera")[0];
+    const camera = cameraEle.getObject3D('camera');
+    camera.fov = fov;
+    camera.aspect = newAspect;
+    camera.near = near;
+    camera.far = far;
+    camera.updateProjectionMatrix();
+    //const newCam = new AFRAME.THREE.PerspectiveCamera(fov, newRatio, near, far);
+    //camera.getObject3D('camera').projectionMatrix = newCam.projectionMatrix;
 
     this.video.style.top = (-(vh - container.clientHeight) / 2) + "px";
     this.video.style.left = (-(vw - container.clientWidth) / 2) + "px";
