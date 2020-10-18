@@ -186,6 +186,7 @@ AFRAME.registerComponent('mindar-image-target', {
     arSystem.registerAnchor(this, this.data.targetIndex);
 
     const root = this.el.object3D;
+    root.visible = false;
     root.matrixAutoUpdate = false;
   },
 
@@ -203,6 +204,12 @@ AFRAME.registerComponent('mindar-image-target', {
   },
 
   updateWorldMatrix(worldMatrix) {
+    if (!this.el.object3D.visible && worldMatrix !== null) {
+      this.el.emit("targetFound");
+    } else if (this.el.object3D.visible && worldMatrix === null) {
+      this.el.emit("targetLost");
+    }
+
     this.el.object3D.visible = worldMatrix !== null;
     if (worldMatrix === null) {
       return;
