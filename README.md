@@ -1,6 +1,6 @@
 # mind-ar-js (beta)
 
-<img src="https://hiukim.github.io/mind-ar-js/screenshots/card-demo-short.gif" height="300"> <img src="https://hiukim.github.io/mind-ar-js/screenshots/band-demo-short.gif?a" height="300">
+<img src="https://hiukim.github.io/mind-ar-js/screenshots/card-demo-short.gif" height="250"> <img src="https://hiukim.github.io/mind-ar-js/screenshots/band-demo-short.gif?a" height="250"> <img src="https://hiukim.github.io/mind-ar-js/screenshots/card-demo2-short.gif?c" height="250">
 
 mind-ar-js is a lightweight library for web augmented reality. Main features include:
 
@@ -27,6 +27,16 @@ Example 2 (multiple targets)
 Open this url with your phone: https://hiukim.github.io/mind-ar-js/samples/example2.html. Allow camera access and look at the below images (one at a time) to trigger the AR effects.
 
 <img src="https://hiukim.github.io/mind-ar-js/samples/assets/band-example/bear.png" width="240" border="10" /> <img src="https://hiukim.github.io/mind-ar-js/samples/assets/band-example/raccoon.png" width="240" border="10" />
+
+Example 3 (Interactive examples)
+
+<a href="https://youtu.be/hgVB9HpQpqY" target="_blank"><img src="https://hiukim.github.io/mind-ar-js/screenshots/card-demo2.png" 
+alt="web AR card demo" width="240" border="10" /></a>
+
+watch the video: https://youtu.be/gm57gL1NGoQ, or try it yourself:
+
+Open this url with your phone: https://hiukim.github.io/mind-ar-js/samples/example3.html. Allow camera access and look at the same image in example 1.
+
 
 # Usage
 
@@ -78,6 +88,7 @@ It's recommended you start with the source of the examples:
 `view-source:https://hiukim.github.io/mind-ar-js/samples/example1.html`
 `view-source:https://hiukim.github.io/mind-ar-js/samples/example2.html`
 
+The library will emit `targetFound` and `targetLost` events for more advanced usage. With these events, you can build a lot of interactive elements depending on your applications. Check out `view-source:https://hiukim.github.io/mind-ar-js/samples/example3.html` to get some ideas.
 
 # Theory and Algorithm
 I think it frustrating that there is very little educational materials on the Internet that can explain the inside-out of augmented reality. That's one of the main drive of this project. I hope this project can be also educational other being practical. So I'm going to write a series of technical blog posts explaining all the theoretical details of the algorithm. Stay tuned...
