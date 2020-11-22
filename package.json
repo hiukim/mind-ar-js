@@ -17,9 +17,10 @@
   "license": "ISC",
   "dependencies": {
     "@msgpack/msgpack": "^1.12.2",
+    "@tensorflow/tfjs": "^2.7.0",
     "aframe": "^1.0.4",
     "aframe-extras": "^6.1.0",
-    "gpu.js": "git://github.com/hiukim/gpu.js.git#fix-safari",
+    "gpu.js": "^2.10.5",
     "image-js": "^0.28.0",
     "ml-matrix": "^6.5.0",
     "stats-js": "^1.0.1",

@@ -1,6 +1,9 @@
 const Worker = require("./controller.worker.js");
 const {Tracker} = require('./image-target/trackingGPU/tracker.js');
+const {Detector: DetectorCPU} = require('./image-target/detectorCPU/detector.js');
 const {Detector} = require('./image-target/detectorGPU/detector.js');
+//const {Detector} = require('./image-target/detectorCPU/detector.js');
+const {Detector: DetectorTF} = require('./image-target/detectorTF/detector.js');
 const {Matcher} = require('./image-target/matching/matcher.js');
 const {estimateHomography} = require('./image-target/icp/estimate_homography.js');
 const {refineHomography} = require('./image-target/icp/refine_homography');
@@ -14,6 +17,8 @@ class Controller {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.detector = new Detector(this.inputWidth, this.inputHeight);
+    this.detectorCPU = new DetectorCPU(this.inputWidth, this.inputHeight);
+    this.detectorTF = new DetectorTF(this.inputWidth, this.inputHeight);
     this.imageTargets = [];
     this.trackingIndex = -1;
     this.trackingMatrix = null;
@@ -239,7 +244,10 @@ class Controller {
   // html image. this function is mostly for debugging purpose
   // but it demonstrates the whole process. good for development
   async processImage(input) {
+    //let featurePoints = this.detectorCPU.detect(input);
     let featurePoints = this.detector.detect(input);
+    let featurePointsTF = this.detectorTF.detect(input);
+
     console.log("featurePoints", featurePoints);
     const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
     console.log("match", targetIndex, modelViewTransform);

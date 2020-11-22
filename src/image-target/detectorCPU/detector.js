@@ -35,7 +35,8 @@ class Detector {
       this.processCanvas.width = this.width;
       this.processCanvas.height = this.height;
       this.workerProcessContext = this.processCanvas.getContext('2d');
-      this.processData = new Uint8Array(this.width * this.height);
+      //this.processData = new Uint8Array(this.width * this.height);
+      this.processData = new Float32Array(this.width * this.height);
     }
     this.workerProcessContext.clearRect(0, 0, this.width, this.height);
     this.workerProcessContext.drawImage(input, 0, 0, this.width, this.height);
@@ -52,9 +53,15 @@ class Detector {
   detectImageData(imageData) {
     const image = {data: imageData, width: this.width, height: this.height};
 
+    globalDebug.inputImage = globalDebug.convertImage(image);
+
     const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
 
+    globalDebug.pyramidImages = gaussianPyramid.images.map((image) => globalDebug.convertImage(image));
+
     const dogPyramid = buildDoGPyramid({gaussianPyramid: gaussianPyramid});
+
+    globalDebug.dogPyramidImages = dogPyramid.images.map((image) => globalDebug.convertImage(image));
 
     const featurePoints = _detectFeaturePoints({gaussianPyramid: gaussianPyramid, dogPyramid: dogPyramid});
 

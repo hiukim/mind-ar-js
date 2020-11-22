@@ -137,9 +137,9 @@ class Detector {
     if (this.inputKernel === null) {
       this.inputKernel = this.gpu.createKernel(function(inputFrame) {
         const pixel = inputFrame[this.constants.height-1-Math.floor(this.thread.x / this.constants.width)][this.thread.x % this.constants.width];
-        //return (pixel[0] + pixel[1] + pixel[2]) * 255 / 3;
+        return (pixel[0] + pixel[1] + pixel[2]) * 255 / 3;
         // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color/596241#596241
-        return 255 * (0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]);
+        //return 255 * (0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]);
       }, {
         constants: {width: this.width, height: this.height},
         output: [this.width * this.height],
@@ -154,6 +154,7 @@ class Detector {
     this.kernelIndex = 0; // reset kernelIndex
 
     const inputImage = {width: this.width, height: this.height, data: imagedata};
+    globalDebug.inputImage = globalDebug.convertImage(inputImage);
 
     const originalWidth = this.width;
     const originalHeight = this.height;
@@ -175,6 +176,8 @@ class Detector {
       }
     }
 
+    globalDebug.pyramidImages = pyramidImages.map((image) => globalDebug.convertImage(image));
+
     // Build difference of gaussian pyramid
     const dogPyramidImages = [];
     for (let i = 0; i < numOctaves; i++) {
@@ -184,6 +187,11 @@ class Detector {
         dogPyramidImages.push(this._differenceImageBinomial(image1, image2));
       }
     }
+
+    globalDebug.dogPyramidImages = dogPyramidImages.map((image) => globalDebug.convertImage(image));
+
+    globalDebug.extremasResults = [];
+    globalDebug.image0s = [];
 
     let prunedExtremas = this._initializePrune();
 
@@ -228,9 +236,17 @@ class Detector {
       // find all extrema for image1
       const extremasResult = this._buildExtremas(image0, image1, image2, octave, scale, startI, startJ, endI, endJ);
 
+      globalDebug.extremasResults.push(
+        globalDebug.convertImage({width: image1.width, height: image1.height, data: extremasResult.toArray()})
+      );
+      globalDebug.image0s.push(globalDebug.convertImage(image0));
+      continue;
+
       // combine this extrema with the existing
       prunedExtremas = this._applyPrune(k, prunedExtremas, extremasResult, image1.width, image1.height, octave, scale);
     }
+
+    return;
 
     // compute the orientation angle of the extrema
     //  artoolkit picks mutiple angles (usually 1-3), but we pick one only for simplicity
@@ -995,7 +1011,7 @@ class Detector {
         const pos = this.thread.x;
         const posI = pos % width;
         const posJ = Math.floor(pos / width);
-        if (posI < startI || posI > endI || posJ < startJ || posJ > endJ) return 0;
+        if (posI < startI || posI >= endI || posJ < startJ || posJ >= endJ) return 0;
 
         const v = data1[pos];
         if (v * v < LAPLACIAN_SQR_THRESHOLD) return 0;
@@ -1005,9 +1021,12 @@ class Detector {
           const i = d % 3;
           const j = Math.floor(d / 3);
           const pos2 = pos + (j-1) * width + (i-1);
-          if (data1[pos] <= data0[pos2]) {isMax = false; break;};
-          if (data1[pos] <= data2[pos2]) {isMax = false; break;};
-          if (pos !== pos2 && data1[pos] <= data1[pos2]) {isMax = false; break;};
+          //if (data1[pos] <= data0[pos2]) {isMax = false; break;};
+          //if (data1[pos] <= data2[pos2]) {isMax = false; break;};
+          //if (pos !== pos2 && data1[pos] <= data1[pos2]) {isMax = false; break;};
+          if (data1[pos] < data0[pos2]) {isMax = false; break;};
+          if (data1[pos] < data2[pos2]) {isMax = false; break;};
+          if (pos !== pos2 && data1[pos] < data1[pos2]) {isMax = false; break;};
         }
 
         let isMin = false;
@@ -1017,11 +1036,15 @@ class Detector {
             const i = d % 3;
             const j = Math.floor(d / 3);
             const pos2 = pos + (j-1) * width + (i-1);
-            if (data1[pos] >= data0[pos2]) {isMin = false; break};
-            if (data1[pos] >= data2[pos2]) {isMin = false; break};
-            if (pos !== pos2 && data1[pos] >= data1[pos2]) {isMin = false; break};
+            //if (data1[pos] >= data0[pos2]) {isMin = false; break};
+            //if (data1[pos] >= data2[pos2]) {isMin = false; break};
+            //if (pos !== pos2 && data1[pos] >= data1[pos2]) {isMin = false; break};
+            if (data1[pos] > data0[pos2]) {isMin = false; break};
+            if (data1[pos] > data2[pos2]) {isMin = false; break};
+            if (pos !== pos2 && data1[pos] > data1[pos2]) {isMin = false; break};
           }
         }
+
         if (!isMax && !isMin) return 0;
 
         // Step 2: sub-pixel refinement (I'm not sure what that means. Any educational ref?)
@@ -1060,7 +1083,10 @@ class Detector {
                   - A8 * A1 * A1
                   + 2 * A1 * A2 * A5;
 
-        if ( Math.abs(detA) < 0.0000001) return 0; // determinant undefined. no solution
+        if ( Math.abs(detA) < 0.0001) {
+          return 0; // determinant undefined. no solution
+        }
+
 
         // B = inverse of A
         const B0 = A4 * A8 - A5 * A7;
@@ -1082,12 +1108,15 @@ class Detector {
 
         // compute edge score
         const det = (dxx * dyy) - (dxy * dxy);
-        if (det === 0) return 0;
+        //if (det === 0) return 0;
+        if ( Math.abs(det) < 0.0001) return 0; // determinant undefined. no solution
 
         const edgeScore = (dxx + dyy) * (dxx + dyy) / det;
+
         if (Math.abs(edgeScore) >= EDGE_HESSIAN_THRESHOLD ) return 0;
 
         const score = v - (b0 * u0 + b1 * u1 + b2 * u2);
+
         if (score * score < LAPLACIAN_SQR_THRESHOLD) return 0;
 
         return score;
@@ -1182,11 +1211,16 @@ class Detector {
         const j = Math.floor(this.thread.x / width);
         const i = this.thread.x % width;
         const joffset = j * width;
-        const v = data[joffset + Math.max(i-2,0)] +
-                  data[joffset + Math.max(i-1,0)] * 4 +
+        const v = (i >= 2? data[joffset + (i-2)]: 0) +
+                  (i >= 1? data[joffset + (i-1)]: 0) * 4 +
                   data[joffset + i] * 6 +
-                  data[joffset + Math.min(i+1,width-1)] * 4 +
-                  data[joffset + Math.min(i+2,width-1)];
+                  (i <= width -2? data[joffset + (i+1)]: 0) * 4 +
+                  (i <= width -3? data[joffset + (i+2)]: 0);
+        //const v = data[joffset + Math.max(i-2,0)] +
+        //          data[joffset + Math.max(i-1,0)] * 4 +
+        //          data[joffset + i] * 6 +
+        //          data[joffset + Math.min(i+1,width-1)] * 4 +
+        //          data[joffset + Math.min(i+2,width-1)];
         return v;
       }, {
         constants: {width: image.width},
@@ -1199,11 +1233,16 @@ class Detector {
         const height = this.constants.height;
         const j = Math.floor(this.thread.x / width);
         const i = this.thread.x % width;
-        const v = data[Math.max(j-2,0) * width + i] +
-                  data[Math.max(j-1,0) * width + i] * 4 +
+        const v = (j >= 2? data[(j-2) * width + i]: 0) +
+                  (j >= 1? data[(j-1) * width + i]: 0) * 4 +
                   data[j * width + i] * 6 +
-                  data[Math.min(j+1,height-1) * width + i] * 4 +
-                  data[Math.min(j+2,height-1) * width + i];
+                  (j <= height-2? data[(j+1) * width + i]: 0) * 4 +
+                  (j <= height-3? data[(j+2) * width + i]: 0);
+        //const v = data[Math.max(j-2,0) * width + i] +
+        //          data[Math.max(j-1,0) * width + i] * 4 +
+        //          data[j * width + i] * 6 +
+        //          data[Math.min(j+1,height-1) * width + i] * 4 +
+        //          data[Math.min(j+2,height-1) * width + i];
 
         return v / 256; // altogether (1+4+6+4+1) * (1+4+6+4+1) numbers
       }, {

@@ -80,11 +80,16 @@ const _applyFilter = (image) => {
     for (let i = 0; i < width; i++) {
       const pos = joffset+ i;
 
-      temp[pos] = data[joffset + Math.max(i-2,0)] +
-                  data[joffset + Math.max(i-1,0)] * 4 +
+      temp[pos] = (i >= 2? data[joffset + (i-2)]: 0) +
+                  (i >= 1? data[joffset + (i-1)] * 4: 0) +
                   data[joffset + i] * 6 +
-                  data[joffset + Math.min(i+1,width-1)] * 4 +
-                  data[joffset + Math.min(i+2,width-1)];
+                  (i <= width-2? data[joffset + (i+1)] * 4: 0) +
+                  (i <= width-3? data[joffset + (i+2)]: 0);
+      //temp[pos] = data[joffset + Math.max(i-2,0)] +
+      //            data[joffset + Math.max(i-1,0)] * 4 +
+      //            data[joffset + i] * 6 +
+      //            data[joffset + Math.min(i+1,width-1)] * 4 +
+      //            data[joffset + Math.min(i+2,width-1)];
     }
   }
 
@@ -95,11 +100,17 @@ const _applyFilter = (image) => {
     for (let j = 0; j < height; j++) {
       const pos = j * width + i;
 
-      dst[pos] = temp[Math.max(j-2,0) * width + i] +
-                 temp[Math.max(j-1,0) * width + i] * 4 +
+      dst[pos] = (j >= 2? temp[(j-2) * width + i]: 0) +
+                 (j >= 1? temp[(j-1) * width + i] * 4: 0) +
                  temp[j * width + i] * 6 +
-                 temp[Math.min(j+1,height-1) * width + i] * 4 +
-                 temp[Math.min(j+2,height-1) * width + i];
+                 (j <= height-2? temp[(j+1) * width + i] * 4: 0) +
+                 (j <= height-3? temp[(j+2) * width + i]: 0);
+
+      //dst[pos] = temp[Math.max(j-2,0) * width + i] +
+      //           temp[Math.max(j-1,0) * width + i] * 4 +
+      //           temp[j * width + i] * 6 +
+      //           temp[Math.min(j+1,height-1) * width + i] * 4 +
+      //           temp[Math.min(j+2,height-1) * width + i];
 
       // average of (1+4+6+4+1) * (1+4+6+4+1) = 256 numbers
       dst[pos] = dst[pos] / 256.0;
