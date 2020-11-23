@@ -192,6 +192,7 @@ class Detector {
 
     globalDebug.extremasResults = [];
     globalDebug.image0s = [];
+    globalDebug.prunedExtremas = [];
 
     let prunedExtremas = this._initializePrune();
 
@@ -240,10 +241,13 @@ class Detector {
         globalDebug.convertImage({width: image1.width, height: image1.height, data: extremasResult.toArray()})
       );
       globalDebug.image0s.push(globalDebug.convertImage(image0));
-      continue;
 
       // combine this extrema with the existing
       prunedExtremas = this._applyPrune(k, prunedExtremas, extremasResult, image1.width, image1.height, octave, scale);
+
+      globalDebug.prunedExtremas.push(prunedExtremas);
+
+      continue;
     }
 
     return;
@@ -636,8 +640,8 @@ class Detector {
             return maxIndex;
           }, {
             constants: {
-              bucketWidth: width / NUM_BUCKETS_PER_DIMENSION,
-              bucketHeight: height / NUM_BUCKETS_PER_DIMENSION,
+              bucketWidth: Math.ceil(width / NUM_BUCKETS_PER_DIMENSION),
+              bucketHeight: Math.ceil(height / NUM_BUCKETS_PER_DIMENSION),
               width: width,
               height: height,
               numBucketsPerDimension: NUM_BUCKETS_PER_DIMENSION,

@@ -1,6 +1,5 @@
 //import * as tfc from '@tensorflow/tfjs-core';
 const tf = require('@tensorflow/tfjs');
-
 const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;
 const PYRAMID_MIN_SIZE = 8;
 
@@ -35,6 +34,8 @@ class Detector {
       numOctaves++;
     }
     this.numOctaves = numOctaves;
+
+    globalDebug.tf = tf;
   }
 
   detect(input) {
@@ -90,11 +91,16 @@ class Detector {
 
       let debugIndex = 0;
 
+      const extremasResults = [];
+      const dogIndexes = [];
+
       // Find feature points (i.e. extremas in dog images)
       for (let k = 1; k < dogPyramidImages.length - 1; k++) {
         // Experimental result shows that no extrema is possible for odd number of k
         // I believe it has something to do with how the gaussian pyramid being constructed
         if (k % 2 === 1) continue;
+
+        dogIndexes.push(k);
 
         let image0 = dogPyramidImages[k-1];
         let image1 = dogPyramidImages[k];
@@ -137,11 +143,121 @@ class Detector {
 
         // combine this extrema with the existing
         //prunedExtremas = this._applyPrune(k, prunedExtremas, extremasResult, image1.width, image1.height, octave, scale);
+        extremasResults.push(extremasResult);
       }
 
+      this._applyPrune(extremasResults, dogIndexes);
     });
 
     console.table(tf.memory());
+  }
+
+  _applyPrune(extremasResults, dogIndexes) {
+    const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
+
+    const dogIndexList = [];
+    const yList = [];
+    const xList = [];
+    const bucketScores = [];
+    for (let i = 0; i < extremasResults.length; i++) {
+      const extremaScores = extremasResults[i];
+
+      const height = extremaScores.shape[0];
+      const width = extremaScores.shape[1];
+
+      const bucketWidth = Math.ceil(width / NUM_BUCKETS_PER_DIMENSION);
+      const bucketHeight = Math.ceil(height / NUM_BUCKETS_PER_DIMENSION);
+      // TODO: cache indices
+      let indices = [];
+      for (let bucketY = 0; bucketY < NUM_BUCKETS_PER_DIMENSION; bucketY++) {
+        const startY = Math.floor(bucketY * bucketHeight);
+        for (let bucketX = 0; bucketX < NUM_BUCKETS_PER_DIMENSION; bucketX++) {
+          const startX = Math.floor(bucketX * bucketWidth);
+          const loc = [];
+          for (let ii = 0; ii < bucketWidth; ii++) {
+            for (let jj = 0; jj < bucketHeight; jj++) {
+              loc.push([startY + jj, startX + ii]);
+            }
+          }
+          indices.push(loc);
+        }
+      }
+      indices = tf.tensor(indices, [nBuckets, bucketWidth * bucketHeight, 2], 'int32');
+
+      bucketScores.push(tf.gatherND(extremaScores, indices).squeeze());
+      dogIndexList.push(tf.fill([nBuckets, bucketWidth * bucketHeight], dogIndexes[i]));
+      const [x, y] = tf.split(indices, [1,1], 2);
+      xList.push(x);
+      yList.push(y);
+    }
+    const allBucketScores = tf.concat(bucketScores, 1);
+    const allBucketScoresAbs = allBucketScores.abs();
+    const allDogIndexes = tf.concat(dogIndexList, 1);
+    const allX = tf.concat(xList, 1).squeeze();
+    const allY = tf.concat(yList, 1).squeeze();
+
+    let {values: topValues, indices: topIndices} = tf.topk(allBucketScoresAbs, MAX_FEATURES_PER_BUCKET);
+    let x = tf.range(0, nBuckets, 1, 'int32').reshape([nBuckets, 1]).tile([1, MAX_FEATURES_PER_BUCKET]);
+    topIndices = tf.stack([x, topIndices], 2);
+
+    const topScores = tf.gatherND(allBucketScores, topIndices);
+    const topDogIndex = tf.gatherND(allDogIndexes, topIndices);
+    const topOctave = topDogIndex.floorDiv(PYRAMID_NUM_SCALES_PER_OCTAVES-1);
+    const top2PowOctave = tf.fill(topOctave.shape, 2).pow(topOctave);
+    const top2PowOctaveMin1 = tf.fill(topOctave.shape, 2).pow(topOctave.sub(1));
+
+    const topScale = topDogIndex.mod(PYRAMID_NUM_SCALES_PER_OCTAVES-1); // TODO: must be zero?
+    const topXIndex = tf.gatherND(allX, topIndices);
+    const topYIndex = tf.gatherND(allY, topIndices);
+
+    //console.log("top octave", topOctave.arraySync());
+    //console.log("top 2 pow octave", top2PowOctave.arraySync());
+    //console.log("top 2 pow octave min 1", top2PowOctaveMin1.arraySync());
+    //console.log("top scale", topScale.arraySync());
+    //console.log("top x index", topXIndex.arraySync());
+    //console.log("top y index", topYIndex.arraySync());
+
+    const topX = topXIndex.mul(top2PowOctave).add(top2PowOctaveMin1).sub(0.5);
+    const topY = topYIndex.mul(top2PowOctave).add(top2PowOctaveMin1).sub(0.5);
+
+    const mK = Math.pow(2, 1.0 / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
+    const topSigma = tf.fill(topDogIndex.shape, mK).pow(topScale).mul(top2PowOctave); // TODO: topScale always 0?
+
+    console.log("top scores", topScores.arraySync());
+    console.log("top sigma", topSigma.arraySync());
+    console.log("top x", topX.arraySync());
+    console.log("top y", topY.arraySync());
+    console.log("top dog index", topDogIndex.arraySync());
+
+    const topScoresArray = topScores.arraySync();
+    const topSigmaArray = topSigma.arraySync();
+    const topXArray = topX.arraySync();
+    const topYArray = topY.arraySync();
+    const topDogIndexArray = topDogIndex.arraySync();
+    const combine = [];
+    for (let i = 0; i < topScoresArray.length; i++) {
+      combine.push([]);
+      for (let j = 0; j < topScoresArray[i].length; j++) {
+        combine[i].push([]);
+
+        if (topScoresArray[i][j] > 0) {
+          combine[i][j].push(
+            topScoresArray[i][j],
+            topSigmaArray[i][j],
+            topYArray[i][j],
+            topXArray[i][j],
+            topDogIndexArray[i][j],
+          );
+        } else {
+          combine[i][j].push([0,0,0,0,0]);
+        }
+      }
+    }
+
+    console.log("combine: ", combine);
+    console.log("debug pruned: ", globalDebug.prunedExtremas[globalDebug.prunedExtremas.length-1].toArray());
+
+    globalDebug.compareImage('prune', combine, globalDebug.prunedExtremas[globalDebug.prunedExtremas.length-1].toArray());
   }
 
   _buildExtremas(image0, image1, image2, octave, scale, startI, startJ, endI, endJ) {
@@ -253,7 +369,7 @@ class Detector {
     const score = image1.sub(b0.mul(u0).add(b1.mul(u1)).add(b2.mul(u2)));
     isExtrema = isExtrema.logicalAnd(score.mul(score).greaterEqual(LAPLACIAN_SQR_THRESHOLD));
 
-    return tf.where(isExtrema, score, 0);
+    return tf.where(isExtrema, score, 0).squeeze();
   }
 
   _differenceImageBinomial(image1, image2) {
