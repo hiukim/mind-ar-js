@@ -246,24 +246,56 @@ class Detector {
       prunedExtremas = this._applyPrune(k, prunedExtremas, extremasResult, image1.width, image1.height, octave, scale);
 
       globalDebug.prunedExtremas.push(prunedExtremas);
-
-      continue;
     }
 
-    return;
+    console.log("prunedExtremas", prunedExtremas.toArray());
+
+    globalDebug.gradients = [];
+    globalDebug.fbins = [];
+    globalDebug.magnitudes = [];
+    globalDebug.histograms = [];
 
     // compute the orientation angle of the extrema
     //  artoolkit picks mutiple angles (usually 1-3), but we pick one only for simplicity
     let extremaHistograms = this._initializeHistograms();
     for (let k = 1; k < dogPyramidImages.length - 1; k++) {
+      if (k % 2 === 1) continue;
+
       const octave = Math.floor(k / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
       const scale = k % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
       const gaussianIndex = octave * PYRAMID_NUM_SCALES_PER_OCTAVES + scale;
       const gaussianImage = pyramidImages[gaussianIndex]
+
       const gradientResult = this._computeGradients(gaussianImage);
 
+      globalDebug.gradients.push({
+        mag: globalDebug.convertImage({width: dogPyramidImages[k].width, height: dogPyramidImages[k].height, data: gradientResult.saveMag.toArray()}),
+        angle: globalDebug.convertImage({width: dogPyramidImages[k].width, height: dogPyramidImages[k].height, data: gradientResult.result.toArray()}),
+      });
+
       extremaHistograms = this._computeOrientationHistograms(extremaHistograms, gradientResult, prunedExtremas, k, gaussianImage.width, gaussianImage.height);
+
+      console.log("pruned extremas: ", prunedExtremas.toArray());
+
+      const extremaHistograms2 = this._computeOrientationHistograms2(extremaHistograms, gradientResult, prunedExtremas, k, gaussianImage.width, gaussianImage.height);
+
+      const arr1 = extremaHistograms.toArray();
+      const arr2 = extremaHistograms2.toArray();
+      let correct = 0;
+      for (let ii = 0; ii < arr1.length; ii++) {
+        for (let jj = 0; jj < arr1[ii].length; jj++) {
+          for (let kk = 0; kk < arr1[ii][jj].length; kk++) {
+            if ( Math.abs(arr1[ii][jj][kk] - arr2[ii][jj][kk]) < 0.001) {
+              correct += 1;
+            } else {
+              console.log("incorrect: ", arr1[ii][jj][kk], arr2[ii][jj][kk]);
+            }
+          }
+        }
+      }
+      console.log("extrema correct: " + correct);
     }
+
     extremaHistograms = this._smoothHistograms(extremaHistograms);
     const extremaAngles = this._computeExtremaAngles(extremaHistograms);
 
@@ -371,6 +403,273 @@ class Detector {
     return result;
   }
 
+  _computeOrientationHistograms2(extremaHistograms, gradientResult, prunedExtremas, dogIndex, width, height) {
+    const dogNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES - 1;
+
+    const octave = Math.floor(dogIndex / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
+    const scale = dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
+    const mK = Math.pow(2, 1.0 / dogNumScalesPerOctaves);
+    const originalSigma = Math.pow(mK, scale) * (1 << octave);
+    const octaveFactor = 1.0 / Math.pow(2, octave);
+    const sigma = originalSigma * octaveFactor;
+
+    const gaussianExpansionFactor = ORIENTATION_GAUSSIAN_EXPANSION_FACTOR;
+    const regionExpansionFactor = ORIENTATION_REGION_EXPANSION_FACTOR;
+    const gwSigma = Math.max(1.0, gaussianExpansionFactor * sigma);
+    const gwScale = -1.0 / (2 * gwSigma * gwSigma);
+
+    const radius = regionExpansionFactor * gwSigma;
+    const radiusCeil = Math.ceil(radius);
+    const radius2 = Math.ceil(radius * radius - 0.5);
+    console.log("radius: ", radius, radius2);
+
+    if (this.kernelIndex === this.kernels.length) {
+      const subKernels = [];
+      subKernels.push(
+        this.gpu.createKernel(function(extremaHistograms, gradientMags, gradientAngles, prunedExtremas) {
+          const dogIndex = this.constants.dogIndex;
+          const octave = this.constants.octave;
+          const scale = this.constants.scale;
+          const numBins = this.constants.numBins;
+          const width = this.constants.width;
+          const height = this.constants.height;
+          const oneOver2PI = 0.159154943091895;
+          const gaussianExpansionFactor = this.constants.gaussianExpansionFactor;
+          const regionExpansionFactor = this.constants.regionExpansionFactor;
+          const dogNumScalesPerOctaves = this.constants.dogNumScalesPerOctaves;
+          const radius = this.constants.radius;
+          const radiusCeil = this.constants.radiusCeil;
+          const gwScale = this.constants.gwScale;
+          const radius2 = Math.ceil(radius * radius - 0.5);
+
+          const bucketPointIndex = this.thread.y;
+          const bucketIndex = this.thread.z;
+          const originalX = prunedExtremas[bucketIndex][bucketPointIndex][2];
+          const originalY = prunedExtremas[bucketIndex][bucketPointIndex][3];
+
+          const thisDogIndex = prunedExtremas[bucketIndex][bucketPointIndex][4];
+          if (Math.abs(dogIndex - thisDogIndex) > 0.1) {
+            return 0;
+          }
+
+          const octaveFactor = 1.0 / Math.pow(2, octave);
+          const x = Math.floor(originalX * octaveFactor + 0.5 * octaveFactor);
+          const y = Math.floor(originalY * octaveFactor + 0.5 * octaveFactor);
+
+          //const x = this.thread.y;
+          //const y = this.thread.z;
+
+          const xoffset = this.thread.x % (2*radiusCeil+1);
+          const yoffset = Math.floor(this.thread.x / (2*radiusCeil+1));
+
+          const xp = x - radiusCeil + xoffset;
+          const yp = y - radiusCeil + yoffset;
+
+          if (xp < 0 || xp >= width || yp < 0 || yp >= height) return 0;
+
+          const mag = gradientMags[yp * width + xp];
+          const angle = gradientAngles[yp * width + xp];
+
+          const dy = yp - y;
+          const dx = xp - x;
+          const dy2 = dy * dy;
+          const dx2 = dx * dx;
+          const r2 = dx2 + dy2;
+
+          if (r2 > radius2) return 0;
+
+          const _x = r2 * gwScale;
+          const w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888;
+
+          const fbin  = numBins * angle * oneOver2PI;
+          return fbin;
+         }, {
+          constants: {
+            dogIndex: dogIndex,
+            octave: Math.floor(dogIndex / (PYRAMID_NUM_SCALES_PER_OCTAVES-1)),
+            scale: dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1),
+            numBins: ORIENTATION_NUM_BINS,
+            width: width,
+            height: height,
+            gaussianExpansionFactor: ORIENTATION_GAUSSIAN_EXPANSION_FACTOR,
+            regionExpansionFactor: ORIENTATION_REGION_EXPANSION_FACTOR,
+            dogNumScalesPerOctaves: dogNumScalesPerOctaves,
+            radius: radius,
+            radiusCeil: radiusCeil,
+            gwScale: gwScale,
+          },
+          //output: [ (2*radiusCeil+1)*(2*radiusCeil+1), width, height],
+          output: [(2*radiusCeil+1)*(2*radiusCeil+1), MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+          pipeline: true,
+        })
+      );
+
+      subKernels.push(
+        this.gpu.createKernel(function(extremaHistograms, gradientMags, gradientAngles, prunedExtremas) {
+          const dogIndex = this.constants.dogIndex;
+          const octave = this.constants.octave;
+          const scale = this.constants.scale;
+          const numBins = this.constants.numBins;
+          const width = this.constants.width;
+          const height = this.constants.height;
+          const oneOver2PI = 0.159154943091895;
+          const gaussianExpansionFactor = this.constants.gaussianExpansionFactor;
+          const regionExpansionFactor = this.constants.regionExpansionFactor;
+          const dogNumScalesPerOctaves = this.constants.dogNumScalesPerOctaves;
+          const radius = this.constants.radius;
+          const radiusCeil = this.constants.radiusCeil;
+          const gwScale = this.constants.gwScale;
+          const radius2 = Math.ceil(radius * radius - 0.5);
+
+          const bucketPointIndex = this.thread.y;
+          const bucketIndex = this.thread.z;
+          const originalX = prunedExtremas[bucketIndex][bucketPointIndex][2];
+          const originalY = prunedExtremas[bucketIndex][bucketPointIndex][3];
+          const octaveFactor = 1.0 / Math.pow(2, octave);
+          const x = Math.floor(originalX * octaveFactor + 0.5 * octaveFactor);
+          const y = Math.floor(originalY * octaveFactor + 0.5 * octaveFactor);
+
+          const thisDogIndex = prunedExtremas[bucketIndex][bucketPointIndex][4];
+          if (Math.abs(dogIndex - thisDogIndex) > 0.1) {
+            return 0;
+          }
+
+          //const x = this.thread.y;
+          //const y = this.thread.z;
+
+          const xoffset = this.thread.x % (2*radiusCeil+1);
+          const yoffset = Math.floor(this.thread.x / (2*radiusCeil+1));
+
+          const xp = x - radiusCeil + xoffset;
+          const yp = y - radiusCeil + yoffset;
+          if (xp < 0 || xp >= width || yp < 0 || yp >= height) return 0;
+
+          const mag = gradientMags[yp * width + xp];
+          const angle = gradientAngles[yp * width + xp];
+
+          const dy = yp - y;
+          const dx = xp - x;
+          const dy2 = dy * dy;
+          const dx2 = dx * dx;
+          const r2 = dx2 + dy2;
+
+          if (r2 > radius2) return 0;
+
+          const _x = r2 * gwScale;
+          const w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888;
+          const magnitude = w * mag;
+          return magnitude;
+         }, {
+          constants: {
+            dogIndex: dogIndex,
+            octave: Math.floor(dogIndex / (PYRAMID_NUM_SCALES_PER_OCTAVES-1)),
+            scale: dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1),
+            numBins: ORIENTATION_NUM_BINS,
+            width: width,
+            height: height,
+            gaussianExpansionFactor: ORIENTATION_GAUSSIAN_EXPANSION_FACTOR,
+            regionExpansionFactor: ORIENTATION_REGION_EXPANSION_FACTOR,
+            dogNumScalesPerOctaves: dogNumScalesPerOctaves,
+            radius: radius,
+            radiusCeil: radiusCeil,
+            gwScale: gwScale,
+          },
+          //output: [ (2*radiusCeil+1)*(2*radiusCeil+1), width, height],
+          output: [(2*radiusCeil+1)*(2*radiusCeil+1), MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+          pipeline: true,
+        })
+      );
+
+      subKernels.push(
+        this.gpu.createKernel(function(fbins, magnitudes) {
+          const depth = this.constants.depth;
+          const numBins = this.constants.numBins;
+          const y = this.thread.z;
+          const x = this.thread.y;
+
+          let sum = 0;
+          for (let i = 0; i < this.constants.depth; i++) {
+            const index = i;
+            const fbin = fbins[this.thread.z][this.thread.y][i];
+            const magnitude = magnitudes[this.thread.z][this.thread.y][i];
+            const bin = Math.floor(fbin - 0.5);
+            const w2 = fbin - bin - 0.5;
+            const w1 = (1.0 - w2);
+            const b1 = (bin + numBins) % numBins;
+            const b2 = (bin + 1) % numBins;
+            if (b1 === this.thread.x) sum += w1 * magnitude;
+            if (b2 === this.thread.x) sum += w2 * magnitude;
+          }
+          return sum;
+        }, {
+          constants: {
+            numBins: ORIENTATION_NUM_BINS,
+            depth: (2*radiusCeil+1) * (2*radiusCeil+1)
+          },
+          //output: [ORIENTATION_NUM_BINS, width, height],
+          output: [ORIENTATION_NUM_BINS, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+          pipeline: true,
+        })
+      );
+
+      subKernels.push(
+        this.gpu.createKernel(function(extremaHistograms, prunedExtremas, histograms) {
+          const dogIndex = this.constants.dogIndex;
+          const octave = this.constants.octave;
+          const bucketPointIndex = this.thread.y;
+          const bucketIndex = this.thread.z;
+
+          const thisDogIndex = prunedExtremas[bucketIndex][bucketPointIndex][4];
+          if (Math.abs(dogIndex - thisDogIndex) > 0.1) {
+            return extremaHistograms[this.thread.z][this.thread.y][this.thread.x];
+          }
+          return histograms[this.thread.z][this.thread.y][this.thread.x];
+
+          /*
+          const originalX = prunedExtremas[bucketIndex][bucketPointIndex][2];
+          const originalY = prunedExtremas[bucketIndex][bucketPointIndex][3];
+          const octaveFactor = 1.0 / Math.pow(2, octave);
+          const x = Math.floor(originalX * octaveFactor + 0.5 * octaveFactor);
+          const y = Math.floor(originalY * octaveFactor + 0.5 * octaveFactor);
+
+          return histograms[y][x][this.thread.x];
+          */
+        }, {
+          constants: {
+            dogIndex: dogIndex,
+            octave: Math.floor(dogIndex / (PYRAMID_NUM_SCALES_PER_OCTAVES-1)),
+          },
+          output: [ORIENTATION_NUM_BINS, MAX_FEATURES_PER_BUCKET, NUM_BUCKETS],
+          pipeline: true,
+        })
+      )
+      this.kernels.push(subKernels);
+    }
+    const gradientMags = gradientResult.saveMag;
+    const gradientAngles = gradientResult.result;
+
+    const kernel = this.kernels[this.kernelIndex++];
+    const fbins= kernel[0](extremaHistograms, gradientMags, gradientAngles, prunedExtremas);
+
+    globalDebug.fbins.push(fbins);
+
+    //console.log("fbins: ", fbins.toArray());
+    const magnitudes= kernel[1](extremaHistograms, gradientMags, gradientAngles, prunedExtremas);
+
+    globalDebug.magnitudes.push(magnitudes);
+
+    //console.log("magnitudes: ", magnitudes.toArray());
+    const histograms= kernel[2](fbins, magnitudes);
+
+    globalDebug.histograms.push(histograms);
+    //console.log("histograms: ", histograms.toArray());
+    const newExtremaHistograms= kernel[3](extremaHistograms, prunedExtremas, histograms);
+    //console.log("newExtremaHistograms: ", newExtremaHistograms.toArray());
+    return newExtremaHistograms;
+    //const result = {fbins, magnitudes, histograms};
+    //return result;
+  }
+
   _computeOrientationHistograms(extremaHistograms, gradientResult, prunedExtremas, dogIndex, width, height) {
     if (this.kernelIndex === this.kernels.length) {
       this.kernels.push(
@@ -475,6 +774,7 @@ class Detector {
     const gradientMags = gradientResult.saveMag;
     const gradientAngles = gradientResult.result;
     const result = kernel(extremaHistograms, gradientMags, gradientAngles, prunedExtremas);
+    console.log("correct histo", result.toArray());
     return result;
   }
 
@@ -602,6 +902,8 @@ class Detector {
             const numBucketsPerDimension = this.constants.numBucketsPerDimension;
             const dx = this.constants.bucketWidth;
             const dy = this.constants.bucketHeight;
+            const dxF = this.constants.bucketWidthF;
+            const dyF = this.constants.bucketHeightF;
 
             const bucketX = bucketIndex % numBucketsPerDimension;
             const bucketY = Math.floor(bucketIndex / numBucketsPerDimension);
@@ -614,8 +916,13 @@ class Detector {
             let maxScore = Math.abs(prunedExtremas[bucketIndex][-1 * currentPrunedMaxIndex - 1][0]); // score at propertyIndex 0
             maxScore = Math.max(maxScore, 0.0001); // safeguard, but probably not needed
 
-            let startX = Math.floor(bucketX * dx);
-            let startY = Math.floor(bucketY * dy);
+            //let startX = Math.floor(bucketX * dx);
+            //let startY = Math.floor(bucketY * dy);
+
+            let startX = Math.floor(bucketX * dxF);
+            let startY = Math.floor(bucketY * dyF);
+            let endX = Math.floor((bucketX+1) * dxF);
+            let endY = Math.floor((bucketY+1) * dyF);
 
             for (let ii = 0; ii < this.constants.bucketWidth; ii++) {
               const i = startX + ii;
@@ -624,7 +931,8 @@ class Detector {
 
                 const pointIndex = j * width + i;
                 const pointScore = Math.abs(extremaScores[pointIndex]);
-                if (pointScore > maxScore) {
+                //if (pointScore > maxScore) {
+                if (pointScore > maxScore && i < endX && j < endY) {
                   let selected = false;
                   for (let k = 0; k < this.constants.orderIndex; k++) {
                     //if (orders[bucketIndex][k] === pointIndex) selected = true;
@@ -642,6 +950,8 @@ class Detector {
             constants: {
               bucketWidth: Math.ceil(width / NUM_BUCKETS_PER_DIMENSION),
               bucketHeight: Math.ceil(height / NUM_BUCKETS_PER_DIMENSION),
+              bucketWidthF: width / NUM_BUCKETS_PER_DIMENSION,
+              bucketHeightF: height / NUM_BUCKETS_PER_DIMENSION,
               width: width,
               height: height,
               numBucketsPerDimension: NUM_BUCKETS_PER_DIMENSION,
@@ -724,12 +1034,16 @@ class Detector {
 
         const i = this.thread.x % width;
         const j = Math.floor(this.thread.x / width);
+        /*
         const prevJ = j > 0? j - 1: j;
         const nextJ = j < height - 1? j + 1: j;
         const prevI = i > 0? i - 1: i;
         const nextI = i < width - 1? i + 1: i;
         const dx = data[j * width + nextI] - data[j * width + prevI];
         const dy = data[nextJ * width + i] - data[prevJ * width + i];
+        */
+        const dx = (i < width - 1? data[j * width + i + 1]: 0) - (i > 0? data[j * width + i -1]: 0);
+        const dy = (j < height - 1? data[(j+1) * width + i]: 0) - (j > 0? data[(j-1) * width + i]: 0);
 
         const mag = Math.sqrt(dx * dx + dy * dy);
         return mag;
@@ -745,12 +1059,16 @@ class Detector {
 
         const i = this.thread.x % width;
         const j = Math.floor(this.thread.x / width);
+        /*
         const prevJ = j > 0? j - 1: j;
         const nextJ = j < height - 1? j + 1: j;
         const prevI = i > 0? i - 1: i;
         const nextI = i < width - 1? i + 1: i;
         const dx = data[j * width + nextI] - data[j * width + prevI];
         const dy = data[nextJ * width + i] - data[prevJ * width + i];
+        */
+        const dx = (i < width - 1? data[j * width + i + 1]: 0) - (i > 0? data[j * width + i -1]: 0);
+        const dy = (j < height - 1? data[(j+1) * width + i]: 0) - (j > 0? data[(j-1) * width + i]: 0);
 
         // seems like gpu atan2 doesn't handle dx === 0 well
         // angle = Math.atan2(dy, dx); can someone verify correctness?

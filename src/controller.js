@@ -246,9 +246,9 @@ class Controller {
   async processImage(input) {
     //let featurePoints = this.detectorCPU.detect(input);
     let featurePoints = this.detector.detect(input);
+    console.log("featurePoints", featurePoints);
     let featurePointsTF = this.detectorTF.detect(input);
 
-    console.log("featurePoints", featurePoints);
     const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
     console.log("match", targetIndex, modelViewTransform);
     if (targetIndex === -1) return;

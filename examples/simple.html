@@ -4,32 +4,42 @@
     <script>
       const globalDebug = {};
 
-      globalDebug.compareImage = (label, image1, image2) => {
+      globalDebug.compareImage = (label, image1, image2, epsilon = 0.0001) => {
         let correct = true;
         if (image1.length !== image2.length) {
           console.log(label, "incorrect size: ", image1.length, image2.length);
           return false;
         }
 
-        let totalPixels = image1.length * image1[0].length;
+        //let totalPixels = image1.length * image1[0].length;
+        let totalPixels = 0;
         let correctCount = 0;
         let incorrectCount = 0;
         let maxShow = 50;
-        for (let i = 0; i < image1.length; i++) {
-          for (let j = 0; j < image1[i].length; j++) {
-            if (Math.abs(image1[i][j] - image2[i][j]) > 0.0001) {
+        let indexes = [];
+        const go = (arr1, arr2) => {
+          if (arr1.length && arr1.length > 0) {
+            for (let i = 0; i < arr1.length; i++) {
+              indexes.push(i);
+              go(arr1[i], arr2[i]);
+              indexes.pop();
+            }
+          } else {
+            totalPixels += 1;
+            if (Math.abs(arr1 - arr2) < epsilon) {
+              correctCount += 1;
+            } else {
               incorrectCount += 1;
               if (incorrectCount <= 50) {
-                console.log("incorrect pixel: ", i, j, image1[i][j], image2[i][j]);
+                console.log("incorrect pixel: ", indexes.toString(), arr1, arr2);
               }
-            } else {
-              correctCount += 1;
             }
           }
         }
+        go(image1, image2);
         if (correctCount === totalPixels) console.log(label, "CORRECT", correctCount);
         else {
-          console.log(label, "INCORRECT: ", incorrectCount, image1, 'vs', image2);
+          console.log(label, "INCORRECT: ", incorrectCount, '/', totalPixels, image1, 'vs', image2);
         }
       }
 
