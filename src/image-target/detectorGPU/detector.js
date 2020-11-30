@@ -248,7 +248,7 @@ class Detector {
       globalDebug.prunedExtremas.push(prunedExtremas);
     }
 
-    console.log("prunedExtremas", prunedExtremas.toArray());
+    //console.log("prunedExtremas", prunedExtremas.toArray());
 
     globalDebug.gradients = [];
     globalDebug.fbins = [];
@@ -279,6 +279,7 @@ class Detector {
 
       const extremaHistograms2 = this._computeOrientationHistograms2(extremaHistograms, gradientResult, prunedExtremas, k, gaussianImage.width, gaussianImage.height);
 
+
       const arr1 = extremaHistograms.toArray();
       const arr2 = extremaHistograms2.toArray();
       let correct = 0;
@@ -296,8 +297,13 @@ class Detector {
       console.log("extrema correct: " + correct);
     }
 
+    globalDebug.extremaHistograms = extremaHistograms.toArray();
+
     extremaHistograms = this._smoothHistograms(extremaHistograms);
+    globalDebug.smoothedExtremaHistograms = extremaHistograms.toArray();
+
     const extremaAngles = this._computeExtremaAngles(extremaHistograms);
+    globalDebug.extremaAngles = extremaAngles.toArray();
 
     // compute the FREAK descriptors for extremas
     const extremaFreaks = this._computeExtremaFreak(pyramidImages, numOctaves, prunedExtremas, extremaAngles);
@@ -421,7 +427,6 @@ class Detector {
     const radius = regionExpansionFactor * gwSigma;
     const radiusCeil = Math.ceil(radius);
     const radius2 = Math.ceil(radius * radius - 0.5);
-    console.log("radius: ", radius, radius2);
 
     if (this.kernelIndex === this.kernels.length) {
       const subKernels = [];
@@ -556,6 +561,7 @@ class Detector {
           if (r2 > radius2) return 0;
 
           const _x = r2 * gwScale;
+
           const w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888;
           const magnitude = w * mag;
           return magnitude;
@@ -662,6 +668,7 @@ class Detector {
     const histograms= kernel[2](fbins, magnitudes);
 
     globalDebug.histograms.push(histograms);
+
     //console.log("histograms: ", histograms.toArray());
     const newExtremaHistograms= kernel[3](extremaHistograms, prunedExtremas, histograms);
     //console.log("newExtremaHistograms: ", newExtremaHistograms.toArray());
@@ -774,7 +781,6 @@ class Detector {
     const gradientMags = gradientResult.saveMag;
     const gradientAngles = gradientResult.result;
     const result = kernel(extremaHistograms, gradientMags, gradientAngles, prunedExtremas);
-    console.log("correct histo", result.toArray());
     return result;
   }
 
@@ -799,7 +805,8 @@ class Detector {
       this.kernels.push(subkernels);
     }
     const subkernels = this.kernels[this.kernelIndex++];
-    for (let k = 0; k < ORIENTATION_SMOOTHING_ITERATIONS; k++) {
+    //for (let k = 0; k < ORIENTATION_SMOOTHING_ITERATIONS; k++) {
+    for (let k = 0; k < 1; k++) {
       histograms = subkernels[k](histograms);
     }
     return histograms;
@@ -817,6 +824,7 @@ class Detector {
               maxIndex = i;
             }
           }
+
           const prev = (maxIndex - 1 + numBins) % numBins;
           const next = (maxIndex + 1) % numBins;
 
@@ -850,7 +858,10 @@ class Detector {
             const A = ((p31-p21)/d1)-((p11-p21)/d2);
             const B = ((p11-p21)+(A*(b-a)))/d3;
             const C = p11-(A*a)-(B*p10);
-            fbin = -B / (2 * A);
+
+            if (Math.abs(A) > 0) {
+              fbin = -B / (2 * A);
+            }
           }
 
           let an =  2.0 * Math.PI * ((fbin + 0.5 + numBins) / numBins);

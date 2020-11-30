@@ -22,6 +22,100 @@ const ORIENTATION_GAUSSIAN_EXPANSION_FACTOR = 3.0;
 const ORIENTATION_REGION_EXPANSION_FACTOR = 1.5;
 const FREAK_EXPANSION_FACTOR = 7.0;
 
+// 37 points = 6 rings x 6 points per ring + 1 center
+const FREAK_RINGS = [
+  // ring 5
+  {
+    sigma: 0.550000,
+    points: [
+      [-1.000000, 0.000000],
+      [-0.500000, -0.866025],
+      [0.500000, -0.866025],
+      [1.000000, -0.000000],
+      [0.500000, 0.866025],
+      [-0.500000, 0.866025]
+    ]
+  },
+  // ring 4
+  {
+    sigma: 0.475000,
+    points: [
+      [0.000000, 0.930969],
+      [-0.806243, 0.465485],
+      [-0.806243, -0.465485],
+      [-0.000000, -0.930969],
+      [0.806243, -0.465485],
+      [0.806243, 0.465485]
+    ]
+  },
+  // ring 3
+  {
+    sigma: 0.400000,
+    points: [
+      [0.847306, -0.000000],
+      [0.423653, 0.733789],
+      [-0.423653, 0.733789],
+      [-0.847306, 0.000000],
+      [-0.423653, -0.733789],
+      [0.423653, -0.733789]
+    ]
+  },
+  // ring 2
+  {
+    sigma: 0.325000,
+    points: [
+      [-0.000000, -0.741094],
+      [0.641806, -0.370547],
+      [0.641806, 0.370547],
+      [0.000000, 0.741094],
+      [-0.641806, 0.370547],
+      [-0.641806, -0.370547]
+    ]
+  },
+  // ring 1
+  {
+    sigma: 0.250000,
+    points: [
+      [-0.595502, 0.000000],
+      [-0.297751, -0.515720],
+      [0.297751, -0.515720],
+      [0.595502, -0.000000],
+      [0.297751, 0.515720],
+      [-0.297751, 0.515720]
+    ]
+  },
+  // ring 0
+  {
+    sigma: 0.175000,
+    points: [
+      [0.000000, 0.362783],
+      [-0.314179, 0.181391],
+      [-0.314179, -0.181391],
+      [-0.000000, -0.362783],
+      [0.314179, -0.181391],
+      [0.314179, 0.181391]
+    ]
+  },
+  // center
+  {
+    sigma: 0.100000,
+    points: [
+      [0, 0]
+    ]
+  }
+];
+
+const FREAKPOINTS = [];
+for (let r = 0; r < FREAK_RINGS.length; r++) {
+  const sigma = FREAK_RINGS[r].sigma;
+  for (let i = 0; i < FREAK_RINGS[r].points.length; i++) {
+    const point = FREAK_RINGS[r].points[i];
+    FREAKPOINTS.push([sigma, point[0], point[1]]);
+  }
+}
+
+const FREAK_CONPARISON_COUNT = (FREAKPOINTS.length-1) * (FREAKPOINTS.length) / 2; // 666
+
 class Detector {
   constructor(width, height) {
     this.width = width;
@@ -49,7 +143,7 @@ class Detector {
       // remove
       inputImage = tf.tensor(globalDebug.inputImage).expandDims(2).expandDims(0);
 
-      globalDebug.compareImage('inputimage: ', globalDebug.inputImage, inputImage.squeeze().arraySync());
+      //globalDebug.compareImage('inputimage: ', globalDebug.inputImage, inputImage.squeeze().arraySync());
 
       const data = inputImage.squeeze().arraySync();
       //console.log("image data: ", inputImage.squeeze().arraySync());
@@ -161,18 +255,95 @@ class Detector {
       }
 
       const prunedExtremas = this._applyPrune(extremasResults, dogIndexes);
-      this._computeOrientationHistograms(prunedExtremas, pyramidImages, dogIndexes);
+      const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImages, dogIndexes);
+      const smoothedHistograms = this._smoothHistograms(extremaHistograms);
+
+      globalDebug.compareImage('extream histograms', globalDebug.extremaHistograms, extremaHistograms.arraySync(), 0.1);
+      globalDebug.compareImage('smoothed histograms', globalDebug.smoothedExtremaHistograms, smoothedHistograms.arraySync(), 0.1);
+
+      const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
+      console.log("extrema angles", extremaAngles.arraySync());
+
+      globalDebug.compareImage('extream angles', globalDebug.extremaAngles, extremaAngles.expandDims(2).arraySync(), 0.1);
+
+      const extremaFreaks = this._computeExtremaFreak(pyramidImages, this.numOctaves, prunedExtremas, extremaAngles);
     });
 
     console.table(tf.memory());
   }
 
+  _computeExtremaFreak(pyramidImages, gaussianNumOctaves, prunedExtremas, prunedExtremasAngles) {
+    console.log("pruned sigma: ", prunedExtremas.sigma.arraySync());
+    console.log("pruned original x: ", prunedExtremas.originalX.arraySync());
+    console.log("pruned original y: ", prunedExtremas.originalY.arraySync());
+    console.log("pruned angles: ", prunedExtremasAngles.arraySync());
+
+    const freakPoints = tf.tensor(FREAKPOINTS);
+    console.log("freak points", freakPoints.arraySync());
+    return;
+
+    //console.log("pruned extremas: ", prunedExtremas);
+    //console.log("pruned x: ", prunedExtremas.x.arraySync());
+    //console.log("pruned y: ", prunedExtremas.y.arraySync());
+    //console.log("pruned octave: ", prunedExtremas.octave.arraySync());
+    //console.log("pruned dog: ", prunedExtremas.dogIndex.arraySync());
+  }
+
+  _computeExtremaAngles(histograms) {
+    const numBins = ORIENTATION_NUM_BINS;
+
+    // TODO: cache
+    const yIndices = tf.tile(tf.range(0, histograms.shape[0], 1).expandDims(1), [1, histograms.shape[1]]);
+    const xIndices = tf.tile(tf.range(0, histograms.shape[1], 1).expandDims(0), [histograms.shape[0], 1]);
+    const indices = tf.stack([yIndices, xIndices], 2);
+
+    /**
+     * Fit a quatratic to 3 points. The system of equations is:
+     *
+     * y0 = A*x0^2 + B*x0 + C
+     * y1 = A*x1^2 + B*x1 + C
+     * y2 = A*x2^2 + B*x2 + C
+     *
+     * This system of equations is solved for A,B,C.
+     */
+    const maxIndex = histograms.argMax(2);
+    const prev = maxIndex.add(numBins-1).mod(numBins);
+    const next = maxIndex.add(1).mod(numBins);
+
+    const indices1 = tf.concat([indices, prev.expandDims(2)], 2).cast('int32');
+    const indices2 = tf.concat([indices, maxIndex.expandDims(2)], 2).cast('int32');
+    const indices3 = tf.concat([indices, next.expandDims(2)], 2).cast('int32');
+    const p10 = maxIndex.sub(1);
+    const p20 = maxIndex;
+    const p30 = maxIndex.add(1);
+    const p11 = tf.gatherND(histograms, indices1);
+    const p21 = tf.gatherND(histograms, indices2);
+    const p31 = tf.gatherND(histograms, indices3);
+
+    const d1 = p30.sub(p20).mul(p30.sub(p10));
+    const d2 = p10.sub(p20).mul(p30.sub(p10));
+    const d3 = p10.sub(p20);
+
+    const a = p10.mul(p10);
+    const b = p20.mul(p20);
+    const A = p31.sub(p21).div(d1).sub(p11.sub(p21).div(d2));
+    const B = p11.sub(p21).add(A.mul(b.sub(a))).div(d3);
+    const C = p11.sub(A.mul(a)).sub(B.mul(p10));
+
+    // if no solution, just use maxIndex
+    const fbin = tf.where(A.abs().greater(0), B.neg().div(A.mul(2)), maxIndex);
+
+    const an = fbin.add(0.5).add(numBins).div(numBins).mul(2 * Math.PI).mod(2 * Math.PI);
+
+    return an;
+  }
+
   _computeOrientationHistograms(prunedExtremas, pyramidImages, dogIndexes) {
-    console.log("pruned extremas: ", prunedExtremas);
-    console.log("pruned x: ", prunedExtremas.x.arraySync());
-    console.log("pruned y: ", prunedExtremas.y.arraySync());
-    console.log("pruned octave: ", prunedExtremas.octave.arraySync());
-    console.log("pruned dog: ", prunedExtremas.dogIndex.arraySync());
+    //console.log("pruned extremas: ", prunedExtremas);
+    //console.log("pruned x: ", prunedExtremas.x.arraySync());
+    //console.log("pruned y: ", prunedExtremas.y.arraySync());
+    //console.log("pruned octave: ", prunedExtremas.octave.arraySync());
+    //console.log("pruned dog: ", prunedExtremas.dogIndex.arraySync());
 
     const numBins = ORIENTATION_NUM_BINS;
     const oneOver2PI = 0.159154943091895;
@@ -180,6 +351,8 @@ class Detector {
     const gaussianExpansionFactor = ORIENTATION_GAUSSIAN_EXPANSION_FACTOR;
     const regionExpansionFactor = ORIENTATION_REGION_EXPANSION_FACTOR;
     const mK = Math.pow(2, 1.0 / dogNumScalesPerOctaves);
+
+    let combinedHistograms = tf.zeros([prunedExtremas.dogIndex.shape[0], prunedExtremas.dogIndex.shape[1], numBins]);
 
     for (let d = 0; d < dogIndexes.length; d++) {
       const dogIndex = dogIndexes[d];
@@ -189,10 +362,13 @@ class Detector {
       const octaveFactor = 1.0 / Math.pow(2, octave);
       const sigma = originalSigma * octaveFactor;
       const gwSigma = Math.max(1.0, gaussianExpansionFactor * sigma);
+      const gwScale = -1.0 / (2 * gwSigma * gwSigma);
       const radius = regionExpansionFactor * gwSigma;
       const radiusSquare = Math.ceil(radius * radius - 0.5);
       const radiusCeil = Math.ceil(radius);
       const radiusRange = tf.range(-radiusCeil, radiusCeil+1, 1, 'int32');
+      const radiusRangeSquare = tf.square(radiusRange);
+      const distanceSquare = radiusRangeSquare.add(radiusRangeSquare.expandDims(1));
 
       const offsetY = tf.tile(radiusRange.expandDims(1), [1, radiusRange.shape[0]]);
       const offsetX = tf.tile(radiusRange.expandDims(0), [radiusRange.shape[0], 1]);
@@ -207,6 +383,7 @@ class Detector {
       const gradients = this._computeGradient(gaussianImage, octave, scale);
 
       const angleSqueeze = gradients.angle.squeeze();
+      const magSqueeze = gradients.mag.squeeze();
       const [y, x] = indices.split([1,1], indices.shape.length-1);
 
       let valid  = offsetDistanceSquare.lessEqual(radiusSquare);
@@ -218,93 +395,83 @@ class Detector {
       const selectedAngles = tf.where(valid, tf.gatherND(angleSqueeze, indices), 0);
       const fbin = selectedAngles.mul(numBins).mul(oneOver2PI);
 
-      const fbinArr = fbin.arraySync();
-      const debugFbin = globalDebug.fbins[d].toArray();
+      const selectedMags = tf.where(valid, tf.gatherND(magSqueeze, indices), 0);
+      const _x = distanceSquare.mul(gwScale);
+      // fast expontenial approx: w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888
+      const w = _x.add(6).mul(_x).add(30).mul(_x).add(120).mul(_x).add(360).mul(_x).add(720).mul(_x).add(720).mul(0.0013888888);
+      const magnitude = w.mul(selectedMags).expandDims(4);
 
-      let correctCount = 0;
-      for (let i = 0; i < fbinArr.length; i++) {
-        for (let j = 0; j < fbinArr[i].length; j++) {
-          for (let k = 0; k < fbinArr[i][j].length; k++) {
-            for (let l = 0; l < fbinArr[i][j][k].length; l++) {
-              const v1 = fbinArr[i][j][k][l];
-              const v2 = debugFbin[i][j][k * fbinArr[i][j].length + l];
-              if (Math.abs(v1 - v2) > 0.001) {
-                console.log('incorrect', i, j, k, l, 'values: ', v1, v2);
-              } else {
-                correctCount += 1;
+      const bin = tf.floor(fbin.sub(0.5));
+      let w2 = fbin.sub(bin).sub(0.5);
+      let w1 = w2.mul(-1).add(1);
+      w1 = w1.expandDims(4);
+      w2 = w2.expandDims(4);
+      const b1 = bin.add(numBins).mod(numBins).cast('int32');
+      const b2 = bin.add(1).mod(numBins).cast('int32');
+
+      const b1Hot = tf.oneHot(b1, numBins);
+      const b1HotMag = b1Hot.mul(w1).mul(magnitude);
+      const b1HotSum = b1HotMag.sum([2,3]);
+
+      const b2Hot = tf.oneHot(b2, numBins);
+      const b2HotMag = b2Hot.mul(w2).mul(magnitude);
+      const b2HotSum = b2HotMag.sum([2,3]);
+
+      const histograms = b1HotSum.add(b2HotSum);
+
+      combinedHistograms = combinedHistograms.add(histograms);
+
+      const verify = (label, fbinArr, debugFbin) => {
+        let correctCount = 0;
+        for (let i = 0; i < fbinArr.length; i++) {
+          for (let j = 0; j < fbinArr[i].length; j++) {
+            for (let k = 0; k < fbinArr[i][j].length; k++) {
+              for (let l = 0; l < fbinArr[i][j][k].length; l++) {
+                const v1 = fbinArr[i][j][k][l];
+                const v2 = debugFbin[i][j][k * fbinArr[i][j].length + l];
+                if (Math.abs(v1 - v2) > 0.001) {
+                  console.log('incorrect', i, j, k, l, 'values: ', v1, v2);
+                } else {
+                  correctCount += 1;
+                }
               }
             }
           }
         }
+        console.log(label, "correct: " + correctCount);
       }
-      console.log("fbin correct: " + correctCount);
+      //verify('fbin', fbin.arraySync(), globalDebug.fbins[d].toArray());
+      //verify('magnitude', magnitude.arraySync(), globalDebug.magnitudes[d].toArray());
+      //globalDebug.compareImage('histograms', histograms.arraySync(), globalDebug.histograms[d].toArray(), 0.01);
     }
+    return combinedHistograms;
+  }
+
+  _smoothHistograms(histograms) {
+    const numBins = ORIENTATION_NUM_BINS;
+    const firstCol = histograms.slice([0, 0, 0], [-1, -1, 1]);
+    const lastCol = histograms.slice([0, 0, histograms.shape[2]-1], [-1, -1, 1]);
+
+    // TODO: cache
+    const filter = tf.tensor2d([[0.274068619061197, 0.451862761877606, 0.274068619061197]]).expandDims(2).expandDims(3);
+    let expandedHistogram = tf.concat([lastCol, histograms, firstCol], 2);
+
+    const originalShape = expandedHistogram.shape;
+    expandedHistogram = expandedHistogram.reshape([-1, numBins+2]).expandDims(2).expandDims(0);
+    expandedHistogram = tf.conv2d(expandedHistogram, filter, 1, 'same')
+    expandedHistogram = expandedHistogram.reshape(originalShape);
+
+    expandedHistogram = expandedHistogram.slice([0, 0, 1], [-1, -1, expandedHistogram.shape[2]-2]);
+    return expandedHistogram;
   }
 
   _computeGradient(gaussianImage, octave, scale) {
     // TODO: buildExtrema already computed this, can re-use?
     const dx = tf.conv2d(gaussianImage, tf.tensor2d([[-1, 0, 1]]).expandDims(2).expandDims(3), 1, 'same');
     const dy = tf.conv2d(gaussianImage, tf.tensor2d([[-1], [0], [1]]).expandDims(2).expandDims(3), 1, 'same');
-
     const mag = tf.sqrt(tf.square(dx).add(tf.square(dy)));
     const angle = tf.atan2(dy, dx).add(Math.PI);
-
-    const dogNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES - 1;
-    const gaussianExpansionFactor = ORIENTATION_GAUSSIAN_EXPANSION_FACTOR;
-    const regionExpansionFactor = ORIENTATION_REGION_EXPANSION_FACTOR;
-    const mK = Math.pow(2, 1.0 / dogNumScalesPerOctaves);
-    const originalSigma = Math.pow(mK, scale) * (1 << octave);
-    const octaveFactor = 1.0 / Math.pow(2, octave);
-    const sigma = originalSigma * octaveFactor;
-    const gwSigma = Math.max(1.0, gaussianExpansionFactor * sigma);
-    const gwScale = -1.0 / (2 * gwSigma * gwSigma);
-    const radius = regionExpansionFactor * gwSigma;
-    const radiusCeil = Math.ceil(radius);
-
-    const radiusRange = tf.range(-radiusCeil, radiusCeil+1, 1, 'int32');
-    const radiusRangeSquare = tf.square(radiusRange);
-    const distanceSquare = radiusRangeSquare.add(radiusRangeSquare.expandDims(1));
-    const _x = distanceSquare.mul(gwScale);
-    const w = _x.add(6).mul(_x.add(30)).mul(_x.add(120)).mul(_x.add(360)).mul(_x.add(720)).mul(_x.add(720)).mul(0.0013888888);
-
-    const numBins = ORIENTATION_NUM_BINS;
-    const oneOver2PI = 0.159154943091895;
-
-    /*
-    //this.cache['indices'] = tf.tensor([ [0,0], [-1,0] ], [2, 2], 'int32');
-    if (!this.cache['indices']) {
-      const yIndices = tf.tile(tf.range(0, gaussianImage.shape[1], 1, 'int32').expandDims(1), [1, gaussianImage.shape[2]]);
-      const xIndices = tf.tile(tf.range(0, gaussianImage.shape[2], 1, 'int32').expandDims(0), [gaussianImage.shape[1], 1]);
-      const xyIndices = tf.stack([yIndices, xIndices], 2);
-      const offsetY = tf.tile(radiusRange.expandDims(1), [1, radiusRange.shape[0]]);
-      const offsetX = tf.tile(radiusRange.expandDims(0), [radiusRange.shape[0], 1]);
-      const offset = tf.stack([offsetY, offsetX], 2);
-      this.cache['indices'] = xyIndices.expandDims(2).expandDims(2).add(offset);
-    }
-    const indices = this.cache['indices'];
-
-    console.log("indices: ", indices.shape, indices.arraySync());
-    console.log("radiusRangeSquare: ", radiusRangeSquare.arraySync());
-    console.log("distance square: ", distanceSquare.arraySync());
-    console.log("w: ", w.arraySync());
-
-    const angleSqueeze = angle.squeeze();
-    console.log("angleSqueeze: ", angleSqueeze.shape, angleSqueeze.arraySync());
-    const [y, x] = indices.split([1,1], indices.shape.length-1);
-    const valid = y.greaterEqual(0).logicalAnd(y.less(angleSqueeze.shape[0])).logicalAnd(x.greaterEqual(0)).logicalAnd(x.less(angleSqueeze.shape[1])).squeeze();
-    console.log("valid: ", valid.arraySync());
-
-    const fbin = tf.where(valid, tf.gatherND(angleSqueeze, indices), 0);
-    */
-    //const fbin = tf.gatherND(angleSqueeze, indices).mul(numBins).mul(oneOver2PI);
-
-    /*
-    const mK = Math.pow(2, 1.0 / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
-    const sigma = tf.fill(gaussianImage.shape, mK).pow(scale);
-    const gwSigma = tf.clipByValue(sigma.mul(ORIENTATION_GAUSSIAN_EXPANSION_FACTOR), 0, 1);
-    const gwScale = tf.div(-1, tf.square(gwSigma).mul(2));
-    */
-    return {mag, angle, fbin: null};
+    return {mag, angle};
   }
 
   _applyPrune(extremasResults, dogIndexes) {
@@ -390,11 +557,11 @@ class Detector {
     const mK = Math.pow(2, 1.0 / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
     const topSigma = tf.fill(topDogIndex.shape, mK).pow(topScale).mul(top2PowOctave); // TODO: topScale always 0?
 
-    console.log("top scores", topScores.arraySync());
-    console.log("top sigma", topSigma.arraySync());
-    console.log("top x", topX.arraySync());
-    console.log("top y", topY.arraySync());
-    console.log("top dog index", topDogIndex.arraySync());
+    //console.log("top scores", topScores.arraySync());
+    //console.log("top sigma", topSigma.arraySync());
+    //console.log("top x", topX.arraySync());
+    //console.log("top y", topY.arraySync());
+    //console.log("top dog index", topDogIndex.arraySync());
 
     const topScoresArray = topScores.arraySync();
     const topSigmaArray = topSigma.arraySync();
@@ -426,7 +593,7 @@ class Detector {
 
     globalDebug.compareImage('prune', combine, globalDebug.prunedExtremas[globalDebug.prunedExtremas.length-1].toArray());
 
-    return {dogIndex: topDogIndex, octave: topOctave, x: topXIndex, y: topYIndex, originalX: topX, originalY: topY};
+    return {dogIndex: topDogIndex, sigma: topSigma, octave: topOctave, x: topXIndex, y: topYIndex, originalX: topX, originalY: topY};
   }
 
   _buildExtremas(image0, image1, image2, octave, scale, startI, startJ, endI, endJ) {
