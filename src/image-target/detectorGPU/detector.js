@@ -309,6 +309,7 @@ class Detector {
     const extremaFreaks = this._computeExtremaFreak(pyramidImages, numOctaves, prunedExtremas, extremaAngles);
 
     const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
+    globalDebug.freakDescriptors = freakDescriptors.toArray();
 
     // combine all needed data and return to CPU together
     const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
@@ -1195,6 +1196,7 @@ class Detector {
 
             // Ensure the scale of the similarity transform is at least "1".
             const transformScale = Math.max(1, inputSigma * expansionFactor);
+
             const c = transformScale * Math.cos(inputAngle);
             const s = transformScale * Math.sin(inputAngle);
             // similarity matrix
@@ -1287,13 +1289,17 @@ class Detector {
             let yp = yps[this.thread.z][this.thread.y][this.thread.x];
 
             // bilinear interpolation
-            xp = Math.max(0, Math.min(xp, width - 2));
-            yp = Math.max(0, Math.min(yp, height - 2));
+            //xp = Math.max(0, Math.min(xp, width - 2));
+            //yp = Math.max(0, Math.min(yp, height - 2));
 
             const x0 = Math.floor(xp);
             const x1 = x0 + 1;
             const y0 = Math.floor(yp);
             const y1 = y0 + 1;
+
+            if (x0 < 0 || x0 >= width-1) return 0;
+            if (y0 < 0 || y0 >= height-1) return 0;
+
             const value = (x1-xp) * (y1-yp) * imageData[y0 * width + x0]
                         + (xp-x0) * (y1-yp) * imageData[y0 * width + x1]
                         + (x1-xp) * (yp-y0) * imageData[y1 * width + x0]
@@ -1319,11 +1325,17 @@ class Detector {
     const yps = subkernels[1](prunedExtremas, prunedExtremasAngles, FREAKPOINTS);
     const imageIndexes = subkernels[2](prunedExtremas, prunedExtremasAngles, FREAKPOINTS);
 
+    globalDebug.freakXps = xps;
+    globalDebug.freakYps = yps;
+    globalDebug.freakImageIndexes = imageIndexes;
+
     // compute the interpolated values of each freak coordinates (this values is used to build the freak descriptors)
     let freakResult = subkernels[3]();
     for (let i = 0; i < pyramidImages.length; i++) {
       freakResult = subkernels[i+4](freakResult, pyramidImages[i].data, xps, yps, imageIndexes);
     }
+    globalDebug.freakResult = freakResult;
+
     //console.log("freak result", freakResult.toArray());
     return freakResult;
   }
