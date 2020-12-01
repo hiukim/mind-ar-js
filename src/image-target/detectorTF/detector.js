@@ -134,7 +134,6 @@ class Detector {
   }
 
   detect(input) {
-    console.log("detect: ", input);
     const featurePoints = [];
 
     const y = tf.tidy(() => {
@@ -142,13 +141,9 @@ class Detector {
       inputImage = inputImage.mean(2).expandDims(2).expandDims(0);
 
       // remove
-      inputImage = tf.tensor(globalDebug.inputImage).expandDims(2).expandDims(0);
+      //inputImage = tf.tensor(globalDebug.inputImage).expandDims(2).expandDims(0);
 
       //globalDebug.compareImage('inputimage: ', globalDebug.inputImage, inputImage.squeeze().arraySync());
-
-      const data = inputImage.squeeze().arraySync();
-      //console.log("image data: ", inputImage.squeeze().arraySync());
-      //console.log("image data: ", inputImage.squeeze().reshape([-1]).arraySync());
 
       // Build gaussian pyramid images
       const pyramidImages = [];
@@ -163,12 +158,6 @@ class Detector {
         }
       }
 
-      console.log("gaussian images count: ", pyramidImages.length, 'vs', globalDebug.pyramidImages.length);
-      for (let i = 0; i < pyramidImages.length; i++) {
-        //globalDebug.compareImage('gaussian image ' +i, globalDebug.pyramidImages[i], pyramidImages[i].squeeze().arraySync());
-        //globalDebug.showImage(pyramidImages[i]);
-      }
-
       // Build difference of gaussian pyramid
       const dogPyramidImages = [];
       for (let i = 0; i < this.numOctaves; i++) {
@@ -179,11 +168,11 @@ class Detector {
         }
       }
 
-      console.log("dog images count: ", dogPyramidImages.length, 'vs', globalDebug.dogPyramidImages.length);
-      for (let i = 0; i < dogPyramidImages.length; i++) {
+      //console.log("dog images count: ", dogPyramidImages.length, 'vs', globalDebug.dogPyramidImages.length);
+      //for (let i = 0; i < dogPyramidImages.length; i++) {
         //globalDebug.compareImage('dog image ' +i, globalDebug.dogPyramidImages[i], dogPyramidImages[i].squeeze().arraySync());
         //globalDebug.showImage(dogPyramidImages[i]);
-      }
+      //}
 
       let debugIndex = 0;
 
@@ -243,7 +232,7 @@ class Detector {
         //console.log("correct Fbin", debugFbin.toArray());
         //console.log("fbin", gradients.fbin.squeeze().arraySync());
 
-        globalDebug.compareImage('extream result image ' +debugIndex, globalDebug.extremasResults[debugIndex], extremasResult.squeeze().arraySync());
+        //globalDebug.compareImage('extream result image ' +debugIndex, globalDebug.extremasResults[debugIndex], extremasResult.squeeze().arraySync());
         /*
         globalDebug.compareImage('gradient mag' + debugIndex, globalDebug.gradients[debugIndex].mag, gradients.mag.squeeze().arraySync());
         globalDebug.compareImage('gradient angle' + debugIndex, globalDebug.gradients[debugIndex].angle, gradients.angle.squeeze().arraySync(), 0.01);
@@ -259,13 +248,13 @@ class Detector {
       const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImages, dogIndexes);
       const smoothedHistograms = this._smoothHistograms(extremaHistograms);
 
-      globalDebug.compareImage('extream histograms', globalDebug.extremaHistograms, extremaHistograms.arraySync(), 0.1);
-      globalDebug.compareImage('smoothed histograms', globalDebug.smoothedExtremaHistograms, smoothedHistograms.arraySync(), 0.1);
+      //globalDebug.compareImage('extream histograms', globalDebug.extremaHistograms, extremaHistograms.arraySync(), 0.1);
+      //globalDebug.compareImage('smoothed histograms', globalDebug.smoothedExtremaHistograms, smoothedHistograms.arraySync(), 0.1);
 
       const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
-      console.log("extrema angles", extremaAngles.arraySync());
+      //console.log("extrema angles", extremaAngles.arraySync());
 
-      globalDebug.compareImage('extream angles', globalDebug.extremaAngles, extremaAngles.expandDims(2).arraySync(), 0.1);
+      //globalDebug.compareImage('extream angles', globalDebug.extremaAngles, extremaAngles.expandDims(2).arraySync(), 0.1);
 
       const extremaFreaks = this._computeExtremaFreak(pyramidImages, this.numOctaves, prunedExtremas, extremaAngles);
 
@@ -312,17 +301,12 @@ class Detector {
 
     });
 
-    console.table(tf.memory());
+    //console.table(tf.memory());
     return featurePoints;
   }
 
   _combine(prunedExtremas, freakDescriptors) {
-    console.log("score", prunedExtremas.score);
-    console.log("originalX", prunedExtremas.originalX);
-    console.log("originalY", prunedExtremas.originalY);
-    console.log("freakDescriptors", freakDescriptors);
     const combined = tf.concat([prunedExtremas.score.expandDims(2), prunedExtremas.originalX.expandDims(2), prunedExtremas.originalY.expandDims(2), freakDescriptors], 2);
-    console.log("combined", combined.arraySync());
     return combined;
   }
 
@@ -352,6 +336,7 @@ class Detector {
     const in2 = tf.tensor(indices2).cast('int32');
 
     const freakDescriptors = tf.gatherND(extremaFreaks, in1).less(tf.gatherND(extremaFreaks, in2).add(0.01));
+    /*
     console.log("in1", in1.arraySync());
     console.log("in2", in2.arraySync());
     console.log("extrema freaks", extremaFreaks.arraySync());
@@ -359,6 +344,7 @@ class Detector {
     console.log("desc", freakDescriptors.arraySync());
     console.log("correct desc", globalDebug.freakDescriptors);
     globalDebug.compareImage('freak result', globalDebug.freakDescriptors, freakDescriptors.arraySync(), 0.0000001);
+    */
     return freakDescriptors;
   }
 
@@ -462,7 +448,7 @@ class Detector {
 
     freakValues = tf.where(valid, freakValues, 0);
 
-    globalDebug.compareImage('freak result', globalDebug.freakResult.toArray(), freakValues.arraySync(), 0.1);
+    //globalDebug.compareImage('freak result', globalDebug.freakResult.toArray(), freakValues.arraySync(), 0.1);
 
     return freakValues;
   }
@@ -769,10 +755,9 @@ class Detector {
       }
     }
 
-    console.log("combine: ", combine);
-    console.log("debug pruned: ", globalDebug.prunedExtremas[globalDebug.prunedExtremas.length-1].toArray());
-
-    globalDebug.compareImage('prune', combine, globalDebug.prunedExtremas[globalDebug.prunedExtremas.length-1].toArray());
+    //console.log("combine: ", combine);
+    //console.log("debug pruned: ", globalDebug.prunedExtremas[globalDebug.prunedExtremas.length-1].toArray());
+    //globalDebug.compareImage('prune', combine, globalDebug.prunedExtremas[globalDebug.prunedExtremas.length-1].toArray());
 
     return {score: topScores, dogIndex: topDogIndex, sigma: topSigma, octave: topOctave, x: topXIndex, y: topYIndex, originalX: topX, originalY: topY};
   }

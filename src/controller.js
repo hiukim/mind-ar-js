@@ -245,9 +245,15 @@ class Controller {
   // but it demonstrates the whole process. good for development
   async processImage(input) {
     //let featurePoints = this.detectorCPU.detect(input);
-    let featurePoints = this.detector.detect(input);
-    let featurePointsTF = this.detectorTF.detect(input);
+    //let featurePoints = this.detector.detect(input);
 
+    var _start = new Date();
+    let featurePoints = this.detectorTF.detect(input);
+    console.log("tfjs detector took", new Date() - _start);
+    let featurePoints2 = this.detectorTF.detect(input);
+    console.log("tfjs detector again took", new Date() - _start);
+
+    /*
     console.log("featurePoints", featurePoints);
     console.log("featurePoints TF", featurePointsTF);
     let correctCount = 0;
@@ -267,6 +273,7 @@ class Controller {
       if (good) correctCount += 1;
     }
     console.log("feature points correct: ", correctCount);
+    */
 
     const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
     console.log("match", targetIndex, modelViewTransform);
