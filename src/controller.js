@@ -246,8 +246,27 @@ class Controller {
   async processImage(input) {
     //let featurePoints = this.detectorCPU.detect(input);
     let featurePoints = this.detector.detect(input);
-    console.log("featurePoints", featurePoints);
     let featurePointsTF = this.detectorTF.detect(input);
+
+    console.log("featurePoints", featurePoints);
+    console.log("featurePoints TF", featurePointsTF);
+    let correctCount = 0;
+    for (let i = 0; i < featurePoints.length; i++) {
+      const f1 = featurePoints[i];
+      const f2 = featurePointsTF[i];
+      let good = true;
+      if (f1.maxima !== f2.maxima) {good = false; console.log("INCORRECT maxima", i, f1, f2)};
+      if (f1.x !== f2.x) {good = false; console.log("INCORRECT x", i, f1, f2)};
+      if (f1.y !== f2.y) {good = false; console.log("INCORRECT y", i, f1, f2)};
+      for (let j = 0; j < f1.descriptors.length; j++) {
+        if (f1.descriptors[j] !== f2.descriptors[j]) {
+          good = false;
+          console.log("INCORRECT desciptors", i, j, f1, f2);
+        }
+      }
+      if (good) correctCount += 1;
+    }
+    console.log("feature points correct: ", correctCount);
 
     const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
     console.log("match", targetIndex, modelViewTransform);

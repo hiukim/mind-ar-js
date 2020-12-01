@@ -135,6 +135,7 @@ class Detector {
 
   detect(input) {
     console.log("detect: ", input);
+    const featurePoints = [];
 
     const y = tf.tidy(() => {
       let inputImage = tf.browser.fromPixels(input);
@@ -269,9 +270,60 @@ class Detector {
       const extremaFreaks = this._computeExtremaFreak(pyramidImages, this.numOctaves, prunedExtremas, extremaAngles);
 
       const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
+
+      const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
+
+      const combinedExtremasArr = combinedExtremas.arraySync();
+
+      for (let i = 0; i < combinedExtremasArr.length; i++) {
+        for (let j = 0; j < combinedExtremasArr[i].length; j++) {
+          if (combinedExtremasArr[i][j][0] !== 0) {
+            const ext = combinedExtremasArr[i][j];
+
+            const desc = ext.slice(3);
+            // encode descriptors in binary format
+            // 37 samples = 1+2+3+...+36 = 666 comparisons = 666 bits
+            // ceil(666/32) = 21 (32 bits number)
+            const descriptors = [];
+            let temp = 0;
+            let count = 0;
+            for (let m = 0; m < desc.length; m++) {
+              if (desc[m]) temp += 1;
+              count += 1;
+              if (count === 32) {
+                descriptors.push(temp);
+                temp = 0;
+                count = 0;
+              } else {
+                temp = temp * 2;
+              }
+            }
+            descriptors.push(temp);
+
+            featurePoints.push({
+              maxima: ext[0] > 0,
+              x: ext[1],
+              y: ext[2],
+              descriptors: descriptors
+            });
+          }
+        }
+      }
+
     });
 
     console.table(tf.memory());
+    return featurePoints;
+  }
+
+  _combine(prunedExtremas, freakDescriptors) {
+    console.log("score", prunedExtremas.score);
+    console.log("originalX", prunedExtremas.originalX);
+    console.log("originalY", prunedExtremas.originalY);
+    console.log("freakDescriptors", freakDescriptors);
+    const combined = tf.concat([prunedExtremas.score.expandDims(2), prunedExtremas.originalX.expandDims(2), prunedExtremas.originalY.expandDims(2), freakDescriptors], 2);
+    console.log("combined", combined.arraySync());
+    return combined;
   }
 
   _computeFreakDescriptors(extremaFreaks) {
@@ -299,7 +351,7 @@ class Detector {
     const in1 = tf.tensor(indices1).cast('int32');
     const in2 = tf.tensor(indices2).cast('int32');
 
-    const freakDescriptors = tf.gatherND(extremaFreaks, in1).less(tf.gatherND(extremaFreaks, in2).add(0.0001));
+    const freakDescriptors = tf.gatherND(extremaFreaks, in1).less(tf.gatherND(extremaFreaks, in2).add(0.01));
     console.log("in1", in1.arraySync());
     console.log("in2", in2.arraySync());
     console.log("extrema freaks", extremaFreaks.arraySync());
@@ -722,7 +774,7 @@ class Detector {
 
     globalDebug.compareImage('prune', combine, globalDebug.prunedExtremas[globalDebug.prunedExtremas.length-1].toArray());
 
-    return {dogIndex: topDogIndex, sigma: topSigma, octave: topOctave, x: topXIndex, y: topYIndex, originalX: topX, originalY: topY};
+    return {score: topScores, dogIndex: topDogIndex, sigma: topSigma, octave: topOctave, x: topXIndex, y: topYIndex, originalX: topX, originalY: topY};
   }
 
   _buildExtremas(image0, image1, image2, octave, scale, startI, startJ, endI, endJ) {

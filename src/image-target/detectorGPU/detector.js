@@ -1147,7 +1147,7 @@ class Detector {
           const p1 = l;
           const p2 = x - startAt + (p1+1);
 
-          if (freakResult[this.thread.z][this.thread.y][p1] < freakResult[this.thread.z][this.thread.y][p2] + 0.0001) return 1;
+          if (freakResult[this.thread.z][this.thread.y][p1] < freakResult[this.thread.z][this.thread.y][p2] + 0.01) return 1;
           return 0;
         }, {
           constants: {
