@@ -3,7 +3,7 @@ const {Tracker} = require('./image-target/trackingGPU/tracker.js');
 const {Detector: DetectorCPU} = require('./image-target/detectorCPU/detector.js');
 const {Detector} = require('./image-target/detectorGPU/detector.js');
 //const {Detector} = require('./image-target/detectorCPU/detector.js');
-const {Detector: DetectorTF} = require('./image-target/detectorTF/detector.js');
+const {Detector: DetectorTF} = require('./image-target/detectorTF/detector2.js');
 const {Matcher} = require('./image-target/matching/matcher.js');
 const {estimateHomography} = require('./image-target/icp/estimate_homography.js');
 const {refineHomography} = require('./image-target/icp/refine_homography');
@@ -143,7 +143,8 @@ class Controller {
           }
         }
         if (trackingCount < this.maxTrack) { // only run detector when matching is required
-          featurePoints = this.detector.detect(input);
+          //featurePoints = this.detector.detect(input);
+          featurePoints = this.detectorTF.detect(input);
         }
 
         this.onUpdate({type: 'processDone'});
@@ -245,13 +246,27 @@ class Controller {
   // but it demonstrates the whole process. good for development
   async processImage(input) {
     //let featurePoints = this.detectorCPU.detect(input);
-    //let featurePoints = this.detector.detect(input);
 
     var _start = new Date();
-    let featurePoints = this.detectorTF.detect(input);
+    /*
+    let featurePoints4 = this.detector.detect(input);
+    console.log("gpu detector took", new Date() - _start);
+    let featurePoints5 = this.detector.detect(input);
+    console.log("gpu detector took again", new Date() - _start);
+    return;
+    */
+
+    let featurePoints = await this.detectorTF.detect(input);
+    console.log("featurePoints", featurePoints);
     console.log("tfjs detector took", new Date() - _start);
-    let featurePoints2 = this.detectorTF.detect(input);
+    _start = new Date();
+    /*
+    let featurePoints2 = await this.detectorTF.detect(input);
     console.log("tfjs detector again took", new Date() - _start);
+    _start = new Date();
+    let featurePoints3 = await this.detectorTF.detect(input);
+    console.log("tfjs detector again took 2", new Date() - _start);
+    */
 
     /*
     console.log("featurePoints", featurePoints);

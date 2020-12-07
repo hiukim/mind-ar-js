@@ -154,7 +154,7 @@ class Detector {
     this.kernelIndex = 0; // reset kernelIndex
 
     const inputImage = {width: this.width, height: this.height, data: imagedata};
-    globalDebug.inputImage = globalDebug.convertImage(inputImage);
+    //globalDebug.inputImage = globalDebug.convertImage(inputImage);
 
     const originalWidth = this.width;
     const originalHeight = this.height;
@@ -176,7 +176,7 @@ class Detector {
       }
     }
 
-    globalDebug.pyramidImages = pyramidImages.map((image) => globalDebug.convertImage(image));
+    //globalDebug.pyramidImages = pyramidImages.map((image) => globalDebug.convertImage(image));
 
     // Build difference of gaussian pyramid
     const dogPyramidImages = [];
@@ -188,11 +188,11 @@ class Detector {
       }
     }
 
-    globalDebug.dogPyramidImages = dogPyramidImages.map((image) => globalDebug.convertImage(image));
+    //globalDebug.dogPyramidImages = dogPyramidImages.map((image) => globalDebug.convertImage(image));
 
-    globalDebug.extremasResults = [];
-    globalDebug.image0s = [];
-    globalDebug.prunedExtremas = [];
+    //globalDebug.extremasResults = [];
+    //globalDebug.image0s = [];
+    //globalDebug.prunedExtremas = [];
 
     let prunedExtremas = this._initializePrune();
 
@@ -237,23 +237,25 @@ class Detector {
       // find all extrema for image1
       const extremasResult = this._buildExtremas(image0, image1, image2, octave, scale, startI, startJ, endI, endJ);
 
+      /*
       globalDebug.extremasResults.push(
         globalDebug.convertImage({width: image1.width, height: image1.height, data: extremasResult.toArray()})
       );
       globalDebug.image0s.push(globalDebug.convertImage(image0));
+      */
 
       // combine this extrema with the existing
       prunedExtremas = this._applyPrune(k, prunedExtremas, extremasResult, image1.width, image1.height, octave, scale);
 
-      globalDebug.prunedExtremas.push(prunedExtremas);
+      //globalDebug.prunedExtremas.push(prunedExtremas);
     }
 
     //console.log("prunedExtremas", prunedExtremas.toArray());
 
-    globalDebug.gradients = [];
-    globalDebug.fbins = [];
-    globalDebug.magnitudes = [];
-    globalDebug.histograms = [];
+    //globalDebug.gradients = [];
+    //globalDebug.fbins = [];
+    //globalDebug.magnitudes = [];
+    //globalDebug.histograms = [];
 
     // compute the orientation angle of the extrema
     //  artoolkit picks mutiple angles (usually 1-3), but we pick one only for simplicity
@@ -268,18 +270,21 @@ class Detector {
 
       const gradientResult = this._computeGradients(gaussianImage);
 
+      /*
       globalDebug.gradients.push({
         mag: globalDebug.convertImage({width: dogPyramidImages[k].width, height: dogPyramidImages[k].height, data: gradientResult.saveMag.toArray()}),
         angle: globalDebug.convertImage({width: dogPyramidImages[k].width, height: dogPyramidImages[k].height, data: gradientResult.result.toArray()}),
       });
+      */
 
       extremaHistograms = this._computeOrientationHistograms(extremaHistograms, gradientResult, prunedExtremas, k, gaussianImage.width, gaussianImage.height);
 
-      console.log("pruned extremas: ", prunedExtremas.toArray());
+      //console.log("pruned extremas: ", prunedExtremas.toArray());
 
-      const extremaHistograms2 = this._computeOrientationHistograms2(extremaHistograms, gradientResult, prunedExtremas, k, gaussianImage.width, gaussianImage.height);
+      //const extremaHistograms2 = this._computeOrientationHistograms2(extremaHistograms, gradientResult, prunedExtremas, k, gaussianImage.width, gaussianImage.height);
 
 
+      /*
       const arr1 = extremaHistograms.toArray();
       const arr2 = extremaHistograms2.toArray();
       let correct = 0;
@@ -295,21 +300,22 @@ class Detector {
         }
       }
       console.log("extrema correct: " + correct);
+      */
     }
 
-    globalDebug.extremaHistograms = extremaHistograms.toArray();
+    //globalDebug.extremaHistograms = extremaHistograms.toArray();
 
     extremaHistograms = this._smoothHistograms(extremaHistograms);
-    globalDebug.smoothedExtremaHistograms = extremaHistograms.toArray();
+    //globalDebug.smoothedExtremaHistograms = extremaHistograms.toArray();
 
     const extremaAngles = this._computeExtremaAngles(extremaHistograms);
-    globalDebug.extremaAngles = extremaAngles.toArray();
+    //globalDebug.extremaAngles = extremaAngles.toArray();
 
     // compute the FREAK descriptors for extremas
     const extremaFreaks = this._computeExtremaFreak(pyramidImages, numOctaves, prunedExtremas, extremaAngles);
 
     const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
-    globalDebug.freakDescriptors = freakDescriptors.toArray();
+    //globalDebug.freakDescriptors = freakDescriptors.toArray();
 
     // combine all needed data and return to CPU together
     const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
@@ -658,17 +664,17 @@ class Detector {
     const kernel = this.kernels[this.kernelIndex++];
     const fbins= kernel[0](extremaHistograms, gradientMags, gradientAngles, prunedExtremas);
 
-    globalDebug.fbins.push(fbins);
+    //globalDebug.fbins.push(fbins);
 
     //console.log("fbins: ", fbins.toArray());
     const magnitudes= kernel[1](extremaHistograms, gradientMags, gradientAngles, prunedExtremas);
 
-    globalDebug.magnitudes.push(magnitudes);
+    //globalDebug.magnitudes.push(magnitudes);
 
     //console.log("magnitudes: ", magnitudes.toArray());
     const histograms= kernel[2](fbins, magnitudes);
 
-    globalDebug.histograms.push(histograms);
+    //globalDebug.histograms.push(histograms);
 
     //console.log("histograms: ", histograms.toArray());
     const newExtremaHistograms= kernel[3](extremaHistograms, prunedExtremas, histograms);
@@ -1325,16 +1331,16 @@ class Detector {
     const yps = subkernels[1](prunedExtremas, prunedExtremasAngles, FREAKPOINTS);
     const imageIndexes = subkernels[2](prunedExtremas, prunedExtremasAngles, FREAKPOINTS);
 
-    globalDebug.freakXps = xps;
-    globalDebug.freakYps = yps;
-    globalDebug.freakImageIndexes = imageIndexes;
+    //globalDebug.freakXps = xps;
+    //globalDebug.freakYps = yps;
+    //globalDebug.freakImageIndexes = imageIndexes;
 
     // compute the interpolated values of each freak coordinates (this values is used to build the freak descriptors)
     let freakResult = subkernels[3]();
     for (let i = 0; i < pyramidImages.length; i++) {
       freakResult = subkernels[i+4](freakResult, pyramidImages[i].data, xps, yps, imageIndexes);
     }
-    globalDebug.freakResult = freakResult;
+    //globalDebug.freakResult = freakResult;
 
     //console.log("freak result", freakResult.toArray());
     return freakResult;

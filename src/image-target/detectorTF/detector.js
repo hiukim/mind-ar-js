@@ -133,175 +133,180 @@ class Detector {
     globalDebug.tf = tf;
   }
 
-  detect(input) {
+  async detect(input) {
     const featurePoints = [];
 
-    const y = tf.tidy(() => {
-      let inputImage = tf.browser.fromPixels(input);
-      inputImage = inputImage.mean(2).expandDims(2).expandDims(0);
+    const time = await tf.time(() => {
+      const y = tf.tidy(() => {
+        let inputImage = tf.browser.fromPixels(input);
+        inputImage = inputImage.mean(2).expandDims(2).expandDims(0);
 
-      // remove
-      //inputImage = tf.tensor(globalDebug.inputImage).expandDims(2).expandDims(0);
+        // remove
+        //inputImage = tf.tensor(globalDebug.inputImage).expandDims(2).expandDims(0);
 
-      //globalDebug.compareImage('inputimage: ', globalDebug.inputImage, inputImage.squeeze().arraySync());
+        //globalDebug.compareImage('inputimage: ', globalDebug.inputImage, inputImage.squeeze().arraySync());
 
-      // Build gaussian pyramid images
-      const pyramidImages = [];
-      for (let i = 0; i < this.numOctaves; i++) {
-        if (i === 0) {
-          pyramidImages.push(this._applyFilter(inputImage));
-        } else {
-          pyramidImages.push(this._downsampleBilinear(pyramidImages[pyramidImages.length-1]));
-        }
-        for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES - 1; j++) {
-          pyramidImages.push(this._applyFilter(pyramidImages[pyramidImages.length-1]));
-        }
-      }
-
-      // Build difference of gaussian pyramid
-      const dogPyramidImages = [];
-      for (let i = 0; i < this.numOctaves; i++) {
-        for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES - 1; j++) {
-          const image1 = pyramidImages[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j];
-          const image2 = pyramidImages[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j + 1];
-          dogPyramidImages.push(this._differenceImageBinomial(image1, image2));
-        }
-      }
-
-      //console.log("dog images count: ", dogPyramidImages.length, 'vs', globalDebug.dogPyramidImages.length);
-      //for (let i = 0; i < dogPyramidImages.length; i++) {
-        //globalDebug.compareImage('dog image ' +i, globalDebug.dogPyramidImages[i], dogPyramidImages[i].squeeze().arraySync());
-        //globalDebug.showImage(dogPyramidImages[i]);
-      //}
-
-      let debugIndex = 0;
-
-      const extremasResults = [];
-      const dogIndexes = [];
-
-      // Find feature points (i.e. extremas in dog images)
-      for (let k = 1; k < dogPyramidImages.length - 1; k++) {
-        // Experimental result shows that no extrema is possible for odd number of k
-        // I believe it has something to do with how the gaussian pyramid being constructed
-        if (k % 2 === 1) continue;
-
-        dogIndexes.push(k);
-
-        let image0 = dogPyramidImages[k-1];
-        let image1 = dogPyramidImages[k];
-        let image2 = dogPyramidImages[k+1];
-
-        const octave = Math.floor(k / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
-        const scale = k % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
-
-        let hasUpsample = false;
-        let hasPadOneWidth = false;
-        let hasPadOneHeight = false;
-
-        if ( Math.floor(image0.shape[2]/2) == image1.shape[2]) {
-          image0 = this._downsampleBilinear(image0);
-        }
-        if ( Math.floor(image1.shape[2]/2) == image2.shape[2]) {
-          hasUpsample = true;
-          hasPadOneWidth = image1.shape[2] % 2 === 1;
-          hasPadOneHeight = image1.shape[1] % 2 === 1;
-          image2 = this._upsampleBilinear(image2, hasPadOneWidth, hasPadOneHeight);
-        }
-
-        // In upsample image, ignore the border
-        // it's possible to further pad one more line (i.e. upsacale 2x2 -> 5x5), so ignore one more line
-        let startI = hasUpsample? 2: 1;
-        let startJ = startI;
-
-        // should it be "image1.width -2" ? but this yield consistent result with artoolkit
-        let endI = hasUpsample? image1.shape[2] - 3: image1.shape[2] - 1;
-        let endJ = hasUpsample? image1.shape[1] - 3: image1.shape[1] - 1;
-        if (hasPadOneWidth) endI -= 1;
-        if (hasPadOneHeight) endJ -= 1;
-
-        // find all extrema for image1
-        const extremasResult = this._buildExtremas(image0, image1, image2, octave, scale, startI, startJ, endI, endJ);
-
-        const gaussianIndex = octave * PYRAMID_NUM_SCALES_PER_OCTAVES + scale;
-        const gaussianImage = pyramidImages[gaussianIndex];
-        const gradients = this._computeGradient(gaussianImage, octave, scale);
-
-        //const debugMag = globalDebug.gradients[debugIndex].mag;
-        //const debugAngle = globalDebug.gradients[debugIndex].angle;
-        //const debugFbin = globalDebug.fbins[debugIndex];
-        //console.log("correct Fbin", debugFbin.toArray());
-        //console.log("fbin", gradients.fbin.squeeze().arraySync());
-
-        //globalDebug.compareImage('extream result image ' +debugIndex, globalDebug.extremasResults[debugIndex], extremasResult.squeeze().arraySync());
-        /*
-        globalDebug.compareImage('gradient mag' + debugIndex, globalDebug.gradients[debugIndex].mag, gradients.mag.squeeze().arraySync());
-        globalDebug.compareImage('gradient angle' + debugIndex, globalDebug.gradients[debugIndex].angle, gradients.angle.squeeze().arraySync(), 0.01);
-        */
-        debugIndex += 1;
-
-        // combine this extrema with the existing
-        //prunedExtremas = this._applyPrune(k, prunedExtremas, extremasResult, image1.width, image1.height, octave, scale);
-        extremasResults.push(extremasResult);
-      }
-
-      const prunedExtremas = this._applyPrune(extremasResults, dogIndexes);
-      const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImages, dogIndexes);
-      const smoothedHistograms = this._smoothHistograms(extremaHistograms);
-
-      //globalDebug.compareImage('extream histograms', globalDebug.extremaHistograms, extremaHistograms.arraySync(), 0.1);
-      //globalDebug.compareImage('smoothed histograms', globalDebug.smoothedExtremaHistograms, smoothedHistograms.arraySync(), 0.1);
-
-      const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
-      //console.log("extrema angles", extremaAngles.arraySync());
-
-      //globalDebug.compareImage('extream angles', globalDebug.extremaAngles, extremaAngles.expandDims(2).arraySync(), 0.1);
-
-      const extremaFreaks = this._computeExtremaFreak(pyramidImages, this.numOctaves, prunedExtremas, extremaAngles);
-
-      const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
-
-      const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
-
-      const combinedExtremasArr = combinedExtremas.arraySync();
-
-      for (let i = 0; i < combinedExtremasArr.length; i++) {
-        for (let j = 0; j < combinedExtremasArr[i].length; j++) {
-          if (combinedExtremasArr[i][j][0] !== 0) {
-            const ext = combinedExtremasArr[i][j];
-
-            const desc = ext.slice(3);
-            // encode descriptors in binary format
-            // 37 samples = 1+2+3+...+36 = 666 comparisons = 666 bits
-            // ceil(666/32) = 21 (32 bits number)
-            const descriptors = [];
-            let temp = 0;
-            let count = 0;
-            for (let m = 0; m < desc.length; m++) {
-              if (desc[m]) temp += 1;
-              count += 1;
-              if (count === 32) {
-                descriptors.push(temp);
-                temp = 0;
-                count = 0;
-              } else {
-                temp = temp * 2;
-              }
-            }
-            descriptors.push(temp);
-
-            featurePoints.push({
-              maxima: ext[0] > 0,
-              x: ext[1],
-              y: ext[2],
-              descriptors: descriptors
-            });
+        // Build gaussian pyramid images
+        const pyramidImages = [];
+        for (let i = 0; i < this.numOctaves; i++) {
+          if (i === 0) {
+            pyramidImages.push(this._applyFilter(inputImage));
+          } else {
+            pyramidImages.push(this._downsampleBilinear(pyramidImages[pyramidImages.length-1]));
+          }
+          for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES - 1; j++) {
+            pyramidImages.push(this._applyFilter(pyramidImages[pyramidImages.length-1]));
           }
         }
-      }
 
+        // Build difference of gaussian pyramid
+        const dogPyramidImages = [];
+        for (let i = 0; i < this.numOctaves; i++) {
+          for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES - 1; j++) {
+            const image1 = pyramidImages[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j];
+            const image2 = pyramidImages[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j + 1];
+            dogPyramidImages.push(this._differenceImageBinomial(image1, image2));
+          }
+        }
+
+        //console.log("dog images count: ", dogPyramidImages.length, 'vs', globalDebug.dogPyramidImages.length);
+        //for (let i = 0; i < dogPyramidImages.length; i++) {
+          //globalDebug.compareImage('dog image ' +i, globalDebug.dogPyramidImages[i], dogPyramidImages[i].squeeze().arraySync());
+          //globalDebug.showImage(dogPyramidImages[i]);
+        //}
+
+        let debugIndex = 0;
+
+        const extremasResults = [];
+        const dogIndexes = [];
+
+        // Find feature points (i.e. extremas in dog images)
+        for (let k = 1; k < dogPyramidImages.length - 1; k++) {
+          // Experimental result shows that no extrema is possible for odd number of k
+          // I believe it has something to do with how the gaussian pyramid being constructed
+          if (k % 2 === 1) continue;
+
+          dogIndexes.push(k);
+
+          let image0 = dogPyramidImages[k-1];
+          let image1 = dogPyramidImages[k];
+          let image2 = dogPyramidImages[k+1];
+
+          const octave = Math.floor(k / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
+          const scale = k % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
+
+          let hasUpsample = false;
+          let hasPadOneWidth = false;
+          let hasPadOneHeight = false;
+
+          if ( Math.floor(image0.shape[2]/2) == image1.shape[2]) {
+            image0 = this._downsampleBilinear(image0);
+          }
+          if ( Math.floor(image1.shape[2]/2) == image2.shape[2]) {
+            hasUpsample = true;
+            hasPadOneWidth = image1.shape[2] % 2 === 1;
+            hasPadOneHeight = image1.shape[1] % 2 === 1;
+            image2 = this._upsampleBilinear(image2, hasPadOneWidth, hasPadOneHeight);
+          }
+
+          // In upsample image, ignore the border
+          // it's possible to further pad one more line (i.e. upsacale 2x2 -> 5x5), so ignore one more line
+          let startI = hasUpsample? 2: 1;
+          let startJ = startI;
+
+          // should it be "image1.width -2" ? but this yield consistent result with artoolkit
+          let endI = hasUpsample? image1.shape[2] - 3: image1.shape[2] - 1;
+          let endJ = hasUpsample? image1.shape[1] - 3: image1.shape[1] - 1;
+          if (hasPadOneWidth) endI -= 1;
+          if (hasPadOneHeight) endJ -= 1;
+
+          // find all extrema for image1
+          const extremasResult = this._buildExtremas(image0, image1, image2, octave, scale, startI, startJ, endI, endJ);
+
+          const gaussianIndex = octave * PYRAMID_NUM_SCALES_PER_OCTAVES + scale;
+          const gaussianImage = pyramidImages[gaussianIndex];
+          const gradients = this._computeGradient(gaussianImage, octave, scale);
+
+          //const debugMag = globalDebug.gradients[debugIndex].mag;
+          //const debugAngle = globalDebug.gradients[debugIndex].angle;
+          //const debugFbin = globalDebug.fbins[debugIndex];
+          //console.log("correct Fbin", debugFbin.toArray());
+          //console.log("fbin", gradients.fbin.squeeze().arraySync());
+
+          //globalDebug.compareImage('extream result image ' +debugIndex, globalDebug.extremasResults[debugIndex], extremasResult.squeeze().arraySync());
+          /*
+          globalDebug.compareImage('gradient mag' + debugIndex, globalDebug.gradients[debugIndex].mag, gradients.mag.squeeze().arraySync());
+          globalDebug.compareImage('gradient angle' + debugIndex, globalDebug.gradients[debugIndex].angle, gradients.angle.squeeze().arraySync(), 0.01);
+          */
+          debugIndex += 1;
+
+          // combine this extrema with the existing
+          //prunedExtremas = this._applyPrune(k, prunedExtremas, extremasResult, image1.width, image1.height, octave, scale);
+          extremasResults.push(extremasResult);
+        }
+
+        const ext = extremasResults[extremasResults.length-1].arraySync();
+        console.log("ext", ext);
+
+        const prunedExtremas = this._applyPrune(extremasResults, dogIndexes);
+        const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImages, dogIndexes);
+        const smoothedHistograms = this._smoothHistograms(extremaHistograms);
+
+        //globalDebug.compareImage('extream histograms', globalDebug.extremaHistograms, extremaHistograms.arraySync(), 0.1);
+        //globalDebug.compareImage('smoothed histograms', globalDebug.smoothedExtremaHistograms, smoothedHistograms.arraySync(), 0.1);
+
+        const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
+        //console.log("extrema angles", extremaAngles.arraySync());
+
+        //globalDebug.compareImage('extream angles', globalDebug.extremaAngles, extremaAngles.expandDims(2).arraySync(), 0.1);
+
+        const extremaFreaks = this._computeExtremaFreak(pyramidImages, this.numOctaves, prunedExtremas, extremaAngles);
+
+        const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
+
+        const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
+
+        const combinedExtremasArr = combinedExtremas.arraySync();
+
+        for (let i = 0; i < combinedExtremasArr.length; i++) {
+          for (let j = 0; j < combinedExtremasArr[i].length; j++) {
+            if (combinedExtremasArr[i][j][0] !== 0) {
+              const ext = combinedExtremasArr[i][j];
+
+              const desc = ext.slice(3);
+              // encode descriptors in binary format
+              // 37 samples = 1+2+3+...+36 = 666 comparisons = 666 bits
+              // ceil(666/32) = 21 (32 bits number)
+              const descriptors = [];
+              let temp = 0;
+              let count = 0;
+              for (let m = 0; m < desc.length; m++) {
+                if (desc[m]) temp += 1;
+                count += 1;
+                if (count === 32) {
+                  descriptors.push(temp);
+                  temp = 0;
+                  count = 0;
+                } else {
+                  temp = temp * 2;
+                }
+              }
+              descriptors.push(temp);
+
+              featurePoints.push({
+                maxima: ext[0] > 0,
+                x: ext[1],
+                y: ext[2],
+                descriptors: descriptors
+              });
+            }
+          }
+        }
+      });
     });
+    console.log("time", time);
+    console.table(tf.memory());
 
-    //console.table(tf.memory());
     return featurePoints;
   }
 
