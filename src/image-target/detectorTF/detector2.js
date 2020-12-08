@@ -111,7 +111,7 @@ for (let r = 0; r < FREAK_RINGS.length; r++) {
   const sigma = FREAK_RINGS[r].sigma;
   for (let i = 0; i < FREAK_RINGS[r].points.length; i++) {
     const point = FREAK_RINGS[r].points[i];
-    FREAKPOINTS.push([point[0], point[1]]);
+    FREAKPOINTS.push([sigma, point[0], point[1]]);
   }
 }
 
@@ -134,6 +134,18 @@ class Detector {
     this.tensorCaches = {};
 
     //globalDebug.tf = tf;
+  }
+
+  detectImageData(imageData) {
+    const arr = new Uint8ClampedArray(4 * imageData.length);
+    for (let i = 0; i < imageData.length; i++) {
+      arr[4*i] = imageData[i];
+      arr[4*i+1] = imageData[i];
+      arr[4*i+2] = imageData[i];
+      arr[4*i+3] = 255;
+    }
+    const img = new ImageData(arr, this.width, this.height);
+    return this.detect(img);
   }
 
   detect(input) {
@@ -207,18 +219,13 @@ class Detector {
 
     const smoothedHistograms = this._smoothHistograms(extremaHistograms);
     const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
-    const extremaFreaks = this._computeExtremaFreak(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles, dogIndexes);
+    //const extremaFreaks = this._computeExtremaFreak(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles, dogIndexes);
+    const extremaFreaks = this._computeExtremaFreakOld(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles, dogIndexes);
 
     const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
+    //const encodedDescriptors = this._encodeDescriptors(freakDescriptors);
     const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
     const combinedExtremasArr = combinedExtremas.arraySync();
-
-    //console.log("combinedExtremasArr", combinedExtremasArr);
-
-    tf.tidy(() => {
-      console.log("res", extremaFreaks.sum().arraySync());
-      //console.log("res", extremaHistograms.score.sum().arraySync());
-    });
 
     if(typeof inputImageT !== 'undefined') inputImageT.dispose();
     if(typeof pyramidImagesT !== 'undefined') pyramidImagesT.forEach((t) => t.dispose());
@@ -239,7 +246,7 @@ class Detector {
     if(typeof extremaFreaks !== 'undefined') extremaFreaks.dispose();
     if(typeof freakDescriptors !== 'undefined') freakDescriptors.dispose();
     if(typeof combinedExtremas !== 'undefined') combinedExtremas.dispose();
-    //console.log(tf.memory().numTensors);
+    console.log(tf.memory().numTensors);
     //return [];
 
     for (let i = 0; i < combinedExtremasArr.length; i++) {
@@ -295,31 +302,101 @@ class Detector {
     })
   }
 
+  // Due to precision issue. webgl seems to store values in float32
+  // When we encode the bits into int32 integers, there are a few bits off.
+  // Any fix?
+  _encodeDescriptors(extremaFreaks) {
+    // tensorflow use 32 bit signed int type, not able to sum 2^31 + 2^30 + ... + 2^0
+    // We do a little trick by storing the first bit as negative
+    //  i.e.   (-1 * 2^31) + 2 ^ 30 + .... + 2^0
+    //  when returned to CPU, a negative number means the first bit is negative, so we can add back (2 * 2^31)
+
+    // encode descriptors in binary format
+    // 37 samples = 1+2+3+...+36 = 666 comparisons = 666 bits
+    // ceil(666/32) = 21 (32 bits number)
+    return tf.tidy(() => {
+      const nComparisons = extremaFreaks.shape[2]; // 666
+      const totalNumber = Math.ceil(nComparisons / 32);  // 21
+      const totalBits = totalNumber * 32; // 672
+      const pad = totalBits - nComparisons; // 6
+
+      if (!this.tensorCaches.encodeDescriptors) {
+        const multiplier = [];
+        for (let i = 0; i < totalBits; i++) {
+          let index = 31 - (i % 32);
+
+          if (i >= (totalNumber-1) * 32) { // legacy reason, for the last number, store with the least significant bits
+            index -= pad;
+          }
+
+          if (index >= 0) {
+            let m = Math.pow(2, index);
+            if (index === 31) m = -m;
+            multiplier.push(m)
+          } else {
+            multiplier.push(0)
+          }
+        }
+        const multiplierT = tf.tensor(multiplier, [totalBits], 'int32');
+
+        this.tensorCaches.encodeDescriptors = {
+          multiplierT: tf.keep(multiplierT),
+        }
+      }
+
+      const {multiplierT} = this.tensorCaches.encodeDescriptors;
+
+      console.log("extremaFreaks", extremaFreaks, extremaFreaks.arraySync());
+
+      const expandedFreaks = extremaFreaks.pad([[0,0],[0,0],[0,pad]]).cast('int32');
+      console.log("expandedFreaks", expandedFreaks, expandedFreaks.arraySync());
+
+      let combined = expandedFreaks.mul(multiplierT);
+      console.log("combined", combined, combined.arraySync());
+
+      let reshapedCombine =  combined.reshape([combined.shape[0], combined.shape[1], totalNumber, 32]);
+      console.log("reshapedCombine", reshapedCombine, reshapedCombine.arraySync());
+
+      const encoded = reshapedCombine.sum(3);
+      console.log("encoded", encoded.arraySync());
+      return encoded;
+    })
+  }
+
   _computeFreakDescriptors(extremaFreaks) {
     return tf.tidy(() => {
-      const indices1 = [];
-      const indices2 = [];
-      for (let j = 0; j < extremaFreaks.shape[0]; j++) {
-        const row1 = [];
-        const row2 = [];
-        for (let i = 0; i < extremaFreaks.shape[1]; i++) {
-          const col1 = [];
-          const col2 = [];
+      if (!this.tensorCaches.freakDescriptors) {
+        const indices1 = [];
+        const indices2 = [];
+        for (let j = 0; j < extremaFreaks.shape[0]; j++) {
+          const row1 = [];
+          const row2 = [];
+          for (let i = 0; i < extremaFreaks.shape[1]; i++) {
+            const col1 = [];
+            const col2 = [];
 
-          for (let k1 = 0; k1 < extremaFreaks.shape[2]; k1++) {
-            for (let k2 = k1+1; k2 < extremaFreaks.shape[2]; k2++) {
-              col1.push([j, i, k1]);
-              col2.push([j, i, k2]);
+            for (let k1 = 0; k1 < extremaFreaks.shape[2]; k1++) {
+              for (let k2 = k1+1; k2 < extremaFreaks.shape[2]; k2++) {
+                col1.push([j, i, k1]);
+                col2.push([j, i, k2]);
+              }
             }
+            row1.push(col1);
+            row2.push(col2);
           }
-          row1.push(col1);
-          row2.push(col2);
+          indices1.push(row1);
+          indices2.push(row2);
         }
-        indices1.push(row1);
-        indices2.push(row2);
+        const in1 = tf.tensor(indices1).cast('int32');
+        const in2 = tf.tensor(indices2).cast('int32');
+
+        this.tensorCaches.freakDescriptors = {
+          in1: tf.keep(in1),
+          in2: tf.keep(in2),
+        }
       }
-      const in1 = tf.tensor(indices1).cast('int32');
-      const in2 = tf.tensor(indices2).cast('int32');
+
+      const {in1, in2} = this.tensorCaches.freakDescriptors;
 
       const freakDescriptors = tf.gatherND(extremaFreaks, in1).less(tf.gatherND(extremaFreaks, in2).add(0.01));
       return freakDescriptors;
@@ -332,10 +409,19 @@ class Detector {
       const nFeatures = prunedExtremas.dogIndex.shape[1];
       const nFreaks = FREAKPOINTS.length;
 
-      const freakPoints = tf.tensor(FREAKPOINTS);
-      let [freakX, freakY] = tf.unstack(freakPoints, 1);
-      freakX = freakX.broadcastTo([...prunedExtremasAngles.shape, ...freakX.shape]);
-      freakY = freakY.broadcastTo([...prunedExtremasAngles.shape, ...freakY.shape]);
+      if (!this.tensorCaches.extremaFreak) {
+        const freakPoints = tf.tensor(FREAKPOINTS);
+        let [freakSigma, freakX, freakY] = tf.unstack(freakPoints, 1);
+        freakX = freakX.broadcastTo([...prunedExtremasAngles.shape, ...freakX.shape]);
+        freakY = freakY.broadcastTo([...prunedExtremasAngles.shape, ...freakY.shape]);
+        this.tensorCaches.extremaFreak = {
+          freakX: tf.keep(freakX),
+          freakY: tf.keep(freakY),
+        }
+      }
+
+      const freakX = this.tensorCaches.extremaFreak.freakX;
+      const freakY = this.tensorCaches.extremaFreak.freakY;
 
       const inputX = prunedExtremas.originalX.expandDims(2);
       const inputY = prunedExtremas.originalY.expandDims(2);
@@ -363,6 +449,7 @@ class Detector {
       x = x.expandDims(3);
       y = y.expandDims(3);
 
+      // four neighbour points
       let x0 = tf.floor(x).cast('int32');
       let x1 = x0.add(1);
       let y0 = tf.floor(y).cast('int32');
@@ -375,13 +462,14 @@ class Detector {
       const ratio4 = x.sub(x0).mul(y.sub(y0));
       const ratios = tf.concat([ratio1, ratio2, ratio3, ratio4], 3);
 
-      // four neighobur points
+      // combine four neighobur points
       const yx = tf.concat([y0, x0, y0, x1, y1, x0, y1, x1], 3).reshape([nBuckets, nFeatures, nFreaks, 4, 2]);
       x0 = x0.squeeze();
       y0 = y0.squeeze();
 
       const expandedDogIndexes = prunedExtremas.dogIndex.expandDims(2).tile([1,1,nFreaks]);
 
+      // loop each gaussian image and grab relevant pixels
       let combinedPixels = tf.zeros([nBuckets, nFeatures, nFreaks, 4]);
       for (let d = 0; d < dogIndexes.length; d++) {
         const dogIndex = dogIndexes[d];
@@ -702,8 +790,8 @@ class Detector {
   _smoothHistograms(histograms) {
     return tf.tidy(() => {
       // probably one smoothing is enough?
-      //for (let k = 0; k < ORIENTATION_SMOOTHING_ITERATIONS; k++) {
-      for (let k = 0; k < 1; k++) {
+      for (let k = 0; k < ORIENTATION_SMOOTHING_ITERATIONS; k++) {
+      //for (let k = 0; k < 1; k++) {
         const numBins = ORIENTATION_NUM_BINS;
         const firstCol = histograms.slice([0, 0, 0], [-1, -1, 1]);
         const lastCol = histograms.slice([0, 0, histograms.shape[2]-1], [-1, -1, 1]);
@@ -885,12 +973,9 @@ class Detector {
       let isExtrema = isMax.logicalOr(isMin);
       isExtrema = isExtrema.logicalAnd(filterEdge);
 
-      //let isExtrema = (isMax.logicalOr(isMin)).logicalAnd(filterEdge).logicalAnd(filterLaplacianThreshold);
-      return tf.where(isExtrema, image1, 0).squeeze();
+      //return tf.where(isExtrema, image1, 0).squeeze();
 
       // Step 2: sub-pixel refinement (I'm not sure what that means. Any educational ref?)
-      // not sure whether useful actually
-
       // Compute spatial derivatives
       const dx = tf.conv2d(image1, tf.tensor2d([[-1, 0, 1]]).expandDims(2).expandDims(3), 1, 'same').mul(0.5);
       const dy = tf.conv2d(image1, tf.tensor2d([[-1], [0], [1]]).expandDims(2).expandDims(3), 1, 'same').mul(0.5);

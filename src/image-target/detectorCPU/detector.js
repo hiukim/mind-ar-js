@@ -53,15 +53,9 @@ class Detector {
   detectImageData(imageData) {
     const image = {data: imageData, width: this.width, height: this.height};
 
-    globalDebug.inputImage = globalDebug.convertImage(image);
-
     const gaussianPyramid = buildGaussianPyramid({image, minSize: PYRAMID_MIN_SIZE, numScalesPerOctaves: PYRAMID_NUM_SCALES_PER_OCTAVES});
 
-    globalDebug.pyramidImages = gaussianPyramid.images.map((image) => globalDebug.convertImage(image));
-
     const dogPyramid = buildDoGPyramid({gaussianPyramid: gaussianPyramid});
-
-    globalDebug.dogPyramidImages = dogPyramid.images.map((image) => globalDebug.convertImage(image));
 
     const featurePoints = _detectFeaturePoints({gaussianPyramid: gaussianPyramid, dogPyramid: dogPyramid});
 
