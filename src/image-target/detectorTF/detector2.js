@@ -111,7 +111,7 @@ for (let r = 0; r < FREAK_RINGS.length; r++) {
   const sigma = FREAK_RINGS[r].sigma;
   for (let i = 0; i < FREAK_RINGS[r].points.length; i++) {
     const point = FREAK_RINGS[r].points[i];
-    FREAKPOINTS.push([sigma, point[0], point[1]]);
+    FREAKPOINTS.push([point[0], point[1]]);
   }
 }
 
@@ -203,12 +203,12 @@ class Detector {
     }
 
     const prunedExtremas = this._applyPrune(extremasResults, dogIndexes);
-    const allPyramidImages = this._packPyramidImages(pyramidImagesT);
+    const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImagesT, dogIndexes);
 
-    const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImagesT, dogIndexes, allPyramidImages);
     const smoothedHistograms = this._smoothHistograms(extremaHistograms);
     const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
-    const extremaFreaks = this._computeExtremaFreak(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles);
+    const extremaFreaks = this._computeExtremaFreak(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles, dogIndexes);
+
     const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
     const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
     const combinedExtremasArr = combinedExtremas.arraySync();
@@ -216,32 +216,31 @@ class Detector {
     //console.log("combinedExtremasArr", combinedExtremasArr);
 
     tf.tidy(() => {
-      //console.log("res", allPyramidImages.arraySync());
-      console.log("res", extremaHistograms.sum().arraySync());
-      //console.log("res", prunedExtremas.score.sum().arraySync());
+      console.log("res", extremaFreaks.sum().arraySync());
+      //console.log("res", extremaHistograms.score.sum().arraySync());
     });
 
-    inputImageT.dispose();
-    allPyramidImages && allPyramidImages.dispose();
-    pyramidImagesT.forEach((t) => t.dispose());
-    dogPyramidImagesT.forEach((t) => t && t.dispose());
-    extremasResults.forEach((t) => t.dispose());
-    prunedExtremas.score.dispose();
-    prunedExtremas.dogIndex.dispose();
-    prunedExtremas.sigma.dispose();
-    prunedExtremas.x.dispose();
-    prunedExtremas.y.dispose();
-    prunedExtremas.originalX.dispose();
-    prunedExtremas.originalY.dispose();
+    if(typeof inputImageT !== 'undefined') inputImageT.dispose();
+    if(typeof pyramidImagesT !== 'undefined') pyramidImagesT.forEach((t) => t.dispose());
+    if(typeof dogPyramidImagesT !== 'undefined') dogPyramidImagesT.forEach((t) => t && t.dispose());
+    if(typeof extremasResults !== 'undefined') extremasResults.forEach((t) => t.dispose());
+    if (typeof prunedExtremas !== 'undefined') {
+      prunedExtremas.score.dispose();
+      prunedExtremas.dogIndex.dispose();
+      prunedExtremas.sigma.dispose();
+      prunedExtremas.yx.dispose();
+      prunedExtremas.originalX.dispose();
+      prunedExtremas.originalY.dispose();
+    }
+    if(typeof extremaHistograms !== 'undefined') extremaHistograms.dispose();
+
+    if(typeof smoothedHistograms !== 'undefined') smoothedHistograms.dispose();
+    if(typeof extremaAngles !== 'undefined') extremaAngles.dispose();
+    if(typeof extremaFreaks !== 'undefined') extremaFreaks.dispose();
+    if(typeof freakDescriptors !== 'undefined') freakDescriptors.dispose();
+    if(typeof combinedExtremas !== 'undefined') combinedExtremas.dispose();
     //console.log(tf.memory().numTensors);
     //return [];
-
-    extremaHistograms.dispose();
-    smoothedHistograms.dispose();
-    extremaAngles.dispose();
-    extremaFreaks.dispose();
-    freakDescriptors.dispose();
-    combinedExtremas.dispose();
 
     for (let i = 0; i < combinedExtremasArr.length; i++) {
       for (let j = 0; j < combinedExtremasArr[i].length; j++) {
@@ -289,21 +288,6 @@ class Detector {
     });
   }
 
-  _packPyramidImages(pyramidImagesT) {
-    return tf.tidy(() => {
-      const paddedPyramidImages = [];
-      for (let i = 0; i < pyramidImagesT.length; i++) {
-        //let d1Diff = pyramidImagesT[0].shape[1] - pyramidImagesT[i].shape[1];
-        //let d2Diff = pyramidImagesT[0].shape[2] - pyramidImagesT[i].shape[2];
-        //paddedPyramidImages.push(pyramidImagesT[i].squeeze().pad([[0, d1Diff], [0, d2Diff]]));
-        paddedPyramidImages.push(pyramidImagesT[i].reshape([-1]));
-      }
-      //const allPyramidImages = tf.stack(paddedPyramidImages, 0);
-      const allPyramidImages = tf.concat(paddedPyramidImages, 0);
-      return allPyramidImages;
-    })
-  }
-
   _combine(prunedExtremas, freakDescriptors) {
     return tf.tidy(() => {
       const combined = tf.concat([prunedExtremas.score.expandDims(2), prunedExtremas.originalX.expandDims(2), prunedExtremas.originalY.expandDims(2), freakDescriptors], 2);
@@ -342,7 +326,88 @@ class Detector {
     })
   }
 
-  _computeExtremaFreak(pyramidImagesT, gaussianNumOctaves, prunedExtremas, prunedExtremasAngles) {
+  _computeExtremaFreak(pyramidImagesT, gaussianNumOctaves, prunedExtremas, prunedExtremasAngles, dogIndexes) {
+    return tf.tidy(() => {
+      const nBuckets = prunedExtremas.dogIndex.shape[0];
+      const nFeatures = prunedExtremas.dogIndex.shape[1];
+      const nFreaks = FREAKPOINTS.length;
+
+      const freakPoints = tf.tensor(FREAKPOINTS);
+      let [freakX, freakY] = tf.unstack(freakPoints, 1);
+      freakX = freakX.broadcastTo([...prunedExtremasAngles.shape, ...freakX.shape]);
+      freakY = freakY.broadcastTo([...prunedExtremasAngles.shape, ...freakY.shape]);
+
+      const inputX = prunedExtremas.originalX.expandDims(2);
+      const inputY = prunedExtremas.originalY.expandDims(2);
+      const inputSigma = prunedExtremas.sigma.expandDims(2);
+      const inputAngle = prunedExtremasAngles.expandDims(2);
+
+      const expansionFactor = FREAK_EXPANSION_FACTOR;
+      const transformScale = inputSigma.mul(expansionFactor); // sigma = 2 ^ octave >=2, so clipping won't happen
+      const cos = transformScale.mul(inputAngle.cos());
+      const sin = transformScale.mul(inputAngle.sin());
+
+      // compute freak point locations according to orientation angle
+      let x = inputX.add(freakX.mul(cos)).add(freakY.mul(sin.neg()));
+      let y = inputY.add(freakX.mul(sin)).add(freakY.mul(cos));
+
+      const octave = tf.floorDiv(prunedExtremas.dogIndex, PYRAMID_NUM_SCALES_PER_OCTAVES-1).expandDims(2).tile([1,1,nFreaks]);
+      const scale = tf.mod(prunedExtremas.dogIndex, PYRAMID_NUM_SCALES_PER_OCTAVES-1).expandDims(2).tile([1,1,nFreaks]);
+
+      // downsample point back to octave
+      const a = tf.onesLike(octave).div( tf.fill(octave.shape,2).pow(octave));
+      const b = tf.fill(octave.shape, 0.5).mul(a).sub(0.5);
+      x = x.mul(a).add(b); // x in octave
+      y = y.mul(a).add(b); // y in octave
+
+      x = x.expandDims(3);
+      y = y.expandDims(3);
+
+      let x0 = tf.floor(x).cast('int32');
+      let x1 = x0.add(1);
+      let y0 = tf.floor(y).cast('int32');
+      let y1 = y0.add(1);
+
+      // ratio for interpolation between four neighbouring points
+      const ratio1 = x1.sub(x).mul(y1.sub(y));
+      const ratio2 = x.sub(x0).mul(y1.sub(y));
+      const ratio3 = x1.sub(x).mul(y.sub(y0));
+      const ratio4 = x.sub(x0).mul(y.sub(y0));
+      const ratios = tf.concat([ratio1, ratio2, ratio3, ratio4], 3);
+
+      // four neighobur points
+      const yx = tf.concat([y0, x0, y0, x1, y1, x0, y1, x1], 3).reshape([nBuckets, nFeatures, nFreaks, 4, 2]);
+      x0 = x0.squeeze();
+      y0 = y0.squeeze();
+
+      const expandedDogIndexes = prunedExtremas.dogIndex.expandDims(2).tile([1,1,nFreaks]);
+
+      let combinedPixels = tf.zeros([nBuckets, nFeatures, nFreaks, 4]);
+      for (let d = 0; d < dogIndexes.length; d++) {
+        const dogIndex = dogIndexes[d];
+        const octave2 = Math.floor(dogIndex / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
+        const scale2 = dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
+
+        const gaussianIndex = octave2 * PYRAMID_NUM_SCALES_PER_OCTAVES + scale2;
+        const gaussianImageSqueezed = pyramidImagesT[gaussianIndex].squeeze();
+        let pixels = tf.gatherND(gaussianImageSqueezed, yx);
+
+        // extrema dogIndex is correct and x, y within boundary
+        let valid = expandedDogIndexes.equal(dogIndex)
+                  .logicalAnd(y0.greaterEqual(0))
+                  .logicalAnd(y0.less(gaussianImageSqueezed.shape[0]-1))
+                  .logicalAnd(x0.greaterEqual(0))
+                  .logicalAnd(x0.less(gaussianImageSqueezed.shape[1]-1));
+        pixels = tf.where(valid.expandDims(3).tile([1,1,1,pixels.shape[3]]), pixels, 0);
+        combinedPixels = combinedPixels.add(pixels);
+      }
+
+      const freakValues = combinedPixels.mul(ratios).sum(3);
+      return freakValues;
+    })
+  }
+
+  _computeExtremaFreakOld(pyramidImagesT, gaussianNumOctaves, prunedExtremas, prunedExtremasAngles) {
     return tf.tidy(() => {
       const freakPoints = tf.tensor(FREAKPOINTS);
       let [freakSigma, freakX, freakY] = tf.unstack(freakPoints, 1);
@@ -355,8 +420,11 @@ class Detector {
       const inputSigma = prunedExtremas.sigma.expandDims(2);
       const inputAngle = prunedExtremasAngles.expandDims(2);
 
+      //console.log("input sigma", prunedExtremas.sigma.arraySync());
+
       const expansionFactor = FREAK_EXPANSION_FACTOR;
-      const transformScale = tf.clipByValue(inputSigma.mul(expansionFactor), 1, 10000); // no uppwer limit
+      //const transformScale = tf.clipByValue(inputSigma.mul(expansionFactor), 1, 10000); // no uppwer limit
+      const transformScale = inputSigma.mul(expansionFactor); // sigma = 2 ^ octave >=2, so clipping won't happen
       const c = transformScale.mul(inputAngle.cos());
       const s = transformScale.mul(inputAngle.sin());
 
@@ -374,8 +442,10 @@ class Detector {
 
       // log2(x)=ln(x)/ln(2).
       let octave = tf.floor(tf.log(sigma).div(Math.log(2)));
+      //console.log("octave", octave.arraySync());
       const fscale = tf.log(sigma.div(tf.pow(tf.fill(octave.shape, 2), octave))).mul(oneOverLogK);
       let scale = tf.round(fscale);
+      //console.log("scale", scale.arraySync());
 
       // sgima of last scale = sigma of the first scale in next octave
       // prefer coarser octaves for efficiency
@@ -447,10 +517,15 @@ class Detector {
     return tf.tidy(() => {
       const numBins = ORIENTATION_NUM_BINS;
 
-      // TODO: cache
-      const yIndices = tf.tile(tf.range(0, histograms.shape[0], 1).expandDims(1), [1, histograms.shape[1]]);
-      const xIndices = tf.tile(tf.range(0, histograms.shape[1], 1).expandDims(0), [histograms.shape[0], 1]);
-      const indices = tf.stack([yIndices, xIndices], 2);
+      if (!this.tensorCaches.extremaAngles) {
+        const yIndices = tf.tile(tf.range(0, histograms.shape[0], 1).expandDims(1), [1, histograms.shape[1]]);
+        const xIndices = tf.tile(tf.range(0, histograms.shape[1], 1).expandDims(0), [histograms.shape[0], 1]);
+        const indices = tf.stack([yIndices, xIndices], 2);
+        this.tensorCaches.extremaAngles = {
+          indices: tf.keep(indices)
+        }
+      }
+      const indices = this.tensorCaches.extremaAngles.indices;
 
       /**
        * Fit a quatratic to 3 points. The system of equations is:
@@ -494,7 +569,10 @@ class Detector {
     })
   }
 
-  _computeOrientationHistograms(prunedExtremas, pyramidImagesT, dogIndexes, allPyramidImages) {
+  _computeOrientationHistograms(prunedExtremas, pyramidImagesT, dogIndexes) {
+    const nBuckets = prunedExtremas.dogIndex.shape[0];
+    const nFeatures = prunedExtremas.dogIndex.shape[1];
+
     const numBins = ORIENTATION_NUM_BINS;
     const oneOver2PI = 0.159154943091895;
     const dogNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES - 1;
@@ -503,77 +581,89 @@ class Detector {
     const mK = Math.pow(2, 1.0 / dogNumScalesPerOctaves);
 
     return tf.tidy(() => {
-      let combinedHistograms = tf.zeros([prunedExtremas.dogIndex.shape[0], prunedExtremas.dogIndex.shape[1], numBins]);
+      if (!this.tensorCaches.orientationHistograms) {
+        const sigma = 1; // because scale always 0, as dogIndex % 2 === 0. if not true, then it needs to be fixed
+        const gwSigma = Math.max(1.0, gaussianExpansionFactor * sigma);
+        const gwScale = -1.0 / (2 * gwSigma * gwSigma);
+        const radius = regionExpansionFactor * gwSigma;
+        const radiusCeil = Math.ceil(radius);
 
-      const sigma = 1; // because scale always 0, as dogIndex % 2 === 0. if not true, then it needs to be fixed
-      const gwSigma = Math.max(1.0, gaussianExpansionFactor * sigma);
-      const gwScale = -1.0 / (2 * gwSigma * gwSigma);
-
-      const radius = ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * ORIENTATION_REGION_EXPANSION_FACTOR;
-      const radiusCeil = Math.ceil(radius);
-      const offsets = [];
-      const distanceSquares = [];
-      const centerOffset = [];
-      for (let y = -radiusCeil; y <= radiusCeil; y++) {
-        for (let x = -radiusCeil; x <= radiusCeil; x++) {
-          if (x * x + y * y <= radius * radius) {
-            offsets.push([[y+1, x], [y-1, x], [y, x+1], [y, x-1]]); // compute gradient using dy dx
-            centerOffset.push([y, x]);
-            distanceSquares.push(x * x + y * y);
+        const distanceSquares = [];
+        const radialOffset = [];
+        const radialPlusDiffOffsets = [];
+        for (let y = -radiusCeil; y <= radiusCeil; y++) {
+          for (let x = -radiusCeil; x <= radiusCeil; x++) {
+            if (x * x + y * y <= radius * radius) {
+              radialPlusDiffOffsets.push([[y+1, x], [y-1, x], [y, x+1], [y, x-1]]); // compute gradient using dy dx
+              radialOffset.push([y, x]);
+              distanceSquares.push(x * x + y * y);
+            }
           }
         }
+        const nRadial = radialPlusDiffOffsets.length;
+
+        const radialPlusDiffOffsetsT = tf.tensor(radialPlusDiffOffsets, [nRadial, 4, 2], 'int32')
+                                       .broadcastTo([nBuckets, nFeatures, nRadial, 4, 2]);
+
+        const radialOffsetT = tf.tensor(radialOffset, [nRadial, 2], 'int32')
+                            .broadcastTo([nBuckets, nFeatures, nRadial, 2]);
+
+        const distanceSquaresT = tf.tensor(distanceSquares, [distanceSquares.length]);
+
+        const _x = distanceSquaresT.mul(gwScale);
+        // fast expontenial approx: w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888
+        const wT = _x.add(6).mul(_x).add(30).mul(_x).add(120).mul(_x).add(360).mul(_x).add(720).mul(_x).add(720).mul(0.0013888888);
+
+        this.tensorCaches.orientationHistograms = {
+          radialPlusDiffOffsetsT: tf.keep(radialPlusDiffOffsetsT),
+          radialOffsetT: tf.keep(radialOffsetT),
+          wT: tf.keep(wT),
+        }
       }
-      const offsetsT = tf.tensor(offsets, [offsets.length, 4, 2], 'int32').broadcastTo([prunedExtremas.dogIndex.shape[0], prunedExtremas.dogIndex.shape[1], offsets.length, 4, 2]);
-      const centerOffsetT = tf.tensor(centerOffset, [centerOffset.length, 2], 'int32').broadcastTo([prunedExtremas.dogIndex.shape[0], prunedExtremas.dogIndex.shape[1], offsets.length, 2]);
 
-      const distanceSquaresT = tf.tensor(distanceSquares, [distanceSquares.length]);
-      const _x = distanceSquaresT.mul(gwScale);
-      // fast expontenial approx: w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888
-      const w = _x.add(6).mul(_x).add(30).mul(_x).add(120).mul(_x).add(360).mul(_x).add(720).mul(_x).add(720).mul(0.0013888888);
-      console.log("new w", w.shape, w.arraySync());
+      const radialPlusDiffOffsetsT = this.tensorCaches.orientationHistograms.radialPlusDiffOffsetsT;
+      const radialOffsetT = this.tensorCaches.orientationHistograms.radialOffsetT;
+      const wT = this.tensorCaches.orientationHistograms.wT;
 
-      let yx = tf.stack([prunedExtremas.y, prunedExtremas.x], 2);
+      const yxExpand1 = prunedExtremas.yx.expandDims(2).tile([1, 1, radialOffsetT.shape[2], 1]);
+      const yxExpand2 = yxExpand1.expandDims(3).tile([1, 1, 1, radialPlusDiffOffsetsT.shape[3], 1]);
 
-      let yxCenter = yx.expandDims(2).tile([1, 1, centerOffsetT.shape[2], 1]).add(centerOffsetT);
-      console.log("yxCenter", yxCenter.shape, yxCenter.arraySync());
-
-      yx = yx.expandDims(2).expandDims(2).tile([1, 1, offsetsT.shape[2], offsetsT.shape[3], 1]);
-      console.log("yx", yx.shape, yx.arraySync());
-      console.log("offsetsT", offsetsT.shape, offsetsT.arraySync());
+      // 4 dimensoins: nBuckets x nFeatures x |radius*2*PI| x 2
+      const yxRadial = yxExpand1.add(radialOffsetT);
 
       // 5 dimensoins: nBuckets x nFeatures x |radius*2*PI| x 4 x 2
-      let yxWithOffsets = yx.add(offsetsT);
+      const yxRadialPlusDiff = yxExpand2.add(radialPlusDiffOffsetsT);
 
-      const expandedDogIndexes = prunedExtremas.dogIndex.expandDims(2).tile([1,1,yxCenter.shape[2]]);
-      console.log("expandedDogIndexes", expandedDogIndexes.arraySync());
-      console.log("yxWithOffsets", yxWithOffsets.arraySync());
+      const expandedDogIndexes = prunedExtremas.dogIndex.expandDims(2).tile([1,1,yxRadial.shape[2]]);
 
-      let combinedPixels = tf.zeros([yxWithOffsets.shape[0], yxWithOffsets.shape[1], yxWithOffsets.shape[2], yxWithOffsets.shape[3]]);
+      let [radialY, radialX] = yxRadial.split([1,1], 3);
+      radialY = radialY.squeeze();
+      radialX = radialX.squeeze();
+
+      // STEP 1: grab all relevant pixels for each extremas
+      //    all the pixels within the radius of the extremas are interested.
+      //    for each of these pixels, grab four pixels [y+1,x], [y-1,x], [y,x+1], [y,x-1]
+      //        these four pixels are used to compute gradients in next step
+      let combinedPixels = tf.zeros([nBuckets, nFeatures, yxRadialPlusDiff.shape[2], yxRadialPlusDiff.shape[3]]);
       for (let d = 0; d < dogIndexes.length; d++) {
         const dogIndex = dogIndexes[d];
         const octave = Math.floor(dogIndex / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
         const scale = dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
         const gaussianIndex = octave * PYRAMID_NUM_SCALES_PER_OCTAVES + scale;
         const gaussianImageSqueezed = pyramidImagesT[gaussianIndex].squeeze();
-        let pixels = tf.gatherND(gaussianImageSqueezed, yxWithOffsets);
+        let pixels = tf.gatherND(gaussianImageSqueezed, yxRadialPlusDiff);
 
-        let [y, x] = yxWithOffsets.split([1,1], 4);
-        let [centerY, centerX] = yxCenter.split([1,1], 3);
-        centerY = centerY.squeeze();
-        centerX = centerX.squeeze();
+        // extrema dogIndex is correct and x, y within boundary-1
         let valid = expandedDogIndexes.equal(dogIndex)
-                  .logicalAnd(centerY.greaterEqual(1))
-                  .logicalAnd(centerY.less(gaussianImageSqueezed.shape[0]-1))
-                  .logicalAnd(centerX.greaterEqual(1))
-                  .logicalAnd(centerX.less(gaussianImageSqueezed.shape[1]-1));
-
-        console.log("pixes", pixels.shape, pixels.arraySync());
-        console.log("valid", valid.shape, valid.arraySync());
-
+                  .logicalAnd(radialY.greaterEqual(1))
+                  .logicalAnd(radialY.less(gaussianImageSqueezed.shape[0]-1))
+                  .logicalAnd(radialX.greaterEqual(1))
+                  .logicalAnd(radialX.less(gaussianImageSqueezed.shape[1]-1));
         pixels = tf.where(valid.expandDims(3).tile([1,1,1,pixels.shape[3]]), pixels, 0);
         combinedPixels = combinedPixels.add(pixels);
       }
 
+      // Step 2: compute gradients
       let [y2, y1, x2, x1] = combinedPixels.split([1, 1, 1, 1], 3);
       y2 = y2.squeeze();
       y1 = y1.squeeze();
@@ -584,8 +674,9 @@ class Detector {
       const mag = tf.sqrt(tf.square(dx).add(tf.square(dy)));
       const angle = tf.atan2(dy, dx).add(Math.PI);
 
+      // Step 3: compute orientations histograms, but expanding them into angle bins, and sum them up
       const fbin = angle.mul(numBins).mul(oneOver2PI);
-      const magnitude = w.mul(mag).expandDims(3);
+      const magnitude = wT.mul(mag).expandDims(3);
 
       const bin = tf.floor(fbin.sub(0.5));
       let w2 = fbin.sub(bin).sub(0.5);
@@ -604,115 +695,32 @@ class Detector {
       const b2HotSum = b2HotMag.sum([2]);
       const histograms = b1HotSum.add(b2HotSum);
 
-      for (let d = 0; d < dogIndexes.length; d++) {
-        const dogIndex = dogIndexes[d];
-        const octave = Math.floor(dogIndex / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
-        const scale = dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
-        const originalSigma = Math.pow(mK, scale) * (1 << octave);
-        const octaveFactor = 1.0 / Math.pow(2, octave);
-        const sigma = originalSigma * octaveFactor;
-        const gwSigma = Math.max(1.0, gaussianExpansionFactor * sigma);
-        const gwScale = -1.0 / (2 * gwSigma * gwSigma);
-        const radius = regionExpansionFactor * gwSigma;
-        const radiusSquare = Math.ceil(radius * radius - 0.5);
-        const radiusCeil = Math.ceil(radius);
-
-        const radiusRange = tf.range(-radiusCeil, radiusCeil+1, 1, 'int32');
-        const radiusRangeSquare = tf.square(radiusRange);
-        const distanceSquare = radiusRangeSquare.add(radiusRangeSquare.expandDims(1));
-
-        const offsetY = tf.tile(radiusRange.expandDims(1), [1, radiusRange.shape[0]]);
-        const offsetX = tf.tile(radiusRange.expandDims(0), [radiusRange.shape[0], 1]);
-        const offset = tf.stack([offsetY, offsetX], 2);
-        const offsetDistanceSquare = tf.square(offsetX).add(tf.square(offsetY)).expandDims(2);
-        const validDistance  = offsetDistanceSquare.lessEqual(radiusSquare);
-
-        const yxIndices = tf.stack([prunedExtremas.y, prunedExtremas.x], 2);
-        const indices = yxIndices.expandDims(2).expandDims(2).add(offset);
-
-        // compute gradients
-        const gaussianIndex = octave * PYRAMID_NUM_SCALES_PER_OCTAVES + scale;
-        const gaussianImage = pyramidImagesT[gaussianIndex];
-        const dx = tf.conv2d(gaussianImage, tf.tensor2d([[-1, 0, 1]]).expandDims(2).expandDims(3), 1, 'same');
-        const dy = tf.conv2d(gaussianImage, tf.tensor2d([[-1], [0], [1]]).expandDims(2).expandDims(3), 1, 'same');
-        const mag = tf.sqrt(tf.square(dx).add(tf.square(dy)));
-        const angle = tf.atan2(dy, dx).add(Math.PI);
-        const angleSqueeze = angle.squeeze();
-        const magSqueeze = mag.squeeze();
-        const [y, x] = indices.split([1,1], indices.shape.length-1);
-
-        let valid = validDistance.logicalAnd(y.greaterEqual(1)).logicalAnd(y.less(angleSqueeze.shape[0]-1)).logicalAnd(x.greaterEqual(1)).logicalAnd(x.less(angleSqueeze.shape[1]-1)).squeeze();
-
-        let validDog = prunedExtremas.dogIndex.equal(dogIndex).expandDims(2).expandDims(2).tile([1,1,valid.shape[2], valid.shape[3]]);
-        valid = valid.logicalAnd(validDog);
-
-        const selectedAngles = tf.where(valid, tf.gatherND(angleSqueeze, indices), 0);
-        const fbin = selectedAngles.mul(numBins).mul(oneOver2PI);
-
-        const selectedMags = tf.where(valid, tf.gatherND(magSqueeze, indices), 0);
-        const _x = distanceSquare.mul(gwScale);
-        // fast expontenial approx: w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888
-        const w = _x.add(6).mul(_x).add(30).mul(_x).add(120).mul(_x).add(360).mul(_x).add(720).mul(_x).add(720).mul(0.0013888888);
-
-        const magnitude = w.mul(selectedMags).expandDims(4);
-
-        const bin = tf.floor(fbin.sub(0.5));
-        let w2 = fbin.sub(bin).sub(0.5);
-        let w1 = w2.mul(-1).add(1);
-        w1 = w1.expandDims(4);
-        w2 = w2.expandDims(4);
-        const b1 = bin.add(numBins).mod(numBins).cast('int32');
-        const b2 = bin.add(1).mod(numBins).cast('int32');
-
-        const b1Hot = tf.oneHot(b1, numBins);
-        const b1HotMag = b1Hot.mul(w1).mul(magnitude);
-        const b1HotSum = b1HotMag.sum([2,3]);
-
-        const b2Hot = tf.oneHot(b2, numBins);
-        const b2HotMag = b2Hot.mul(w2).mul(magnitude);
-        const b2HotSum = b2HotMag.sum([2,3]);
-
-        const histograms = b1HotSum.add(b2HotSum);
-
-        combinedHistograms = combinedHistograms.add(histograms);
-      }
-
-      const histogramsArr = histograms.arraySync();
-      const oldHistogramsArr = combinedHistograms.arraySync();
-      let correct = 0;
-      for (let i = 0; i < histogramsArr.length; i++) {
-        for (let j = 0; j < histogramsArr[i].length; j++) {
-          for (let k = 0; k < histogramsArr[i][j].length; k++) {
-            if (Math.abs(histogramsArr[i][j][k] - oldHistogramsArr[i][j][k]) < 0.001) {
-              correct += 1;
-            } else {
-              console.log("INCORRECT", i, j, k, histogramsArr[i][j][k], oldHistogramsArr[i][j][k]);
-            }
-          }
-        }
-      }
-      console.log("hist correct", correct);
-      console.log(histogramsArr, oldHistogramsArr);
-      return combinedHistograms;
+      return histograms;
     });
   }
 
   _smoothHistograms(histograms) {
     return tf.tidy(() => {
-      const numBins = ORIENTATION_NUM_BINS;
-      const firstCol = histograms.slice([0, 0, 0], [-1, -1, 1]);
-      const lastCol = histograms.slice([0, 0, histograms.shape[2]-1], [-1, -1, 1]);
+      // probably one smoothing is enough?
+      //for (let k = 0; k < ORIENTATION_SMOOTHING_ITERATIONS; k++) {
+      for (let k = 0; k < 1; k++) {
+        const numBins = ORIENTATION_NUM_BINS;
+        const firstCol = histograms.slice([0, 0, 0], [-1, -1, 1]);
+        const lastCol = histograms.slice([0, 0, histograms.shape[2]-1], [-1, -1, 1]);
 
-      const filter = tf.tensor2d([[0.274068619061197, 0.451862761877606, 0.274068619061197]]).expandDims(2).expandDims(3);
-      let expandedHistogram = tf.concat([lastCol, histograms, firstCol], 2);
+        const filter = tf.tensor2d([[0.274068619061197, 0.451862761877606, 0.274068619061197]]).expandDims(2).expandDims(3);
+        let expandedHistogram = tf.concat([lastCol, histograms, firstCol], 2);
 
-      const originalShape = expandedHistogram.shape;
-      expandedHistogram = expandedHistogram.reshape([-1, numBins+2]).expandDims(2).expandDims(0);
-      expandedHistogram = tf.conv2d(expandedHistogram, filter, 1, 'same')
-      expandedHistogram = expandedHistogram.reshape(originalShape);
+        const originalShape = expandedHistogram.shape;
+        expandedHistogram = expandedHistogram.reshape([-1, numBins+2]).expandDims(2).expandDims(0);
+        expandedHistogram = tf.conv2d(expandedHistogram, filter, 1, 'same')
+        expandedHistogram = expandedHistogram.reshape(originalShape);
 
-      expandedHistogram = expandedHistogram.slice([0, 0, 1], [-1, -1, expandedHistogram.shape[2]-2]);
-      return expandedHistogram;
+        expandedHistogram = expandedHistogram.slice([0, 0, 1], [-1, -1, expandedHistogram.shape[2]-2]);
+        histograms = expandedHistogram;
+        //console.log("smoothedHistograms", k, histograms.arraySync());
+      }
+      return histograms;
     })
   }
 
@@ -798,17 +806,16 @@ class Detector {
       const topScores = tf.gatherND(allBucketScores, topIndices);
 
       const topPosition = tf.gatherND(allPositions, topIndices); // nbucket x 5 x [dogIndex, y, x]
-      let [topDogIndex, topY, topX] = tf.split(topPosition, [1,1,1], 2);
+      let [topDogIndex, topYX] = tf.split(topPosition, [1,2], 2);
       topDogIndex = topDogIndex.squeeze();
-      topY = topY.squeeze();
-      topX = topX.squeeze();
 
       const topOctave = topDogIndex.floorDiv(PYRAMID_NUM_SCALES_PER_OCTAVES-1);
       const top2PowOctave = constant2.pow(topOctave);
       const top2PowOctaveMin1 = constant2.pow(topOctave.sub(1));
 
-      let topOriginalX = topX.mul(top2PowOctave).add(top2PowOctaveMin1).sub(0.5);
-      let topOriginalY = topY.mul(top2PowOctave).add(top2PowOctaveMin1).sub(0.5);
+      let [topOriginalY, topOriginalX] = topYX.split([1,1], 2);
+      topOriginalY = topOriginalY.squeeze().mul(top2PowOctave).add(top2PowOctaveMin1).sub(0.5);
+      topOriginalX = topOriginalX.squeeze().mul(top2PowOctave).add(top2PowOctaveMin1).sub(0.5);
 
       const topScale = topDogIndex.mod(PYRAMID_NUM_SCALES_PER_OCTAVES-1); // TODO: must be zero?
       let topSigma = constantMK.pow(topScale).mul(top2PowOctave); // TODO: topScale always 0?
@@ -822,8 +829,9 @@ class Detector {
         score: topScores,
         dogIndex: topDogIndex,
         sigma: topSigma,
-        x: topX,
-        y: topY,
+        yx: topYX,
+        //x: topX,
+        //y: topY,
         originalX: topOriginalX,
         originalY: topOriginalY,
       };
