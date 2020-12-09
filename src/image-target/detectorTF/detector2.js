@@ -149,22 +149,7 @@ class Detector {
   }
 
   detect(input) {
-    return this._detect(input);
-
-    return new Promise(async (resolve, reject) => {
-      let featurePoints;
-      const time = await tf.time(() => {
-        featurePoints = this._detect(input);
-      });
-      console.log("time", time);
-      resolve(featurePoints);
-    })
-  }
-
-  _detect(input) {
     const featurePoints = [];
-
-    var _start = new Date();
 
     const inputImageT = this._loadInput(input);
 
@@ -304,7 +289,7 @@ class Detector {
 
   // Due to precision issue. webgl seems to store values in float32
   // When we encode the bits into int32 integers, there are a few bits off.
-  // Any fix?
+  // Any fix? If this can be fix, could probably help performance
   _encodeDescriptors(extremaFreaks) {
     // tensorflow use 32 bit signed int type, not able to sum 2^31 + 2^30 + ... + 2^0
     // We do a little trick by storing the first bit as negative
@@ -343,22 +328,12 @@ class Detector {
           multiplierT: tf.keep(multiplierT),
         }
       }
-
       const {multiplierT} = this.tensorCaches.encodeDescriptors;
-
-      console.log("extremaFreaks", extremaFreaks, extremaFreaks.arraySync());
-
       const expandedFreaks = extremaFreaks.pad([[0,0],[0,0],[0,pad]]).cast('int32');
-      console.log("expandedFreaks", expandedFreaks, expandedFreaks.arraySync());
-
       let combined = expandedFreaks.mul(multiplierT);
-      console.log("combined", combined, combined.arraySync());
 
       let reshapedCombine =  combined.reshape([combined.shape[0], combined.shape[1], totalNumber, 32]);
-      console.log("reshapedCombine", reshapedCombine, reshapedCombine.arraySync());
-
       const encoded = reshapedCombine.sum(3);
-      console.log("encoded", encoded.arraySync());
       return encoded;
     })
   }
@@ -474,7 +449,7 @@ class Detector {
       for (let d = 0; d < dogIndexes.length; d++) {
         const dogIndex = dogIndexes[d];
         const octave2 = Math.floor(dogIndex / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
-        const scale2 = dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
+        const scale2 = dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1) + 1;
 
         const gaussianIndex = octave2 * PYRAMID_NUM_SCALES_PER_OCTAVES + scale2;
         const gaussianImageSqueezed = pyramidImagesT[gaussianIndex].squeeze();
@@ -736,7 +711,7 @@ class Detector {
       for (let d = 0; d < dogIndexes.length; d++) {
         const dogIndex = dogIndexes[d];
         const octave = Math.floor(dogIndex / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
-        const scale = dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1);
+        const scale = dogIndex % (PYRAMID_NUM_SCALES_PER_OCTAVES-1) + 1;
         const gaussianIndex = octave * PYRAMID_NUM_SCALES_PER_OCTAVES + scale;
         const gaussianImageSqueezed = pyramidImagesT[gaussianIndex].squeeze();
         let pixels = tf.gatherND(gaussianImageSqueezed, yxRadialPlusDiff);
@@ -883,9 +858,13 @@ class Detector {
       const bucketScores = [];
       for (let i = 0; i < extremasResults.length; i++) {
         const extremaScores = extremasResults[i];
-        bucketScores.push(tf.gatherND(extremaScores, positionsByDogs[i]).squeeze());
+        bucketScores.push(tf.gatherND(extremaScores, positionsByDogs[i]));
       }
-      const allBucketScores = tf.concat(bucketScores, 1);
+      let allBucketScores = tf.concat(bucketScores, 1);
+
+      if (allBucketScores.shape[1] < MAX_FEATURES_PER_BUCKET) {
+        allBucketScores = tf.pad(allBucketScores, [[0,0],[0,MAX_FEATURES_PER_BUCKET-allBucketScores.shape[1]]], -1000);
+      }
       const allBucketScoresAbs = allBucketScores.abs();
 
       let {values: topValues, indices: topIndices} = tf.topk(allBucketScoresAbs, MAX_FEATURES_PER_BUCKET);
@@ -1064,8 +1043,9 @@ class Detector {
           [1], [4], [6], [4], [1],
         ]).expandDims(2).expandDims(3));
       }
-      let ret = tf.conv2d(image, this.tensorCaches.filter1, [1,1], 'same');
-      ret = tf.conv2d(ret, this.tensorCaches.filter2, [1,1], 'same');
+      image = image.mirrorPad([[0,0], [2,2], [2,2], [0, 0]], 'symmetric');
+      let ret = tf.conv2d(image, this.tensorCaches.filter1, [1,1], 'valid');
+      ret = tf.conv2d(ret, this.tensorCaches.filter2, [1,1], 'valid');
       ret = ret.div(256);
       return ret;
     })
