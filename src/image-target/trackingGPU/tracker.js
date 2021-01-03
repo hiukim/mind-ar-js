@@ -67,14 +67,22 @@ class Tracker {
 
     const modelViewProjectionTransform = buildModelViewProjectionTransform(this.projectionTransform, lastModelViewTransform);
 
+    console.log("modelViewProjectionTransform", modelViewProjectionTransform);
+
     const featurePoints = this.featurePointsList[targetIndex];
     const imagePixels = this.imagePixelsList[targetIndex];
     const imageProperties = this.imagePropertiesList[targetIndex];
     const allFeaturePoints = this.allFeaturePointsList[targetIndex];
 
+    console.log("image properties", imageProperties.toArray());
+
     const searchPoints = this._computeSearchPoints(featurePoints, modelViewProjectionTransform);
 
+    globalDebug.searchPoints = searchPoints;
+
     const templates = this._buildTemplates(imagePixels, imageProperties, featurePoints, searchPoints, modelViewProjectionTransform);
+
+    globalDebug.templates = templates;
 
     const similarities = this._computeSimilarity(featurePoints, targetImage, searchPoints, templates);
 
@@ -151,6 +159,7 @@ class Tracker {
         const b1  = modelViewProjectionTransform[0][3] - modelViewProjectionTransform[2][3] * sx2;
         const b2  = modelViewProjectionTransform[1][3] - modelViewProjectionTransform[2][3] * sy2;
 
+
         const m = c11 * c22 - c12 * c21;
 
         const mx2 = (c22 * b1 - c12 * b2) / m;
@@ -163,6 +172,8 @@ class Tracker {
 
         const ix = Math.floor(mx2 * imageScale + 0.5);
         const iy = Math.floor(imageHeight - my2 * imageScale + 0.5);
+
+        //return imagePixelOffset + iy * imageWidth + ix;
 
         if (ix < 0 || ix >= imageWidth) {
           return -1;

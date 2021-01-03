@@ -1,5 +1,6 @@
 const Worker = require("./controller.worker.js");
 const {Tracker} = require('./image-target/trackingGPU/tracker.js');
+const {Tracker: TrackerTF} = require('./image-target/trackingTF/tracker.js');
 const {Detector: DetectorCPU} = require('./image-target/detectorCPU/detector.js');
 const {Detector} = require('./image-target/detectorGPU/detector.js');
 //const {Detector} = require('./image-target/detectorCPU/detector.js');
@@ -87,6 +88,7 @@ class Controller {
         this.imageTargetStates[i] = {isTracking: false};
       }
       this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
+      this.trackerTF = new TrackerTF(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
 
       this.worker.postMessage({
         type: 'setup',
@@ -295,6 +297,7 @@ class Controller {
     if (targetIndex === -1) return;
 
     const trackFeatures = this.tracker.track(input, modelViewTransform, targetIndex);
+    const trackFeatures2 = this.trackerTF.track(input, modelViewTransform, targetIndex);
     const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
     console.log("track", modelViewTransform2);
 
