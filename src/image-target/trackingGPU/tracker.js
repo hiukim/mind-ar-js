@@ -2,6 +2,7 @@ const {buildModelViewProjectionTransform} = require('../icp/utils.js');
 const {GPU} = require('gpu.js');
 
 const AR2_DEFAULT_TS = 6;
+//const AR2_DEFAULT_TS = 12;
 const AR2_SEARCH_SIZE = 6;
 const AR2_SIM_THRESH = 0.9;
 
@@ -52,9 +53,10 @@ class Tracker {
     if (this.videoKernel === null) {
       this.videoKernel = this.gpu.createKernel(function(videoFrame) {
         const pixel = videoFrame[this.constants.height-1-Math.floor(this.thread.x / this.constants.width)][this.thread.x % this.constants.width];
+        return (pixel[0] + pixel[1] + pixel[2]) * 255 / 3;
         //return Math.floor((pixel[0] + pixel[1] + pixel[2]) * 255 / 3);
         // https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color/596241#596241
-        return 255 * (0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]);
+        //return 255 * (0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]);
       }, {
         constants: {width: this.width, height: this.height},
         output: [this.width * this.height],
@@ -65,28 +67,32 @@ class Tracker {
 
     const targetImage = this.videoKernel(video);
 
+    //globalDebug.targetImage = targetImage;
+
     const modelViewProjectionTransform = buildModelViewProjectionTransform(this.projectionTransform, lastModelViewTransform);
 
-    console.log("modelViewProjectionTransform", modelViewProjectionTransform);
+    //console.log("modelViewProjectionTransform", modelViewProjectionTransform);
 
     const featurePoints = this.featurePointsList[targetIndex];
     const imagePixels = this.imagePixelsList[targetIndex];
     const imageProperties = this.imagePropertiesList[targetIndex];
     const allFeaturePoints = this.allFeaturePointsList[targetIndex];
 
-    console.log("image properties", imageProperties.toArray());
+    //console.log("image properties", imageProperties.toArray());
 
     const searchPoints = this._computeSearchPoints(featurePoints, modelViewProjectionTransform);
 
-    globalDebug.searchPoints = searchPoints;
+    //globalDebug.searchPoints = searchPoints;
 
     const templates = this._buildTemplates(imagePixels, imageProperties, featurePoints, searchPoints, modelViewProjectionTransform);
 
-    globalDebug.templates = templates;
+    //globalDebug.templates = templates;
 
     const similarities = this._computeSimilarity(featurePoints, targetImage, searchPoints, templates);
+    //globalDebug.similarities = similarities;
 
     const best = this._pickBest(featurePoints, searchPoints, similarities);
+    //globalDebug.best = best;
 
     const bestArr = best.toArray();
 
@@ -100,6 +106,7 @@ class Tracker {
         });
       }
     }
+    //globalDebug.selectedFeatures = selectedFeatures;
     return selectedFeatures;
   }
 
@@ -176,6 +183,7 @@ class Tracker {
         //return imagePixelOffset + iy * imageWidth + ix;
 
         if (ix < 0 || ix >= imageWidth) {
+        //if (ix < 12 || ix >= imageWidth) {
           return -1;
         }
         if (iy < 0 || iy >= imageHeight) {
@@ -212,8 +220,8 @@ class Tracker {
 
         const px = searchPoints[featureIndex][0] - searchOneSize + dx;
         const py = searchPoints[featureIndex][1] - searchOneSize + dy;
-        if (px < 0 || px >= targetWidth) return -1;
-        if (py < 0 || py >= targetHeight) return -1;
+        //if (px < 0 || px >= targetWidth) return -1;
+        //if (py < 0 || py >= targetHeight) return -1;
 
         let sumPoint = 0;
         let sumPointSquare = 0;
@@ -223,7 +231,7 @@ class Tracker {
         let templateValidCount = 0;
         for (let j = 0; j < this.constants.templateSize; j++) {
           for (let i = 0; i < this.constants.templateSize; i++) {
-            if (tem[j][i] !== -1) {
+            if (tem[featureIndex][j][i] !== -1) {
               const py2 = py - templateOneSize + j;
               const px2 = px - templateOneSize + i;
 
@@ -241,12 +249,17 @@ class Tracker {
         }
 
         // TODO: maybe just sum template only when point is also valid?
-        sumPointTemplate -= sumPoint * sumTemplate / templateValidCount;
+        //sumPointTemplate -= sumPoint * sumTemplate / templateValidCount;
+        sumPointTemplate -= sumPoint / templateValidCount * sumTemplate;
 
-        const pointVar = Math.sqrt(sumPointSquare - sumPoint * sumPoint / templateValidCount);
+        //const pointVar = Math.sqrt(sumPointSquare - sumPoint * sumPoint / templateValidCount);
+        const pointVar = Math.sqrt(sumPointSquare - sumPoint / templateValidCount * sumPoint);
+
         if (pointVar == 0) return -1;
         if (templateValidCount === 0) return -1;
-        const templateVar = Math.sqrt(sumTemplateSquare - sumTemplate * sumTemplate / templateValidCount);
+        //const templateVar = Math.sqrt(sumTemplateSquare - sumTemplate * sumTemplate / templateValidCount);
+        const templateVar = Math.sqrt(sumTemplateSquare - sumTemplate / templateValidCount * sumTemplate);
+
         if (templateVar == 0) return -1;
         const coVar = sumPointTemplate / templateVar / pointVar;
 

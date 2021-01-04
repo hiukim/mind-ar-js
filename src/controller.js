@@ -1,10 +1,10 @@
 const Worker = require("./controller.worker.js");
-const {Tracker} = require('./image-target/trackingGPU/tracker.js');
-const {Tracker: TrackerTF} = require('./image-target/trackingTF/tracker.js');
-const {Detector: DetectorCPU} = require('./image-target/detectorCPU/detector.js');
-const {Detector} = require('./image-target/detectorGPU/detector.js');
+//const {Tracker} = require('./image-target/trackingGPU/tracker.js');
+const {Tracker} = require('./image-target/trackingTF/tracker.js');
+//const {Detector: DetectorCPU} = require('./image-target/detectorCPU/detector.js');
+//const {Detector} = require('./image-target/detectorGPU/detector.js');
 //const {Detector} = require('./image-target/detectorCPU/detector.js');
-const {Detector: DetectorTF} = require('./image-target/detectorTF/detector2.js');
+const {Detector} = require('./image-target/detectorTF/detector2.js');
 const {Matcher} = require('./image-target/matching/matcher.js');
 const {estimateHomography} = require('./image-target/icp/estimate_homography.js');
 const {refineHomography} = require('./image-target/icp/refine_homography');
@@ -18,8 +18,8 @@ class Controller {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.detector = new Detector(this.inputWidth, this.inputHeight);
-    this.detectorCPU = new DetectorCPU(this.inputWidth, this.inputHeight);
-    this.detectorTF = new DetectorTF(this.inputWidth, this.inputHeight);
+    //this.detectorCPU = new DetectorCPU(this.inputWidth, this.inputHeight);
+    //this.detectorTF = new DetectorTF(this.inputWidth, this.inputHeight);
     this.imageTargets = [];
     this.trackingIndex = -1;
     this.trackingMatrix = null;
@@ -88,7 +88,7 @@ class Controller {
         this.imageTargetStates[i] = {isTracking: false};
       }
       this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
-      this.trackerTF = new TrackerTF(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
+      //this.trackerTF = new TrackerTF(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
 
       this.worker.postMessage({
         type: 'setup',
@@ -145,8 +145,8 @@ class Controller {
           }
         }
         if (trackingCount < this.maxTrack) { // only run detector when matching is required
-          //featurePoints = this.detector.detect(input);
-          featurePoints = this.detectorTF.detect(input);
+          featurePoints = this.detector.detect(input);
+          //featurePoints = this.detectorTF.detect(input);
         }
 
         this.onUpdate({type: 'processDone'});
@@ -258,7 +258,7 @@ class Controller {
     return;
     */
 
-    let featurePoints = await this.detectorTF.detect(input);
+    let featurePoints = await this.detector.detect(input);
     console.log("featurePoints", featurePoints);
     console.log("tfjs detector took", new Date() - _start);
     _start = new Date();
@@ -297,7 +297,7 @@ class Controller {
     if (targetIndex === -1) return;
 
     const trackFeatures = this.tracker.track(input, modelViewTransform, targetIndex);
-    const trackFeatures2 = this.trackerTF.track(input, modelViewTransform, targetIndex);
+    //const trackFeatures = this.trackerTF.track(input, modelViewTransform, targetIndex);
     const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
     console.log("track", modelViewTransform2);
 

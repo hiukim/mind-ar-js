@@ -2,6 +2,7 @@ const tf = require('@tensorflow/tfjs');
 const {buildModelViewProjectionTransform} = require('../icp/utils.js');
 
 const AR2_DEFAULT_TS = 6;
+//const AR2_DEFAULT_TS = 12;
 const AR2_SEARCH_SIZE = 6;
 const AR2_SIM_THRESH = 0.9;
 
@@ -46,7 +47,13 @@ class Tracker {
   }
 
   track(input, lastModelViewTransform, targetIndex) {
-    const inputImageT = this._loadInput(input);
+    let inputImageT = this._loadInput(input);
+    //inputImageT = tf.tensor(globalDebug.targetImage.toArray(), inputImageT.shape); // remove this line
+    //const inputImageArr = inputImageT.reshape([inputImageT.shape[1] * inputImageT.shape[2]]).arraySync();
+    //const debugTargetImage = globalDebug.targetImage.toArray();
+    //console.log("debug targetImage 1", inputImageArr);
+    //console.log("debug targetImage 2", debugTargetImage);
+    //globalDebug.compareImage('templates', inputImageArr, debugTargetImage);
 
     const modelViewProjectionTransform = buildModelViewProjectionTransform(this.projectionTransform, lastModelViewTransform);
 
@@ -56,6 +63,7 @@ class Tracker {
 
     const searchPointsT = this._computeSearchPoints(featurePointsT, modelViewProjectionTransform);
 
+    /*
     const searchPointsXArr = searchPointsT.x.arraySync();
     const searchPointsYArr = searchPointsT.y.arraySync();
     const debugSearchPoints = globalDebug.searchPoints.toArray();
@@ -67,22 +75,138 @@ class Tracker {
         correct += 1;
       }
     }
-    console.log("debug search correct:", correct);
-    console.log("debugSearchPoints", debugSearchPoints);
+    */
+    //console.log("debug search correct:", correct);
+    //console.log("debug searchPoints", debugSearchPoints);
 
-    const templates = this._buildTemplates(imagePixelsT, imagePropertiesT, featurePointsT, searchPointsT, modelViewProjectionTransform);
+    let {pixel: templatesT, valid: templatesValidT} = this._buildTemplates(imagePixelsT, imagePropertiesT, featurePointsT, searchPointsT, modelViewProjectionTransform);
 
-    const templatesArr = templates.reshape([templates.shape[0], Math.sqrt(templates.shape[1]), Math.sqrt(templates.shape[1])]).arraySync();
-    const debugTemplates = globalDebug.templates.toArray();
-    globalDebug.compareImage('templates', templatesArr, debugTemplates);
 
-    const similarities = this._computeSimilarity(featurePoints, targetImage, searchPoints, templates);
+    //templatesT = tf.tensor(globalDebug.templates.toArray(), [templatesT.shape[0], Math.sqrt(templatesT.shape[1]), Math.sqrt(templatesT.shape[1])]).reshape([templatesT.shape[0], templatesT.shape[1]]);
+    //templatesT = tf.where(templatesT.notEqual(-1), templatesT, 0);
+
+    //const templatesArr = templatesT.reshape([templatesT.shape[0], Math.sqrt(templatesT.shape[1]), Math.sqrt(templatesT.shape[1])]).arraySync();
+    //const debugTemplates = globalDebug.templates.toArray();
+    //globalDebug.compareImage('templates', templatesArr, debugTemplates);
+    //console.log("debugTemplates", debugTemplates);
+
+    const similarities = this._computeSimilarity(featurePointsT, inputImageT, searchPointsT, templatesT, templatesValidT);
+    //globalDebug.compareImage('similarities', similarities.arraySync(), globalDebug.similarities.toArray(), 0.01);
+
+    const best = this._pickBest(searchPointsT, similarities);
+    //console.log("best", best.arraySync());
+    //console.log("debug best", globalDebug.best.toArray());
+    //globalDebug.compareImage('best', best.arraySync(), globalDebug.best.toArray(), 0.001);
 
     const allFeaturePoints = this.allFeaturePointsList[targetIndex];
+
+    const bestArr = best.arraySync();
+
+    inputImageT.dispose();
+    searchPointsT.x.dispose();
+    searchPointsT.y.dispose();
+    templatesT.dispose();
+    templatesValidT.dispose();
+    similarities.dispose();
+    best.dispose();
+    console.log(tf.memory().numTensors);
+
+    const selectedFeatures = [];
+    for (let i = 0; i < bestArr.length; i++) {
+      if (bestArr[i][2] > AR2_SIM_THRESH) {
+        selectedFeatures.push({
+          pos2D: {x: bestArr[i][0], y: bestArr[i][1]},
+          pos3D: {x: allFeaturePoints[i][0], y: allFeaturePoints[i][1], z: 0},
+          sim: bestArr[i][2]
+        });
+      }
+    }
+
+    /*
+    console.log("compare selectedFeatures", selectedFeatures.length, globalDebug.selectedFeatures.length);
+    for (let i = 0; i < selectedFeatures.length; i++) {
+      console.log("2d", selectedFeatures[i].pos2D, globalDebug.selectedFeatures[i].pos2D);
+      console.log("3d", selectedFeatures[i].pos3D, globalDebug.selectedFeatures[i].pos3D);
+      console.log("si", selectedFeatures[i].sim, globalDebug.selectedFeatures[i].sim);
+    }
+    */
+    return selectedFeatures;
   }
 
-  _computeSimilarity(featurePoints, targetImage, searchPoints, tem) {
+  _pickBest(searchPoints, similarities) {
+    const searchOneSize = AR2_SEARCH_SIZE;
+    const searchSize = searchOneSize * 2 + 1;
 
+    return tf.tidy(() => {
+      const maxIndex = similarities.argMax(1);
+      const searchY = maxIndex.floorDiv(searchSize).sub(searchOneSize);
+      const searchX = maxIndex.mod(searchSize).sub(searchOneSize);
+      const x = searchPoints.x.add(searchX);
+      const y = searchPoints.y.add(searchY);
+      const sim = similarities.max(1);
+      const result = tf.stack([x,y,sim], 1);
+      return result;
+    })
+  }
+
+  _computeSimilarity(featurePoints, targetImage, searchPoints, templates, templatesValid) {
+    const templateOneSize = AR2_DEFAULT_TS;
+    const templateSize = templateOneSize * 2 + 1;
+    const searchOneSize = AR2_SEARCH_SIZE;
+    const searchSize = searchOneSize * 2 + 1;
+    const targetWidth = this.width;
+    const targetHeight = this.height;
+
+    return tf.tidy(() => {
+      const sumTemplate = templates.sum([1]);
+      const sumTemplateSquare = templates.mul(templates).sum([1]);
+
+      const templateValidCount = templatesValid.sum([1]);
+
+      const searchOffsetY = tf.range(-searchOneSize, searchOneSize+1, 1).expandDims(1).tile([1, searchSize]).reshape([searchSize*searchSize]);
+      const searchOffsetX = tf.range(-searchOneSize, searchOneSize+1, 1).expandDims(0).tile([searchSize, 1]).reshape([searchSize*searchSize]);
+
+      const templateOffsetY = tf.range(-templateOneSize, templateOneSize+1, 1).expandDims(1).tile([1, templateSize]).reshape([templateSize*templateSize]);
+      const templateOffsetX = tf.range(-templateOneSize, templateOneSize+1, 1).expandDims(0).tile([templateSize, 1]).reshape([templateSize*templateSize]);
+
+      let xWithSearch = searchPoints.x.expandDims(1).tile([1, searchSize*searchSize]);
+      xWithSearch = xWithSearch.add(searchOffsetX);
+
+      let yWithSearch = searchPoints.y.expandDims(1).tile([1, searchSize*searchSize]);
+      yWithSearch = yWithSearch.add(searchOffsetY);
+
+      let xWithSearchAndTemplate = xWithSearch.expandDims(2).tile([1, 1, templateSize*templateSize]);
+      xWithSearchAndTemplate = xWithSearchAndTemplate.add(templateOffsetX);
+
+      let yWithSearchAndTemplate = yWithSearch.expandDims(2).tile([1, 1, templateSize*templateSize]);
+      yWithSearchAndTemplate = yWithSearchAndTemplate.add(templateOffsetY);
+
+      const valid = templatesValid.expandDims(1)
+                  .logicalAnd(xWithSearchAndTemplate.greaterEqual(0))
+                  .logicalAnd(xWithSearchAndTemplate.less(targetWidth))
+                  .logicalAnd(yWithSearchAndTemplate.greaterEqual(0))
+                  .logicalAnd(yWithSearchAndTemplate.less(targetHeight));
+
+      const pixelIndex = yWithSearchAndTemplate.mul(targetWidth).add(xWithSearchAndTemplate).cast('int32');
+      const targetImageLinear = targetImage.reshape([targetImage.shape[1] * targetImage.shape[2]]);
+      const pixel = tf.where(valid, tf.gather(targetImageLinear, pixelIndex), 0);
+
+      const sumPoint = pixel.sum([2]);
+      const sumPointSquare = pixel.mul(pixel).sum([2]);
+      const sumPointTemplate = pixel.mul(templates.expandDims(1)).sum([2]);
+
+      const pointVar = sumPointSquare.sub(sumPoint.mul(sumPoint).div(templateValidCount.expandDims(1))).sqrt();
+      const templateVar = sumTemplateSquare.sub(sumTemplate.mul(sumTemplate).div(templateValidCount)).sqrt();
+
+      const coVarValid = pointVar.greater(0)
+                        .logicalAnd(templateVar.greater(0).expandDims(1))
+                        .logicalAnd(templateValidCount.greater(0).expandDims(1));
+
+      let coVar = sumPointTemplate.sub(sumPoint.mul(sumTemplate.expandDims(1)).div(templateValidCount.expandDims(1))).div(templateVar.expandDims(1)).div(pointVar);
+      coVar = tf.where(coVarValid, coVar, -1);
+
+      return coVar;
+    });
   }
 
   _buildTemplates(imagePixelsT, imagePropertiesT, featurePointsT, searchPointsT, modelViewProjectionTransform) {
@@ -121,15 +245,15 @@ class Tracker {
       const ix = mx2.mul(imageScaleExpand).add(0.5).floor();
       const iy = imageHeightExpand.sub(my2.mul(imageScaleExpand)).add(0.5).floor();
 
-      const valid = ix.greaterEqual(0)
+      const valid = ix.greaterEqual(0) // change back to 0
                   .logicalAnd(ix.less(imageWidthExpand))
                   .logicalAnd(iy.greaterEqual(0))
                   .logicalAnd(iy.less(imageHeightExpand));
 
       const pixelIndex = pixelOffsetExpand.add(iy.mul(imageWidthExpand).add(ix)).cast('int32');
-      const pixel = tf.where(valid, tf.gather(imagePixelsT, pixelIndex), -1);
+      const pixel = tf.where(valid, tf.gather(imagePixelsT, pixelIndex), 0);
 
-      return pixel;
+      return {valid, pixel};
     });
   }
 
