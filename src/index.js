@@ -1,4 +1,5 @@
-const {Controller} = require('./controller');
+//const {Controller} = require('./controller');
+const {Controller} = require('./controller2');
 const {Compiler} = require('./compiler');
 require('./aframe');
 

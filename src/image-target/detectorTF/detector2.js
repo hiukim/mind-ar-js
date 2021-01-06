@@ -149,9 +149,9 @@ class Detector {
   }
 
   detect(input) {
-    const featurePoints = [];
-
     const inputImageT = this._loadInput(input);
+
+    const featurePoints = [];
 
     // Build gaussian pyramid images
     const pyramidImagesT = [];

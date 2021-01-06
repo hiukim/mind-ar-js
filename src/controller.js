@@ -1,13 +1,10 @@
 const Worker = require("./controller.worker.js");
-//const {Tracker} = require('./image-target/trackingGPU/tracker.js');
-const {Tracker} = require('./image-target/trackingTF/tracker.js');
-//const {Detector: DetectorCPU} = require('./image-target/detectorCPU/detector.js');
-//const {Detector} = require('./image-target/detectorGPU/detector.js');
+const {Tracker} = require('./image-target/trackingGPU/tracker.js');
+//const {Tracker} = require('./image-target/trackingTF/tracker.js');
+//const {Tracker} = require('./image-target/tracking/tracker.js');
 //const {Detector} = require('./image-target/detectorCPU/detector.js');
-const {Detector} = require('./image-target/detectorTF/detector2.js');
-const {Matcher} = require('./image-target/matching/matcher.js');
-const {estimateHomography} = require('./image-target/icp/estimate_homography.js');
-const {refineHomography} = require('./image-target/icp/refine_homography');
+const {Detector} = require('./image-target/detectorGPU/detector.js');
+//const {Detector} = require('./image-target/detectorTF/detector2.js');
 const {Compiler} = require('./compiler.js');
 
 const INTERPOLATION_FACTOR = 10;
@@ -18,8 +15,6 @@ class Controller {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.detector = new Detector(this.inputWidth, this.inputHeight);
-    //this.detectorCPU = new DetectorCPU(this.inputWidth, this.inputHeight);
-    //this.detectorTF = new DetectorTF(this.inputWidth, this.inputHeight);
     this.imageTargets = [];
     this.trackingIndex = -1;
     this.trackingMatrix = null;
@@ -88,7 +83,6 @@ class Controller {
         this.imageTargetStates[i] = {isTracking: false};
       }
       this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
-      //this.trackerTF = new TrackerTF(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
 
       this.worker.postMessage({
         type: 'setup',
@@ -146,7 +140,6 @@ class Controller {
         }
         if (trackingCount < this.maxTrack) { // only run detector when matching is required
           featurePoints = this.detector.detect(input);
-          //featurePoints = this.detectorTF.detect(input);
         }
 
         this.onUpdate({type: 'processDone'});
@@ -189,6 +182,8 @@ class Controller {
             if (trackingFeatures[i].length >= 4) {
               modelViewTransform = await this.workerTrack(this.imageTargetStates[i].lastModelViewTransform, trackingFeatures[i]);
             }
+            // remove this
+            //modelViewTransform = this.imageTargetStates[i].lastModelViewTransform;
 
             if (modelViewTransform === null) {
               this.imageTargetStates[i].missCount += 1;
@@ -198,6 +193,7 @@ class Controller {
                 this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
               }
             } else {
+              this.imageTargetStates[i].missCount = 0;
               this.imageTargetStates[i].lastModelViewTransform = modelViewTransform;
 
               const worldMatrix = _glModelViewMatrix(modelViewTransform);
@@ -247,59 +243,20 @@ class Controller {
   // html image. this function is mostly for debugging purpose
   // but it demonstrates the whole process. good for development
   async processImage(input) {
-    //let featurePoints = this.detectorCPU.detect(input);
-
     var _start = new Date();
-    /*
-    let featurePoints4 = this.detector.detect(input);
-    console.log("gpu detector took", new Date() - _start);
-    let featurePoints5 = this.detector.detect(input);
-    console.log("gpu detector took again", new Date() - _start);
-    return;
-    */
-
     let featurePoints = await this.detector.detect(input);
     console.log("featurePoints", featurePoints);
     console.log("tfjs detector took", new Date() - _start);
-    _start = new Date();
-    /*
-    let featurePoints2 = await this.detectorTF.detect(input);
-    console.log("tfjs detector again took", new Date() - _start);
-    _start = new Date();
-    let featurePoints3 = await this.detectorTF.detect(input);
-    console.log("tfjs detector again took 2", new Date() - _start);
-    */
-
-    /*
-    console.log("featurePoints", featurePoints);
-    console.log("featurePoints TF", featurePointsTF);
-    let correctCount = 0;
-    for (let i = 0; i < featurePoints.length; i++) {
-      const f1 = featurePoints[i];
-      const f2 = featurePointsTF[i];
-      let good = true;
-      if (f1.maxima !== f2.maxima) {good = false; console.log("INCORRECT maxima", i, f1, f2)};
-      if (f1.x !== f2.x) {good = false; console.log("INCORRECT x", i, f1, f2)};
-      if (f1.y !== f2.y) {good = false; console.log("INCORRECT y", i, f1, f2)};
-      for (let j = 0; j < f1.descriptors.length; j++) {
-        if (f1.descriptors[j] !== f2.descriptors[j]) {
-          good = false;
-          console.log("INCORRECT desciptors", i, j, f1, f2);
-        }
-      }
-      if (good) correctCount += 1;
-    }
-    console.log("feature points correct: ", correctCount);
-    */
 
     const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
     console.log("match", targetIndex, modelViewTransform);
     if (targetIndex === -1) return;
 
+    _start = new Date();
     const trackFeatures = this.tracker.track(input, modelViewTransform, targetIndex);
-    //const trackFeatures = this.trackerTF.track(input, modelViewTransform, targetIndex);
     const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
     console.log("track", modelViewTransform2);
+    console.log("tracker took", new Date() - _start);
 
     if (modelViewTransform2 === null) return;
     const worldMatrix = _glModelViewMatrix(modelViewTransform);

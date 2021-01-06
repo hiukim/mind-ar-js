@@ -45,6 +45,8 @@ class Tracker {
       this.featurePointsList[i] = this._buildFeaturePoints(this.allFeaturePointsList[i], maxFeaturePointsCount);
     }
 
+    //console.log('allFeaturePointsList', this.allFeaturePointsList);
+
     this.videoKernel = null;
     this.kernels = [];
   }
@@ -261,6 +263,7 @@ class Tracker {
         const templateVar = Math.sqrt(sumTemplateSquare - sumTemplate / templateValidCount * sumTemplate);
 
         if (templateVar == 0) return -1;
+        // Normalized cross-correlation
         const coVar = sumPointTemplate / templateVar / pointVar;
 
         return coVar;

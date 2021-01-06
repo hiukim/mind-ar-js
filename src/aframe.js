@@ -1,4 +1,5 @@
-const {Controller} = require('./controller');
+//const {Controller} = require('./controller');
+const {Controller} = require('./controller2');
 require("aframe");
 require("aframe-extras");
 const Stats = require("stats-js");
@@ -95,7 +96,6 @@ AFRAME.registerSystem('mindar-system', {
     }
 
     this.controller = new Controller(video.videoWidth, video.videoHeight, (data) => {
-      //console.log('controller on update', data);
       if (data.type === 'processDone') {
         if (this.mainStats) this.mainStats.update();
       }
