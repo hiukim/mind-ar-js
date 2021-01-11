@@ -1,6 +1,6 @@
 const {extract} = require('./image-target/tracking/extractor.js');
 //const {Detector} = require('./image-target/detectorGPU/detector.js');
-const {Detector} = require('./image-target/detectorTF/detector2.js');
+const {Detector} = require('./image-target/detectorTF/detector.js');
 //const {Detector} = require('./image-target/detectorCPU/detector.js');
 const {build: hierarchicalClusteringBuild} = require('./image-target/matching/hierarchical-clustering.js');
 const {buildImageList} = require('./image-target/image-list.js');

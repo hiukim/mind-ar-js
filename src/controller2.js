@@ -1,10 +1,9 @@
 const tf = require('@tensorflow/tfjs');
 
-const {Matcher} = require('./image-target/matching/matcher.js');
 const {Compiler} = require('./compiler.js');
-//const {Tracker} = require('./image-target/trackingGPU/tracker.js');
+const {Matcher} = require('./image-target/matching/matcher.js');
 const {Tracker} = require('./image-target/trackingTF/tracker.js');
-const {Detector} = require('./image-target/detectorTF/detector2.js');
+const {Detector} = require('./image-target/detectorTF/detector.js');
 const {refineHomography} = require('./image-target/icp/refine_homography.js');
 const {estimateHomography} = require('./image-target/icp/estimate_homography.js');
 
@@ -16,21 +15,16 @@ class Controller {
   constructor(inputWidth, inputHeight, onUpdate) {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
-    this.imageTargets = [];
+    this.onUpdate = onUpdate;
 
     this.trackingModelViewTransform = null;
     this.trackingIndex = -1;
     this.trackingMatrix = null;
     this.trackingMiss = 0;
 
-    this.onUpdate = onUpdate;
-    this.workerProcessing = false;
-
     this.detector = new Detector(this.inputWidth, this.inputHeight);
     this.matcher = new Matcher(this.inputWidth, this.inputHeight);
-
-    this.maxTrack = 1; // technically can tracking multiple. but too slow in practice
-    this.imageTargetStates = [];
+    this.tracker = null;
     this.matchingDataList = null;
 
     const near = 10;
@@ -53,17 +47,6 @@ class Controller {
       near: near,
       far: far,
     });
-
-    /*
-    this.worker = new Worker();
-    this.worker.onmessage = (e) => {
-      if (e.data.type === 'processDone') {
-        console.log("process done: ", e.data.sum);
-        this.workerProcessing = false;
-        this.onUpdate({type: 'workerDone'});
-      }
-    }
-    */
   }
 
   getProjectionMatrix() {
@@ -77,8 +60,8 @@ class Controller {
       const buffer = await content.arrayBuffer();
       const dataList = compiler.importData(buffer);
 
-      const trackingDataList = [];
       this.matchingDataList = [];
+      const trackingDataList = [];
       const imageListList = [];
       const dimensions = [];
       for (let i = 0; i < dataList.length; i++) {
@@ -86,13 +69,16 @@ class Controller {
         trackingDataList.push(dataList[i].trackingData);
         imageListList.push(dataList[i].imageList);
         dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
-
-        this.imageTargetStates[i] = {isTracking: false};
       }
       this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
 
       resolve({dimensions: dimensions});
     });
+  }
+
+  dummyRun(input) {
+    this.detector.detect(input);
+    this.tracker.track(input, [[0,0,0,0], [0,0,0,0], [0,0,0,0]], 0);
   }
 
   async processImage(input) {
@@ -121,49 +107,6 @@ class Controller {
     const modelViewTransform2 = this.doTrackingUpdate(matchedModelViewTransform, trackFeatures);
     console.log("modelViewTransform2", modelViewTransform2);
     console.log("tracking update took", new Date() - _start);
-  }
-
-  doTrackingUpdate(modelViewTransform, selectedFeatures) {
-    const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
-    let err = null;
-    let newModelViewTransform = modelViewTransform;
-    let finalModelViewTransform = null;
-    for (let i = 0; i < inlierProbs.length; i++) {
-      let ret = _computeUpdatedTran({modelViewTransform: newModelViewTransform, selectedFeatures, projectionTransform: this.projectionTransform, inlierProb: inlierProbs[i]});
-      err = ret.err;
-      newModelViewTransform = ret.newModelViewTransform;
-      //console.log("_computeUpdatedTran", err)
-
-      if (err < AR2_TRACKING_THRESH) {
-        finalModelViewTransform = newModelViewTransform;
-        break;
-      }
-    }
-    return finalModelViewTransform;
-  }
-
-  doMatching(featurePoints) {
-    let matchedTargetIndex = -1;
-    let matchedModelViewTransform = null;
-    let matchedKeyframeIndex = -1;
-    for (let i = 0; i < this.matchingDataList.length; i++) {
-      const matchResult = this.matcher.matchDetection(this.matchingDataList[i], featurePoints);
-      if (matchResult === null) continue;
-
-      const {screenCoords, worldCoords, keyframeIndex} = matchResult;
-      const modelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
-      if (modelViewTransform === null) continue;
-
-      matchedTargetIndex = i;
-      matchedModelViewTransform = modelViewTransform;
-      matchedKeyframeIndex = keyframeIndex;
-    }
-    return {matchedTargetIndex, matchedModelViewTransform, matchedKeyframeIndex};
-  }
-
-  dummyRun(input) {
-    this.detector.detect(input);
-    this.tracker.track(input, [[0,0,0,0], [0,0,0,0], [0,0,0,0]], 0);
   }
 
   async processVideo(input) {
@@ -217,6 +160,45 @@ class Controller {
       this.onUpdate({type: 'processDone'});
     }
   }
+
+  doTrackingUpdate(modelViewTransform, selectedFeatures) {
+    const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
+    let err = null;
+    let newModelViewTransform = modelViewTransform;
+    let finalModelViewTransform = null;
+    for (let i = 0; i < inlierProbs.length; i++) {
+      let ret = _computeUpdatedTran({modelViewTransform: newModelViewTransform, selectedFeatures, projectionTransform: this.projectionTransform, inlierProb: inlierProbs[i]});
+      err = ret.err;
+      newModelViewTransform = ret.newModelViewTransform;
+      //console.log("_computeUpdatedTran", err)
+
+      if (err < AR2_TRACKING_THRESH) {
+        finalModelViewTransform = newModelViewTransform;
+        break;
+      }
+    }
+    return finalModelViewTransform;
+  }
+
+  doMatching(featurePoints) {
+    let matchedTargetIndex = -1;
+    let matchedModelViewTransform = null;
+    let matchedKeyframeIndex = -1;
+    for (let i = 0; i < this.matchingDataList.length; i++) {
+      const matchResult = this.matcher.matchDetection(this.matchingDataList[i], featurePoints);
+      if (matchResult === null) continue;
+
+      const {screenCoords, worldCoords, keyframeIndex} = matchResult;
+      const modelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform: this.projectionTransform});
+      if (modelViewTransform === null) continue;
+
+      matchedTargetIndex = i;
+      matchedModelViewTransform = modelViewTransform;
+      matchedKeyframeIndex = keyframeIndex;
+    }
+    return {matchedTargetIndex, matchedModelViewTransform, matchedKeyframeIndex};
+  }
+
 }
 
 // build openGL modelView matrix
@@ -294,7 +276,6 @@ const _computeUpdatedTran = ({modelViewTransform, projectionTransform, selectedF
   newModelViewTransform[0][3] = ret.modelViewTransform[0][3] - ret.modelViewTransform[0][0] * dx - ret.modelViewTransform[0][1] * dy - ret.modelViewTransform[0][2] * dz;
   newModelViewTransform[1][3] = ret.modelViewTransform[1][3] - ret.modelViewTransform[1][0] * dx - ret.modelViewTransform[1][1] * dy - ret.modelViewTransform[1][2] * dz;
   newModelViewTransform[2][3] = ret.modelViewTransform[2][3] - ret.modelViewTransform[2][0] * dx - ret.modelViewTransform[2][1] * dy - ret.modelViewTransform[2][2] * dz;
-
 
   return {err: ret.err, newModelViewTransform};
 };
