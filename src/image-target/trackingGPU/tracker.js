@@ -51,6 +51,10 @@ class Tracker {
     this.kernels = [];
   }
 
+  dummyRun(input) {
+    this.track(input, [[1,1,1,1], [1,1,1,1], [1,1,1,1]], 0);
+  }
+
   track(video, lastModelViewTransform, targetIndex) {
     if (this.videoKernel === null) {
       this.videoKernel = this.gpu.createKernel(function(videoFrame) {

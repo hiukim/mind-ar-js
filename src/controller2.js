@@ -78,7 +78,8 @@ class Controller {
 
   dummyRun(input) {
     this.detector.detect(input);
-    this.tracker.track(input, [[0,0,0,0], [0,0,0,0], [0,0,0,0]], 0);
+    //this.tracker.track(input, [[0,0,0,0], [0,0,0,0], [0,0,0,0]], 0);
+    this.tracker.track(input, [[1,1,1,1], [1,1,1,1], [1,1,1,1]], 0);
   }
 
   async processImage(input) {

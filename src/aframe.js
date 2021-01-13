@@ -1,5 +1,5 @@
-//const {Controller} = require('./controller');
-const {Controller} = require('./controller2');
+const {Controller} = require('./controller');
+//const {Controller} = require('./controller2');
 require("aframe");
 require("aframe-extras");
 const Stats = require("stats-js");

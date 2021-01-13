@@ -1,10 +1,10 @@
 const Worker = require("./controller.worker.js");
-const {Tracker} = require('./image-target/trackingGPU/tracker.js');
-//const {Tracker} = require('./image-target/trackingTF/tracker.js');
+//const {Tracker} = require('./image-target/trackingGPU/tracker.js');
+const {Tracker} = require('./image-target/trackingTF/tracker.js');
 //const {Tracker} = require('./image-target/tracking/tracker.js');
 //const {Detector} = require('./image-target/detectorCPU/detector.js');
 const {Detector} = require('./image-target/detectorGPU/detector.js');
-//const {Detector} = require('./image-target/detectorTF/detector2.js');
+//const {Detector} = require('./image-target/detectorTF/detector.js');
 const {Compiler} = require('./compiler.js');
 
 const INTERPOLATION_FACTOR = 10;
@@ -99,7 +99,7 @@ class Controller {
   // warm up gpu - build kernels is slow
   dummyRun(input) {
     this.detector.detect(input);
-    this.tracker.track(input, [[0,0,0,0], [0,0,0,0], [0,0,0,0]], 0);
+    this.tracker.dummyRun(input);
   }
 
   /**
@@ -245,7 +245,7 @@ class Controller {
   async processImage(input) {
     var _start = new Date();
     let featurePoints = await this.detector.detect(input);
-    console.log("featurePoints", featurePoints);
+    //console.log("featurePoints", featurePoints);
     console.log("tfjs detector took", new Date() - _start);
 
     const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
@@ -254,8 +254,12 @@ class Controller {
 
     _start = new Date();
     const trackFeatures = this.tracker.track(input, modelViewTransform, targetIndex);
-    const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
-    console.log("track", modelViewTransform2);
+    let modelViewTransform2 = null; 
+    console.log("track features", trackFeatures);
+    if (trackFeatures.length >= 4) {
+      modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
+      console.log("track", modelViewTransform2);
+    }
     console.log("tracker took", new Date() - _start);
 
     if (modelViewTransform2 === null) return;
