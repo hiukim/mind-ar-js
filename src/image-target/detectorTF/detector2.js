@@ -132,7 +132,6 @@ class Detector {
     this.numOctaves = numOctaves;
 
     this.tensorCaches = {};
-    this.kernelCaches = {};
 
     //globalDebug.tf = tf;
   }
@@ -151,68 +150,35 @@ class Detector {
 
   detect(input) {
     const inputImageT = this._loadInput(input);
-    const inputImageT2 = inputImageT.squeeze();
 
     const featurePoints = [];
 
     // Build gaussian pyramid images
-    //const pyramidImagesT = [];
-    const pyramidImagesT2 = [];
+    const pyramidImagesT = [];
     for (let i = 0; i < this.numOctaves; i++) {
       if (i === 0) {
-        //pyramidImagesT.push(this._applyFilter(inputImageT));
-        pyramidImagesT2.push(this._applyFilter2(inputImageT2));
+        pyramidImagesT.push(this._applyFilter(inputImageT));
       } else {
-        //pyramidImagesT.push(this._downsampleBilinear(pyramidImagesT[pyramidImagesT.length-1]));
-        pyramidImagesT2.push(this._downsampleBilinear2(pyramidImagesT2[pyramidImagesT2.length-1]));
+        pyramidImagesT.push(this._downsampleBilinear(pyramidImagesT[pyramidImagesT.length-1]));
       }
       for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES - 1; j++) {
-        //pyramidImagesT.push(this._applyFilter(pyramidImagesT[pyramidImagesT.length-1]));
-        pyramidImagesT2.push(this._applyFilter2(pyramidImagesT2[pyramidImagesT2.length-1]));
+        pyramidImagesT.push(this._applyFilter(pyramidImagesT[pyramidImagesT.length-1]));
       }
     }
-    const pyramidImagesT = [];
-    for (let i = 0; i < pyramidImagesT2.length; i++) {
-      pyramidImagesT.push( 
-	tf.tidy(() => {
-	  return pyramidImagesT2[i].expandDims(2).expandDims(0);
-	})
-      );
-    }
-
-
-    /*
-    console.log("compyate pyramids", pyramidImagesT.length, pyramidImagesT2.length);
-    for (let i = 0; i < pyramidImagesT.length; i++) {
-      globalDebug.compareImage('pyramid'+i, pyramidImagesT[i].squeeze().arraySync(), pyramidImagesT2[i].arraySync());
-    }
-    */
-
-    //return featurePoints;
 
     // Build difference of gaussian pyramid
     const dogPyramidImagesT = [];
-    const dogPyramidImagesT2 = [];
     for (let i = 0; i < this.numOctaves; i++) {
       for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES - 1; j++) {
         if (i === 0 && j === 0) {
           dogPyramidImagesT.push(null); // the first dog image is never used, so skip to save memory
-          dogPyramidImagesT2.push(null); // the first dog image is never used, so skip to save memory
           continue;
         }
         const image1T = pyramidImagesT[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j];
         const image2T = pyramidImagesT[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j + 1];
         dogPyramidImagesT.push(this._differenceImageBinomial(image1T, image2T));
-
-        dogPyramidImagesT2.push(this._differenceImageBinomial(
-	  pyramidImagesT2[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j],
-	  pyramidImagesT2[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j + 1]
-	));
       }
     }
-
-    //console.log("final", dogPyramidImagesT[dogPyramidImagesT.length-1].sum().arraySync()); 
-    //return [];
 
     const dogIndexes = [];
     const extremasResults = [];
@@ -230,17 +196,10 @@ class Detector {
 
       // find all extrema for image1
       const extremasResult = this._buildExtremas(k, image0, image1, image2);
-      const extremasResult2 = this._buildExtremas2(k, dogPyramidImagesT2[k-1], dogPyramidImagesT2[k], dogPyramidImagesT2[k+1]);
-
-      //console.log("compare extremas", extremasResult.arraySync(), extremasResult2.arraySync());
-      //globalDebug.compareImage('extrema'+k, extremasResult.arraySync(), extremasResult2.arraySync());
-
       extremasResults.push(extremasResult);
     }
 
     const prunedExtremas = this._applyPrune(extremasResults, dogIndexes);
-    const prunedExtremas2 = this._applyPrune2(extremasResults, dogIndexes);
-
     const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImagesT, dogIndexes);
 
     const smoothedHistograms = this._smoothHistograms(extremaHistograms);
@@ -255,7 +214,6 @@ class Detector {
 
     if(typeof inputImageT !== 'undefined') inputImageT.dispose();
     if(typeof pyramidImagesT !== 'undefined') pyramidImagesT.forEach((t) => t.dispose());
-    if(typeof pyramidImagesT2 !== 'undefined') pyramidImagesT2.forEach((t) => t.dispose());
     if(typeof dogPyramidImagesT !== 'undefined') dogPyramidImagesT.forEach((t) => t && t.dispose());
     if(typeof extremasResults !== 'undefined') extremasResults.forEach((t) => t.dispose());
     if (typeof prunedExtremas !== 'undefined') {
@@ -829,163 +787,6 @@ class Detector {
     })
   }
 
-  _applyPrune2(extremasResults, dogIndexes) {
-    const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
-
-    tf.tidy(() => {
-      if (!this.tensorCaches.applyPrune) {
-	const allPositions = []; // 100 x total points in bucket. each element is [dogIndex, y, x]
-	for (let i = 0; i < nBuckets; i++) {
-	  allPositions.push([]);
-	}
-
-        for (let i = 0; i < extremasResults.length; i++) {
-          const extremaScores = extremasResults[i];
-          const height = extremaScores.shape[0];
-          const width = extremaScores.shape[1];
-          const bucketWidth = Math.ceil(width / NUM_BUCKETS_PER_DIMENSION);
-          const bucketHeight = Math.ceil(height / NUM_BUCKETS_PER_DIMENSION);
-          const bucketWidthF = width / NUM_BUCKETS_PER_DIMENSION;
-          const bucketHeightF = height / NUM_BUCKETS_PER_DIMENSION;
-
-          let positionsByDog = [];
-          for (let bucketY = 0; bucketY < NUM_BUCKETS_PER_DIMENSION; bucketY++) {
-            const startY = Math.floor(bucketY * bucketHeightF);
-            const endY = Math.floor((1+bucketY) * bucketHeightF);
-            for (let bucketX = 0; bucketX < NUM_BUCKETS_PER_DIMENSION; bucketX++) {
-              const bucketIndex = bucketY * NUM_BUCKETS_PER_DIMENSION + bucketX;
-
-              const startX = Math.floor(bucketX * bucketWidthF);
-              const endX = Math.floor((1+bucketX) * bucketWidthF);
-
-              for (let ii = 0; ii < bucketWidth; ii++) {
-                for (let jj = 0; jj < bucketHeight; jj++) {
-                  if (startY + jj < endY && startX + ii < endX) {
-                    allPositions[bucketIndex].push([i, startY + jj, startX + ii]);
-                  } else {
-                    allPositions[bucketIndex].push([i, -1, -1]);
-                  }
-                }
-              }
-            }
-          }
-        }
-	this.tensorCaches.applyPrune = {
-	  allPositionsT: tf.keep( tf.tensor(allPositions, [allPositions.length, allPositions[0].length, 3], 'int32'))
-	}
-      }
-    });
-
-    const {allPositionsT} = this.tensorCaches.applyPrune;
-
-    if (!this.kernelCaches.applyPrune) {
-      const extremaVariableNames = [];
-      for (let i = 0; i < extremasResults.length; i++) {
-	extremaVariableNames.push('extrema' + i);
-      }
-
-      let kernel1SubCodes = '';
-      for (let i = 0; i < extremasResults.length; i++) {
-	kernel1SubCodes += `
-	  if (extremaIndex == ${i}) {
-	    setOutput(abs(getExtrema${i}(y, x)));
-	    return;
-	  }
-	`
-      }
-
-      const kernel1 = {
-	variableNames: [...extremaVariableNames, 'position'],
-	outputShape: [allPositionsT.shape[0], allPositionsT.shape[1]],
-	userCode: `
-	  void main() {
-	    ivec2 coords = getOutputCoords();
-	    int bucketIndex = coords[0];
-	    int pixelIndex = coords[1];
-
-	    int extremaIndex = int(getPosition(bucketIndex, pixelIndex, 0));
-	    int y = int(getPosition(bucketIndex, pixelIndex, 1));
-	    int x = int(getPosition(bucketIndex, pixelIndex, 2));
-
-	    ${kernel1SubCodes}
-	  }
-	`
-      }
-
-
-      let kernel2SubCodes = '';
-      for (let i = 0; i < extremasResults.length; i++) {
-	kernel2SubCodes += `
-	  if (extremaIndex == ${i}) {
-	    setOutput(getExtrema${i}(y, x));
-	    return;
-	  }
-	`
-      }
-
-      const kernel2 = {
-	variableNames: [...extremaVariableNames, 'position', 'top'],
-	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, 4], // last dimension: [score, extremaIndex, y, x]
-
-	userCode: `
-	  void main() {
-	    ivec3 coords = getOutputCoords();
-	    int bucketIndex = coords[0];
-	    int featureIndex = coords[1];
-	    int propertyIndex = coords[2];
-
-	    int pixelIndex = int(getTop(bucketIndex, featureIndex));
-
-	    int extremaIndex = int(getPosition(bucketIndex, pixelIndex, 0));
-	    int y = int(getPosition(bucketIndex, pixelIndex, 1));
-	    int x = int(getPosition(bucketIndex, pixelIndex, 2));
-
-	    if (propertyIndex == 0) {
-	      ${kernel2SubCodes}
-	    }
-
-	    setOutput(getPosition(bucketIndex, pixelIndex, propertyIndex-1));
-	  }
-	`
-      }
-
-      this.kernelCaches.applyPrune = [kernel1, kernel2];
-    }
-
-    return tf.tidy(() => {
-      console.log("all positions", allPositionsT.arraySync());
-
-      const [program1, program2] = this.kernelCaches.applyPrune;
-      extremasResults.forEach((extremasResult, i) => {
-	console.log("ex", i, extremasResult.arraySync());
-      });
-      console.log("program", program1, program2);
-
-      let allAbsScores = tf.backend().compileAndRun(program1, [...extremasResults, allPositionsT]);
-      if (allAbsScores.shape[1] < MAX_FEATURES_PER_BUCKET) { // normally won't happen
-        allAbsScores = tf.pad(allAbsScores, [[0,0],[0,MAX_FEATURES_PER_BUCKET-allAbsScores.shape[1]]], -1000);
-      }
-
-      console.log("allAbsScores", allAbsScores.arraySync());
-
-      let {values: topValues, indices: topIndices} = tf.topk(allAbsScores, MAX_FEATURES_PER_BUCKET);
-      globalDebug.compareImage("topvalues", topValues.arraySync(), globalDebug.topValues);
-      globalDebug.compareImage("topIndices", topIndices.arraySync(), globalDebug.topIndices);
-
-      // nBuckets x nFeatures x [score, dogIndex, y, x]
-      const result = tf.backend().compileAndRun(program2, [...extremasResults, allPositionsT, topIndices]);
-
-
-      const [score, extremaIndex, yx] = result.split([1,1,2], 2);
-      globalDebug.compareImage("top scores", score.squeeze().arraySync(), globalDebug.topScores);
-      globalDebug.compareImage("top dogIndex", extremaIndex.squeeze().add(1).mul(2).arraySync(), globalDebug.topDogIndex);
-      globalDebug.compareImage("top XY", yx.squeeze().arraySync(), globalDebug.topYX);
-
-      console.log("result", result.arraySync());
-      return result;
-    });
-  }
-
   _applyPrune(extremasResults, dogIndexes) {
     return tf.tidy(() => {
       const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
@@ -1086,12 +887,6 @@ class Detector {
       const topScale = topDogIndex.mod(PYRAMID_NUM_SCALES_PER_OCTAVES-1); // TODO: must be zero?
       let topSigma = constantMK.pow(topScale).mul(top2PowOctave); // TODO: topScale always 0?
 
-      globalDebug.topValues = topValues.arraySync();
-      globalDebug.topIndices = topIndices.arraySync();
-      globalDebug.topYX = topYX.arraySync();
-      globalDebug.topScores = topScores.arraySync();
-      globalDebug.topDogIndex = topDogIndex.arraySync();
-
       //topDogIndex = tf.where(topScores.abs().greater(0), topDogIndex, 0);
       //topOriginalX = tf.where(topScores.abs().greater(0), topOriginalX, 0);
       //topOriginalY = tf.where(topScores.abs().greater(0), topOriginalY, 0);
@@ -1108,170 +903,6 @@ class Detector {
         originalY: topOriginalY,
       };
     })
-  }
-
-  _buildExtremas2(dogIndex, image0, image1, image2) {
-    const imageHeight = image1.shape[0];
-    const imageWidth = image1.shape[1];
-
-    const kernelKey = 'w' + imageWidth;
-
-    if (!this.kernelCaches.buildExtremas) {
-      this.kernelCaches.buildExtremas = {};
-    }
-    if (!this.kernelCaches.buildExtremas[kernelKey]) {
-      const kernel = {
-	variableNames: ['image0', 'image1', 'image2'],
-	outputShape: [imageHeight, imageWidth],
-	userCode: `
-	  void main() {
-	    ivec2 coords = getOutputCoords();
-
-	    int y = coords[0];
-	    int x = coords[1];
-
-	    // Step 1: find local maxima/minima
-	    if (y == 0 || y == ${imageHeight} - 1 || x == 0 || x == ${imageWidth} - 1) {
-	      setOutput(0.);
-	      return;
-	    }
-	    if (getImage1(y, x) * getImage1(y, x) < ${LAPLACIAN_SQR_THRESHOLD}.) {
-	      setOutput(0.);
-	      return;
-	    }
-
-	    bool isMax = true;
-	    for (int dy = -1; dy <= 1; dy++) {
-	      for (int dx = -1; dx <= 1; dx++) {
-	        if (getImage1(y, x) < getImage0(y+dy, x+dx)) {
-		  isMax = false;
-		}
-	        if (getImage1(y, x) < getImage2(y+dy, x+dx)) {
-		  isMax = false;
-		}
-	        if (getImage1(y, x) < getImage1(y+dy, x+dx)) {
-		  isMax = false;
-		}
-	      }
-	    }
-	    bool isMin = false;
-	    if (!isMax) {
-	      isMin = true;
-
-	      for (int dy = -1; dy <= 1; dy++) {
-		for (int dx = -1; dx <= 1; dx++) {
-		  if (getImage1(y, x) > getImage0(y+dy, x+dx)) {
-		    isMin = false;
-		  }
-		  if (getImage1(y, x) > getImage2(y+dy, x+dx)) {
-		    isMin = false;
-		  }
-		  if (getImage1(y, x) > getImage1(y+dy, x+dx)) {
-		    isMin = false;
-		  }
-		}
-	      }
-	    }
-
-	    if (!isMax && !isMin) {
-	      setOutput(0.);
-	      return;
-	    }
-
-	    // Step 2: sub-pixel refinement (I'm not sure what that means. Any educational ref?)
-	    
-	    // Compute spatial derivatives
-	    float dx = 0.5 * (getImage1(y, x+1) - getImage1(y, x-1));
-	    float dy = 0.5 * (getImage1(y+1, x) - getImage1(y-1, x));
-	    float dxx = getImage1(y, x+1) + getImage1(y, x-1) - 2. * getImage1(y, x);
-	    float dyy = getImage1(y+1, x) + getImage1(y-1, x) - 2. * getImage1(y, x);
-	    float dxy = 0.25 * (getImage1(y-1,x-1) + getImage1(y+1,x+1) - getImage1(y-1,x+1) - getImage1(y+1,x-1));
-
-	    // Compute scale derivates
-	    float ds = 0.5 * (getImage2(y, x) - getImage0(y, x)); 
-	    float dss = getImage2(y, x) + getImage0(y, x) - 2. * getImage1(y, x);
-	    float dxs = 0.25 * ((getImage0(y, x-1) - getImage0(y, x+1)) + (getImage2(y, x+1) - getImage2(y, x-1)));
-	    float dys = 0.25 * ((getImage0(y-1, x) - getImage0(y+1, x)) + (getImage2(y+1, x) - getImage2(y-1, x)));
-
-	    // Solve Hessian A * u = b;
-	    float A0 = dxx;
-	    float A1 = dxy;
-	    float A2 = dxs;
-	    float A3 = dxy;
-	    float A4 = dyy;
-	    float A5 = dys;
-	    float A6 = dxs;
-	    float A7 = dys;
-	    float A8 = dss;
-	    float b0 = -dx;
-	    float b1 = -dy;
-	    float b2 = -ds;
-
-	    float detA = A0 * A4 * A8
-		       - A0 * A5 * A5
-		       - A4 * A2 * A2
-		       - A8 * A1 * A1
-		       + 2. * A1 * A2 * A5;
-
-	    // B = inverse of A
-	    float B0 = A4 * A8 - A5 * A7;
-	    float B1 = A2 * A7 - A1 * A8;
-	    float B2 = A1 * A5 - A2 * A4;
-	    float B3 = B1;
-	    float B4 = A0 * A8 - A2 * A6;
-	    float B5 = A2 * A3 - A0 * A5;
-	    float B6 = B2;
-	    float B7 = B5;
-	    float B8 = A0 * A4 - A1 * A3;
-
-	    float u0 = (B0 * b0 + B1 * b1 + B2 * b2) / detA;
-	    float u1 = (B3 * b0 + B4 * b1 + B5 * b2) / detA;
-	    float u2 = (B6 * b0 + B7 * b1 + B8 * b2) / detA;
-
-	    // If points move too much in the sub-pixel update, then the point probably unstable.
-	    if (u0 * u0 + u1 * u1 > ${MAX_SUBPIXEL_DISTANCE_SQR}.) {
-	      setOutput(0.);
-	      return;
-	    }
-
-	    // compute edge score
-	    float det = (dxx * dyy) - (dxy * dxy);
-
-	    if (abs(det) < 0.0001) { // determinant undefined. no solution
-	      setOutput(0.);
-	      return;
-	    }
-
-	    float edgeScore = (dxx + dyy) * (dxx + dyy) / det;
-
-	    if (abs(edgeScore) >= ${EDGE_HESSIAN_THRESHOLD} ) {
-	      setOutput(0.);
-	      return;
-	    }
-
-	    float score = getImage1(y, x) - (b0 * u0 + b1 * u1 + b2 * u2);
-
-	    if (score * score < ${LAPLACIAN_SQR_THRESHOLD}.) {
-	      setOutput(0.);
-	      return;
-	    }
-
-	    setOutput(score);
-	  }
-	`
-      };
-      this.kernelCaches.buildExtremas[kernelKey] = kernel;
-    }
-
-    return tf.tidy(() => {
-      const program = this.kernelCaches.buildExtremas[kernelKey];
-
-      if (Math.floor(image0.shape[1]/2) === image1.shape[1]) {
-        image0 = this._downsampleBilinear2(image0);
-      }
-      const result = tf.backend().compileAndRun(program, [image0, image1, image2]);
-      return result;
-    });
   }
 
   _buildExtremas(dogIndex, image0, image1, image2) {
@@ -1401,62 +1032,6 @@ class Detector {
     });
   }
 
-  // 4th order binomail filter [1,4,6,4,1] X [1,4,6,4,1]
-  _applyFilter2(image) {
-    const imageHeight = image.shape[0];
-    const imageWidth = image.shape[1];
-
-    const kernelKey = 'w' + imageWidth;
-    if (!this.kernelCaches.applyFilter) {
-      this.kernelCaches.applyFilter = {};
-    }
-
-    if (!this.kernelCaches.applyFilter[kernelKey]) {
-      const kernel1 = {
-	variableNames: ['p'],
-	outputShape: [imageHeight, imageWidth],
-	userCode: `
-	  void main() {
-	    ivec2 coords = getOutputCoords();
-
-	    float sum = getP(coords[0], max(0, coords[1]-2));
-	    sum += getP(coords[0], max(0, coords[1]-1)) * 4.;
-	    sum += getP(coords[0], coords[1]) * 6.;
-	    sum += getP(coords[0], min(${imageWidth}-1, coords[1]+1)) * 4.;
-	    sum += getP(coords[0], min(${imageWidth}-1, coords[1]+2));
-	    setOutput(sum);
-	  }
-	`
-      };
-
-      const kernel2 = {
-	variableNames: ['p'],
-	outputShape: [imageHeight, imageWidth],
-	userCode: `
-	  void main() {
-	    ivec2 coords = getOutputCoords();
-
-	    float sum = getP(max(coords[0]-2, 0), coords[1]);
-	    sum += getP(max(coords[0]-1, 0), coords[1]) * 4.;
-	    sum += getP(coords[0], coords[1]) * 6.;
-	    sum += getP(min(coords[0]+1, ${imageHeight}-1), coords[1]) * 4.;
-	    sum += getP(min(coords[0]+2, ${imageHeight}-1), coords[1]);
-	    sum /= 256.;
-	    setOutput(sum);
-	  }
-	`
-      };
-      this.kernelCaches.applyFilter[kernelKey] = [kernel1, kernel2];
-    }
-
-    return tf.tidy(() => {
-      const [program1, program2] = this.kernelCaches.applyFilter[kernelKey];
-      const result1 = tf.backend().compileAndRun(program1, [image]);
-      const result2 = tf.backend().compileAndRun(program2, [result1]);
-      return result2;
-    });
-  }
-
   // 4th order binomail filter
   _applyFilter(image) {
     return tf.tidy(() => {
@@ -1468,54 +1043,12 @@ class Detector {
           [1], [4], [6], [4], [1],
         ]).expandDims(2).expandDims(3));
       }
-      //image = image.mirrorPad([[0,0], [2,2], [2,2], [0, 0]], 'symmetric');
-      //let ret = tf.conv2d(image, this.tensorCaches.filter1, [1,1], 'valid');
-      //ret = tf.conv2d(ret, this.tensorCaches.filter2, [1,1], 'valid');
-      //ret = ret.div(256);
-
-      image = image.mirrorPad([[0,0], [0,0], [1,1], [0, 0]], 'symmetric');
-      image = image.mirrorPad([[0,0], [0,0], [1,1], [0, 0]], 'symmetric');
+      image = image.mirrorPad([[0,0], [2,2], [2,2], [0, 0]], 'symmetric');
       let ret = tf.conv2d(image, this.tensorCaches.filter1, [1,1], 'valid');
-      ret = ret.mirrorPad([[0,0], [1,1], [0,0], [0, 0]], 'symmetric');
-      ret = ret.mirrorPad([[0,0], [1,1], [0,0], [0, 0]], 'symmetric');
       ret = tf.conv2d(ret, this.tensorCaches.filter2, [1,1], 'valid');
       ret = ret.div(256);
       return ret;
     })
-  }
-
-  _downsampleBilinear2(image) {
-    const imageHeight = image.shape[0];
-    const imageWidth = image.shape[1];
-
-    const kernelKey = 'w' + imageWidth;
-    if (!this.kernelCaches.downsampleBilinear) {
-      this.kernelCaches.downsampleBilinear = {};
-    }
-
-    if (!this.kernelCaches.downsampleBilinear[kernelKey]) {
-      const kernel = {
-	variableNames: ['p'],
-	outputShape: [Math.floor(imageHeight/2), Math.floor(imageWidth/2)],
-	userCode: `
-	  void main() {
-	    ivec2 coords = getOutputCoords();
-	    int y = coords[0] * 2;
-	    int x = coords[1] * 2;
-	    float sum = getP(y, x) + getP(y+1,x) + getP(y, x+1) + getP(y+1,x+1);
-	    sum *= 0.25;
-	    setOutput(sum);
-	  }
-	`
-      };
-      this.kernelCaches.downsampleBilinear[kernelKey] = kernel;
-    }
-
-    return tf.tidy(() => {
-      const program = this.kernelCaches.downsampleBilinear[kernelKey];
-      const result = tf.backend().compileAndRun(program, [image]);
-      return result;
-    });
   }
 
   _downsampleBilinear(image) {
@@ -1535,3 +1068,4 @@ class Detector {
 module.exports = {
   Detector
 };
+

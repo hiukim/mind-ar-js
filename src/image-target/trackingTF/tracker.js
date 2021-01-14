@@ -162,7 +162,6 @@ class Tracker {
 		float sim = sumPointTemplate / pointVariance / templateVariance;  
 		setOutput(sim);
 	      }
-
 	    }
 	  }
 	`

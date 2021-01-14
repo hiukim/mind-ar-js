@@ -1562,16 +1562,16 @@ class Detector {
         const j = Math.floor(this.thread.x / width);
         const i = this.thread.x % width;
         const joffset = j * width;
-        const v = (i >= 2? data[joffset + (i-2)]: 0) +
-                  (i >= 1? data[joffset + (i-1)]: 0) * 4 +
-                  data[joffset + i] * 6 +
-                  (i <= width -2? data[joffset + (i+1)]: 0) * 4 +
-                  (i <= width -3? data[joffset + (i+2)]: 0);
-        //const v = data[joffset + Math.max(i-2,0)] +
-        //          data[joffset + Math.max(i-1,0)] * 4 +
+        //const v = (i >= 2? data[joffset + (i-2)]: 0) +
+        //          (i >= 1? data[joffset + (i-1)]: 0) * 4 +
         //          data[joffset + i] * 6 +
-        //          data[joffset + Math.min(i+1,width-1)] * 4 +
-        //          data[joffset + Math.min(i+2,width-1)];
+        //          (i <= width -2? data[joffset + (i+1)]: 0) * 4 +
+        //          (i <= width -3? data[joffset + (i+2)]: 0);
+        const v = data[joffset + Math.max(i-2,0)] +
+                  data[joffset + Math.max(i-1,0)] * 4 +
+                  data[joffset + i] * 6 +
+                  data[joffset + Math.min(i+1,width-1)] * 4 +
+                  data[joffset + Math.min(i+2,width-1)];
         return v;
       }, {
         constants: {width: image.width},
@@ -1584,16 +1584,16 @@ class Detector {
         const height = this.constants.height;
         const j = Math.floor(this.thread.x / width);
         const i = this.thread.x % width;
-        const v = (j >= 2? data[(j-2) * width + i]: 0) +
-                  (j >= 1? data[(j-1) * width + i]: 0) * 4 +
-                  data[j * width + i] * 6 +
-                  (j <= height-2? data[(j+1) * width + i]: 0) * 4 +
-                  (j <= height-3? data[(j+2) * width + i]: 0);
-        //const v = data[Math.max(j-2,0) * width + i] +
-        //          data[Math.max(j-1,0) * width + i] * 4 +
+        //const v = (j >= 2? data[(j-2) * width + i]: 0) +
+        //          (j >= 1? data[(j-1) * width + i]: 0) * 4 +
         //          data[j * width + i] * 6 +
-        //          data[Math.min(j+1,height-1) * width + i] * 4 +
-        //          data[Math.min(j+2,height-1) * width + i];
+        //          (j <= height-2? data[(j+1) * width + i]: 0) * 4 +
+        //          (j <= height-3? data[(j+2) * width + i]: 0);
+        const v = data[Math.max(j-2,0) * width + i] +
+                  data[Math.max(j-1,0) * width + i] * 4 +
+                  data[j * width + i] * 6 +
+                  data[Math.min(j+1,height-1) * width + i] * 4 +
+                  data[Math.min(j+2,height-1) * width + i];
 
         return v / 256; // altogether (1+4+6+4+1) * (1+4+6+4+1) numbers
       }, {
