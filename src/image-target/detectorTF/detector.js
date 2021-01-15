@@ -2,6 +2,7 @@
 const tf = require('@tensorflow/tfjs');
 const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;
 const PYRAMID_MIN_SIZE = 8;
+const PYRAMID_MAX_OCTAVE = 5;
 
 const LAPLACIAN_THRESHOLD = 3;
 const LAPLACIAN_SQR_THRESHOLD = LAPLACIAN_THRESHOLD * LAPLACIAN_THRESHOLD;
@@ -128,6 +129,7 @@ class Detector {
       width /= 2;
       height /= 2;
       numOctaves++;
+      if (numOctaves === PYRAMID_MAX_OCTAVE) break;
     }
     this.numOctaves = numOctaves;
 
@@ -248,13 +250,30 @@ class Detector {
     globalDebug.compareImage('histograms', extremaHistograms.arraySync(), extremaHistograms2.arraySync(), 0.001); 
 
     const smoothedHistograms = this._smoothHistograms(extremaHistograms);
+    const smoothedHistograms2 = this._smoothHistograms2(extremaHistograms);
+    globalDebug.compareImage('smoothed histograms', smoothedHistograms.arraySync(), smoothedHistograms2.arraySync(), 0.001); 
+
     const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
+    const extremaAngles2 = this._computeExtremaAngles2(smoothedHistograms);
+    globalDebug.compareImage('extremaAngles', extremaAngles.arraySync(), extremaAngles2.arraySync(), 0.001); 
+
     //const extremaFreaks = this._computeExtremaFreak(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles, dogIndexes);
     const extremaFreaks = this._computeExtremaFreakOld(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles, dogIndexes);
+    const extremaFreaks2 = this._computeExtremaFreak2(pyramidImagesT2, this.numOctaves, prunedExtremas2, extremaAngles2, dogIndexes);
+    globalDebug.compareImage('extremaFreaks', extremaFreaks.arraySync(), extremaFreaks2.arraySync(), 0.001); 
 
     const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
+    const freakDescriptors2 = this._computeFreakDescriptors2(extremaFreaks2);
+    console.log("freakDescriptors", freakDescriptors.arraySync(), freakDescriptors2.arraySync());
+    globalDebug.compareImage('freakDescriptors', freakDescriptors.arraySync(), freakDescriptors2.arraySync());
+
     //const encodedDescriptors = this._encodeDescriptors(freakDescriptors);
     const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
+    const combinedExtremas2 = this._combine2(prunedExtremas2, freakDescriptors2);
+
+    console.log("combinedExtremas", combinedExtremas.arraySync(), combinedExtremas2.arraySync());
+    globalDebug.compareImage('combinedExtremas', combinedExtremas.arraySync(), combinedExtremas2.arraySync());
+
     const combinedExtremasArr = combinedExtremas.arraySync();
 
     if(typeof inputImageT !== 'undefined') inputImageT.dispose();
@@ -326,6 +345,55 @@ class Detector {
     });
   }
 
+  _combine2(prunedExtremas, freakDescriptors) {
+    const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
+
+    if (!this.kernelCaches.combine) {
+      // first dimension: [score, x, y, freak1, freak2, ..., freak37]
+      const kernel =  {
+	variableNames: ['extrema', 'desc'],
+	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, 3 + FREAK_CONPARISON_COUNT],
+	userCode: `
+	  void main() {
+	    ivec3 coords = getOutputCoords();
+	    int bucketIndex = coords[0];
+	    int featureIndex = coords[1];
+	    int propertyIndex = coords[2];
+
+	    if (propertyIndex == 0) {
+	      setOutput(getExtrema(bucketIndex, featureIndex, 0));
+	      return;
+	    }
+	    if (propertyIndex == 1) {
+	      int extremaIndex = int(getExtrema(bucketIndex, featureIndex, 1));
+	      int octave = extremaIndex + 1; // ref to buildExtrema, it starts at 2nd octave
+	      float x = getExtrema(bucketIndex, featureIndex, 3);
+	      float originalX = x * pow(2.0, float(octave)) + pow(2.0, float(octave-1)) - 0.5;
+	      setOutput(originalX);
+	      return;
+	    }
+	    if (propertyIndex == 2) {
+	      int extremaIndex = int(getExtrema(bucketIndex, featureIndex, 1));
+	      int octave = extremaIndex + 1; // ref to buildExtrema, it starts at 2nd octave
+	      float y = getExtrema(bucketIndex, featureIndex, 2);
+	      float originalY = y * pow(2.0, float(octave)) + pow(2.0, float(octave-1)) - 0.5;
+	      setOutput(originalY);
+	      return;
+	    }
+	    setOutput( getDesc(bucketIndex, featureIndex, propertyIndex - 3));
+	  }
+	`
+      }
+      this.kernelCaches.combine = [kernel];
+    }
+
+    return tf.tidy(() => {
+      const [program] = this.kernelCaches.combine;
+      const result = tf.backend().compileAndRun(program, [prunedExtremas, freakDescriptors]);
+      return result;
+    });
+  }
+
   _combine(prunedExtremas, freakDescriptors) {
     return tf.tidy(() => {
       const combined = tf.concat([prunedExtremas.score.expandDims(2), prunedExtremas.originalX.expandDims(2), prunedExtremas.originalY.expandDims(2), freakDescriptors], 2);
@@ -382,6 +450,64 @@ class Detector {
       const encoded = reshapedCombine.sum(3);
       return encoded;
     })
+  }
+
+  _computeFreakDescriptors2(extremaFreaks) {
+    if (!this.tensorCaches.computeFreakDescriptors) {
+      const in1Arr = [];
+      const in2Arr = [];
+      for (let k1 = 0; k1 < extremaFreaks.shape[2]; k1++) {
+	for (let k2 = k1+1; k2 < extremaFreaks.shape[2]; k2++) {
+	  in1Arr.push(k1);
+	  in2Arr.push(k2);
+	}
+      }
+      const in1 = tf.tensor(in1Arr, [in1Arr.length]).cast('int32');
+      const in2 = tf.tensor(in2Arr, [in2Arr.length]).cast('int32');
+
+      this.tensorCaches.computeFreakDescriptors = {
+	positionT: tf.keep(tf.stack([in1, in2], 1))
+      }
+    }
+
+    const {positionT} = this.tensorCaches.computeFreakDescriptors;
+
+    const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
+    const numFreakPoints = FREAKPOINTS.length
+
+    if (!this.kernelCaches.computeFreakDescriptors) {
+      const kernel =  {
+	variableNames: ['freak', 'p'],
+	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, FREAK_CONPARISON_COUNT],
+	userCode: `
+	  void main() {
+	    ivec3 coords = getOutputCoords();
+	    int bucketIndex = coords[0];
+	    int featureIndex = coords[1];
+	    int descIndex = coords[2];
+
+            int p1 = int(getP(descIndex, 0));
+            int p2 = int(getP(descIndex, 1));
+
+	    float v1 = getFreak(bucketIndex, featureIndex, p1);
+	    float v2 = getFreak(bucketIndex, featureIndex, p2);
+
+	    if (v1 < v2 + 0.01) {
+	      setOutput(1.);
+	      return;
+	    }
+	    setOutput(0.);
+	  }
+	`
+      }
+      this.kernelCaches.computeFreakDescriptors = [kernel];
+    }
+
+    return tf.tidy(() => {
+      const [program] = this.kernelCaches.computeFreakDescriptors;
+      const result = tf.backend().compileAndRun(program, [extremaFreaks, positionT]);
+      return result;
+    });
   }
 
   _computeFreakDescriptors(extremaFreaks) {
@@ -516,6 +642,169 @@ class Detector {
     })
   }
 
+  _computeExtremaFreak2(pyramidImagesT, gaussianNumOctaves, prunedExtremas, prunedExtremasAngles, dogIndexes) {
+    const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
+    const mK = Math.pow(2, 1.0 / (PYRAMID_NUM_SCALES_PER_OCTAVES-1));
+    const oneOverLogK = 1.0 / Math.log(mK);
+    const expansionFactor = FREAK_EXPANSION_FACTOR;
+    const gaussianNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES;
+
+    // we won't use the last scale image of each octave, so skip those
+    // 	except the last octave
+    const gaussianImagesT = [];
+    for (let i = 0; i < gaussianNumOctaves; i++) {
+      for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES; j++) {
+	if (j ===PYRAMID_NUM_SCALES_PER_OCTAVES -1 && i !== gaussianNumOctaves -1) continue;
+
+	const gaussianIndex = i * PYRAMID_NUM_SCALES_PER_OCTAVES + j;
+	gaussianImagesT.push(pyramidImagesT[gaussianIndex]);
+      }
+    }
+    
+    if (!this.tensorCaches._computeExtremaFreak) {
+      tf.tidy(() => {
+	const freakPoints = tf.tensor(FREAKPOINTS);
+
+	const imageSizes = [];
+	for (let i = 0; i < gaussianImagesT.length; i++) {
+	  imageSizes.push([gaussianImagesT[i].shape[0], gaussianImagesT[i].shape[1]]);
+	}
+
+	this.tensorCaches._computeExtremaFreak = {
+	  freakPointsT: tf.keep(freakPoints),
+	  imageSizesT: tf.keep(tf.tensor(imageSizes, [imageSizes.length, 2]))
+	};
+      });
+    }
+
+    const {freakPointsT, imageSizesT} = this.tensorCaches._computeExtremaFreak;
+
+    if (!this.kernelCaches._computeExtremaFreak) {
+      const imageVariableNames = [];
+      for (let i = 0; i < gaussianImagesT.length; i++) {
+	imageVariableNames.push('image' + i);
+      }
+      let imageCodes = `float getPixel(int gaussianIndex, int y, int x) {`;
+      for (let i = 0; i < gaussianImagesT.length; i++) {
+	imageCodes += `
+	  if (gaussianIndex == ${i}) {
+	    return getImage${i}(y, x);
+	  }
+	`
+      }
+      imageCodes += `}`;
+
+      const kernel1 = {
+	variableNames: [...imageVariableNames, 'imageSizes', 'extrema', 'angles', 'freakPoints'],
+	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, FREAKPOINTS.length],
+	userCode: `
+	  ${imageCodes}
+
+	  void main() {
+	    ivec3 coords = getOutputCoords();
+
+	    int bucketIndex = coords[0];
+	    int featureIndex = coords[1];
+	    int freakIndex = coords[2];
+
+	    float freakSigma = getFreakPoints(freakIndex, 0);
+	    float freakX = getFreakPoints(freakIndex, 1);
+	    float freakY = getFreakPoints(freakIndex, 2);
+
+	    int extremaIndex = int(getExtrema(bucketIndex, featureIndex, 1));
+	    float inputY = getExtrema(bucketIndex, featureIndex, 2);
+	    float inputX = getExtrema(bucketIndex, featureIndex, 3);
+
+            int inputOctave = extremaIndex + 1; // ref to buildExtrema, it starts at 2nd octave
+	    float inputSigma = pow(2., float(inputOctave));
+	    float inputAngle = getAngles(bucketIndex, featureIndex);
+
+            // Ensure the scale of the similarity transform is at least "1".
+            float transformScale = max(1., inputSigma * ${expansionFactor}.);
+            float cos = transformScale * cos(inputAngle);
+            float sin = transformScale * sin(inputAngle);
+
+	    float sigma = transformScale * freakSigma;
+
+	    int octave = int(floor(log(sigma) / ${Math.log(2)}));
+	    float fscale = log( sigma / pow(2., float(octave))) * ${oneOverLogK};
+	    int scale = round(fscale);
+
+            // sgima of last scale = sigma of the first scale in next octave
+            // prefer coarser octaves for efficiency
+            if ( scale == ${gaussianNumScalesPerOctaves} - 1) {
+              octave = octave + 1;
+              scale = 0;
+            }
+            // clip octave and scale
+            if (octave < 0) {
+              octave = 0;
+              scale = 0;
+            }
+            if ( int(octave) >= ${gaussianNumOctaves}) {
+              octave = ${gaussianNumOctaves} - 1;
+              scale = ${gaussianNumScalesPerOctaves} - 1;
+            }
+
+	    // We skipped the last scale image for each octave when input (refer to input)
+            int imageIndex = octave * (${gaussianNumScalesPerOctaves}-1) + scale;
+
+	    // inputX, Y is the coordinate in the octave scale. scale it back respect to the original size (i.e. octave 0)
+	    float originalY = inputY * pow(2.0, float(inputOctave)) + pow(2.0, float(inputOctave-1)) - 0.5;
+	    float originalX = inputX * pow(2.0, float(inputOctave)) + pow(2.0, float(inputOctave-1)) - 0.5;
+
+	    // compute the freak point location, according to the orientation
+	    float y = originalY + freakX * sin + freakY * cos;
+	    float x = originalX + freakX * cos + freakY * -sin;
+
+            // scale the freak point back into the octave scale
+            float a = 1.0 / pow(2., float(octave));
+            float b = 0.5 * a - 0.5;
+	    float yp = y * a + b; // y in octave
+	    float xp = x * a + b; // x in octave
+
+	    int x0 = int(floor(xp));
+	    int x1 = x0 + 1;
+	    int y0 = int(floor(yp));
+	    int y1 = y0 + 1;
+
+	    if (x0 < 0 || x1 >= int(getImageSizes(imageIndex, 1)) || y0 < 0 || y1 >= int(getImageSizes(imageIndex, 0))) {
+	      setOutput(0.);
+	      return;
+	    }
+
+	    float f1 = getPixel(imageIndex, y0, x0);
+	    float f2 = getPixel(imageIndex, y0, x1);
+	    float f3 = getPixel(imageIndex, y1, x0);
+	    float f4 = getPixel(imageIndex, y1, x1);
+
+	    float x1f = float(x1);
+	    float y1f = float(y1);
+	    float x0f = float(x0);
+	    float y0f = float(y0);
+
+	    // ratio for interpolation between four neighbouring points
+	    float value = (x1f - xp) * (y1f - yp) * f1
+	    		+ (xp - x0f) * (y1f - yp) * f2
+			+ (x1f - xp) * (yp - y0f) * f3
+	    		+ (xp - x0f) * (yp - y0f) * f4;
+
+	    setOutput(value);
+	  }
+
+	`
+      }
+      this.kernelCaches._computeExtremaFreak = [kernel1];
+    }
+
+    return tf.tidy(() => {
+      const [program1] = this.kernelCaches._computeExtremaFreak;
+      const result1 = tf.backend().compileAndRun(program1, [...gaussianImagesT, imageSizesT, prunedExtremas, prunedExtremasAngles, freakPointsT]);
+      globalDebug.compareImage('freak1', result1.arraySync(),globalDebug.freakStep1); 
+      return result1;
+    });
+  }
+
   _computeExtremaFreakOld(pyramidImagesT, gaussianNumOctaves, prunedExtremas, prunedExtremasAngles) {
     return tf.tidy(() => {
       const freakPoints = tf.tensor(FREAKPOINTS);
@@ -545,6 +834,9 @@ class Detector {
       const S5 = inputY;
       const sigma = transformScale.mul(freakSigma);
 
+      globalDebug.freakInputSigma = inputSigma.arraySync();
+      globalDebug.freakSigma = sigma.arraySync();
+
       const gaussianNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES;
       const mK = Math.pow(2, 1.0 / (gaussianNumScalesPerOctaves-1));
       const oneOverLogK = 1.0 / Math.log(mK);
@@ -567,6 +859,9 @@ class Detector {
       scale = tf.where(octave.greaterEqual(gaussianNumOctaves), gaussianNumScalesPerOctaves-1, scale);
       octave = tf.where(octave.greaterEqual(gaussianNumOctaves), gaussianNumOctaves-1, octave);
 
+      globalDebug.freakScale = scale.arraySync();
+      globalDebug.freakOctave = octave.arraySync();
+
       // for downsample point
       const imageIndex = octave.mul(gaussianNumScalesPerOctaves).add(scale);
       const a = tf.onesLike(octave).div( tf.fill(octave.shape,2).pow(octave) );
@@ -574,8 +869,11 @@ class Detector {
 
       let xp = S0.mul(freakX).add(S1.mul(freakY)).add(S2);
       xp = xp.mul(a).add(b); // x in octave
+
       let yp = S3.mul(freakX).add(S4.mul(freakY)).add(S5);
       yp = yp.mul(a).add(b); // y in octave
+
+      globalDebug.freakStep1 = tf.stack([imageIndex, yp, xp], 3).arraySync();
 
       let paddedPyramidImages = [];
       let pyramidImageShapes = [];
@@ -620,6 +918,79 @@ class Detector {
 
       return freakValues;
     })
+  }
+
+  _computeExtremaAngles2(histograms) {
+    const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
+    if (!this.kernelCaches.computeExtremaAngles) {
+      const kernel = {
+	variableNames: ['histogram'],
+	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET],
+	userCode: `
+	  void main() {
+	    ivec2 coords = getOutputCoords();
+
+	    int bucketIndex = coords[0];
+	    int featureIndex = coords[1];
+
+	    int maxIndex = 0;
+	    for (int i = 1; i < ${ORIENTATION_NUM_BINS}; i++) {
+	      if (getHistogram(bucketIndex, featureIndex, i) > getHistogram(bucketIndex, featureIndex, maxIndex)) {
+		maxIndex = i;
+	      }
+	    }
+
+	    int prev = imod(maxIndex - 1 + ${ORIENTATION_NUM_BINS}, ${ORIENTATION_NUM_BINS});
+	    int next = imod(maxIndex + 1, ${ORIENTATION_NUM_BINS});
+
+	    /**
+	     * Fit a quatratic to 3 points. The system of equations is:
+	     *
+	     * y0 = A*x0^2 + B*x0 + C
+	     * y1 = A*x1^2 + B*x1 + C
+	     * y2 = A*x2^2 + B*x2 + C
+	     *
+	     * This system of equations is solved for A,B,C.
+	     */
+	    float p10 = float(maxIndex - 1);
+	    float p11 = getHistogram(bucketIndex, featureIndex, prev); 
+	    float p20 = float(maxIndex);
+	    float p21 = getHistogram(bucketIndex, featureIndex, maxIndex); 
+	    float p30 = float(maxIndex + 1);
+	    float p31 = getHistogram(bucketIndex, featureIndex, next); 
+
+	    float d1 = (p30-p20)*(p30-p10);
+	    float d2 = (p10-p20)*(p30-p10);
+	    float d3 = p10-p20;
+
+	    // If any of the denominators are zero then, just use maxIndex.
+            float fbin = float(maxIndex);
+	    if ( abs(d1) > 0.00001 && abs(d2) > 0.00001 && abs(d3) > 0.00001) {
+	      float a = p10*p10;
+	      float b = p20*p20;
+
+	      // Solve for the coefficients A,B,C
+	      float A = ((p31-p21)/d1)-((p11-p21)/d2);
+	      float B = ((p11-p21)+(A*(b-a)))/d3;
+	      float C = p11-(A*a)-(B*p10);
+	      fbin = -B / (2. * A);
+	    }
+
+	    float an =  2.0 * ${Math.PI} * ((fbin + 0.5 + ${ORIENTATION_NUM_BINS}.) / ${ORIENTATION_NUM_BINS}.);
+	    while (an > 2.0 * ${Math.PI}) { // modula
+	      an -= 2.0 * ${Math.PI};
+	    }
+	    setOutput(an);
+	  }
+	`
+      }
+      this.kernelCaches.computeExtremaAngles = kernel;
+    }
+    return tf.tidy(() => {
+      const program = this.kernelCaches.computeExtremaAngles; 
+      const result = tf.backend().compileAndRun(program, [histograms]);
+      return result;
+    });
   }
 
   _computeExtremaAngles(histograms) {
@@ -972,6 +1343,41 @@ class Detector {
     });
   }
 
+  _smoothHistograms2(histograms) {
+    const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
+
+    if (!this.kernelCaches.smoothHistograms) {
+      const kernel = {
+	variableNames: ['histogram'],
+	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, ORIENTATION_NUM_BINS],
+	userCode: `
+	  void main() {
+	    ivec3 coords = getOutputCoords();
+
+	    int bucketIndex = coords[0];
+	    int featureIndex = coords[1];
+	    int binIndex = coords[2];
+
+	    int prevBin = imod(binIndex - 1 + ${ORIENTATION_NUM_BINS}, ${ORIENTATION_NUM_BINS});
+	    int nextBin = imod(binIndex + 1, ${ORIENTATION_NUM_BINS});
+
+            float result = 0.274068619061197 * getHistogram(bucketIndex, featureIndex, prevBin) + 0.451862761877606 * getHistogram(bucketIndex, featureIndex, binIndex) + 0.274068619061197 * getHistogram(bucketIndex, featureIndex, nextBin);
+
+	    setOutput(result);
+	  }
+	`
+      }
+      this.kernelCaches.smoothHistograms = kernel;
+    }
+    return tf.tidy(() => {
+      const program = this.kernelCaches.smoothHistograms; 
+      for (let i = 0; i < ORIENTATION_SMOOTHING_ITERATIONS; i++) {
+	histograms = tf.backend().compileAndRun(program, [histograms]);
+      }
+      return histograms;
+    });
+  }
+
   _smoothHistograms(histograms) {
     return tf.tidy(() => {
       // probably one smoothing is enough?
@@ -1130,7 +1536,7 @@ class Detector {
 
       let {values: topValues, indices: topIndices} = tf.topk(allAbsScores, MAX_FEATURES_PER_BUCKET);
 
-      // nBuckets x nFeatures x [score, dogIndex, y, x]
+      // nBuckets x nFeatures x [score, extremaIndex, y, x]
       const result = tf.backend().compileAndRun(program2, [...extremasResults, allPositionsT, topIndices]);
 
 
