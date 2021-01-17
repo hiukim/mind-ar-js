@@ -1,3 +1,5 @@
+// non-worker version
+
 const tf = require('@tensorflow/tfjs');
 
 const {Compiler} = require('./compiler.js');

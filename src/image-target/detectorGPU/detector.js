@@ -1,3 +1,4 @@
+// Deprecated  GPU.js version - only keep temporarily for reference
 const {GPU} = require('gpu.js');
 
 const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;

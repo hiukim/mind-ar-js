@@ -1,3 +1,5 @@
+// Deprecated  GPU.js version - only keep temporarily for reference
+
 const {buildModelViewProjectionTransform} = require('../icp/utils.js');
 const {GPU} = require('gpu.js');
 

@@ -1,4 +1,4 @@
-// deprecated
+// Deprecated  CPU version - only keep temporarily for reference
 const {upsampleBilinear, downsampleBilinear} = require('../utils/images.js');
 const {build: buildGaussianPyramid} = require('./gaussian-pyramid');
 const {build: buildDoGPyramid} = require('./dog-pyramid');

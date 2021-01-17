@@ -1,9 +1,5 @@
 const Worker = require("./controller.worker.js");
-//const {Tracker} = require('./image-target/trackingGPU/tracker.js');
 const {Tracker} = require('./image-target/trackingTF/tracker.js');
-//const {Tracker} = require('./image-target/tracking/tracker.js');
-//const {Detector} = require('./image-target/detectorCPU/detector.js');
-//const {Detector} = require('./image-target/detectorGPU/detector.js');
 const {Detector} = require('./image-target/detectorTF/detector.js');
 const {Compiler} = require('./compiler.js');
 

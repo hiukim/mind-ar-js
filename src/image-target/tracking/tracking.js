@@ -1,5 +1,5 @@
-// deprecated
-//
+// Deprecated CPU version - only keep for reference
+
 const {screenToMarkerCoordinate, applyModelViewProjectionTransform, buildModelViewProjectionTransform, computeScreenCoordiate} = require('../icp/utils.js');
 const {refineHomography} = require('../icp/refine_homography.js');
 
