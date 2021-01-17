@@ -105,8 +105,6 @@ I think it frustrating that there is very little educational materials on the In
 # Contributions
 I personally don't come from a strong computer vision background, and I'm having a hard time improving the tracking accuracy. Would really need help with computer vision expertise to advise the state-of-the-art augmented reality related algorithms. Please feel free to contact and discuss.
 
-Another big area that could dive into is webgl. We are currently using gpu.js (https://github.com/gpujs/gpu.js/) for the webgl related codes. There is a lot of room for improvement, in terms of performance and stability. I found a couple of bugs and weird behaviours in different devices but don't yet have the resources to fix. It's an area that really need help.
-
 Also welcome javascript experts to help with the non-engine part, like improving the APIs and so. 
 
 If you are graphics designer or 3D artists and can contribute to the visual, that's also nice.
@@ -123,7 +121,7 @@ Whatever you can think of. It's an opensource web AR framework for everyone!
 
 #### To create a production build
 
-run `> npm run build`. A `mindar.prod.js` will be generated. That's the library. The production build is currently not minimized. There is some issue (related to the gpu.js) that required fixing.
+run `> npm run build`. A `mindar.prod.js` will be generated. That's the library.
 
 #### For development
 
@@ -135,6 +133,11 @@ For example, you can install this chrome plugin to start a local server: `https:
 
 If you want to test on mobile device, I would normally use `ngrok` (https://ngrok.com/) to tunnel the request. 
 
+#### webgl backend
+This library utilize tensorflowjs (https://github.com/tensorflow/tfjs) for webgl backend. Yes, tensorflow is a machine learning libary, but we didn't use it for machine learning! :) Tensorflowjs has a very solid webgl engine which allows us to write general purpose GPU application (in this case, our AR application). 
+
+The core detection and tracking algorithm is written with custom operations in tensorflowjs. They are like shaders program. It might looks intimidating at first, but it's actually not that difficult to understand.
+
 #### examples explained
 1. `examples/example1.html` and `examples/example2.html` are basically the demo examples in the above section. They are using the wrapped aframe extension.
 
@@ -144,6 +147,8 @@ If you want to test on mobile device, I would normally use `ngrok` (https://ngro
 
 #### src explained
 1. `src/image-target` contains all the AR algorithms. (There will be more details coming up regarding those algorithms)
+
+* Inside `image-target`, you will see `detectorCPU`, `detectorGPU`, `trackingGPU`. They are old implementations of the algorithms with CPU and GPU.js. I keep it here for reference ONLY. The latest version should be `detectorTF` and `trackingTF`, which use tensorflowjs webgl backend. Their logic is very similar.
 
 2. `src/controller.js` serves kind of a API for external applications that use the AR algorithms. It handles the control flow of the application.
 
