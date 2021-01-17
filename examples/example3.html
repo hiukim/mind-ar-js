@@ -1,0 +1,93 @@
+<!--
+ example with events
+-->
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
+    <script src="../dist/mindar.js"></script>
+
+    <script>
+      $(document).ready(function() {
+        let started = false;
+        $("#playButton").click(() => {
+          const sceneEl = document.querySelector('a-scene');
+          const arSystem = sceneEl.systems['mindar-system'];
+          if (!started) {
+            arSystem.start();
+            started = true;
+          } else {
+            arSystem.stop();
+          }
+        });
+
+        document.querySelector("#link").addEventListener('click', event => {
+          console.log("clicked...");
+        });
+
+        document.querySelector("#target").addEventListener('targetFound', event => {
+          console.log("target found");
+        })
+        document.querySelector("#target").addEventListener('targetLost', event => {
+          console.log("target lost");
+        })
+      });
+    </script>
+
+    <style>
+      body {
+        margin: 0;
+      }
+      .example-container {
+        overflow: hidden;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+      .example-container .mindar-loading-overlay {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        background: white;
+        opacity: 0.5;
+        z-index: 2;
+      }
+      .example-container .mindar-loading-overlay .content {
+        font-size: 30px;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="example-container">
+      <div class="mindar-loading-overlay">
+        <div class="content">Loading...</div>
+        <button id="playButton">Play</button>
+      </div>
+
+      <a-scene mindar="imageTargetSrc: ./assets/card-example/card.mind; showStats: true; autoStart: false" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        <a-assets>
+          <img id="card" src="./assets/card-example/card.png" />
+          <a-asset-item id="avatarModel" src="./assets/card-example/softmind/scene.gltf"></a-asset-item>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="near: 10; far: 10000"></a-camera>
+
+        <a-entity id="target" mindar-image-target="targetIndex: 0">
+          <a-plane id="link" src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
+          </a-plane>
+
+          <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#avatarModel"
+            animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate"
+          >
+        </a-entity>
+      </a-scene>
+    </div>
+  </body>
+</html>
+

@@ -1,6 +1,7 @@
 <html>
   <head>
     <script src="../dist/mindar.js"></script>
+
     <script>
       const globalDebug = {};
 
@@ -122,7 +123,8 @@
         await controller.addImageTargets('../tests/card7cpu.mind');
         //await controller.addImageTargets('./assets/card-example/card.mind');
 
-        const queryImage = await loadImage('../tests/card7.png');
+        const queryImage = await loadImage('../tests/card7_3.jpeg');
+        //const queryImage = await loadImage('../tests/card7_4.png');
         //const queryImage = await loadImage('./assets/card-example/card.png');
         
         const result = await controller.processImage(queryImage);
