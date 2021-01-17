@@ -1,5 +1,7 @@
 //import * as tfc from '@tensorflow/tfjs-core';
 const tf = require('@tensorflow/tfjs');
+console.log("webgl version", tf.env().getNumber('WEBGL_VERSION'));
+
 const PYRAMID_NUM_SCALES_PER_OCTAVES = 3;
 const PYRAMID_MIN_SIZE = 8;
 const PYRAMID_MAX_OCTAVE = 5;
@@ -173,6 +175,8 @@ class Detector {
         pyramidImagesT2.push(this._applyFilter2(pyramidImagesT2[pyramidImagesT2.length-1]));
       }
     }
+
+    /*
     const pyramidImagesT = [];
     for (let i = 0; i < pyramidImagesT2.length; i++) {
       pyramidImagesT.push( 
@@ -181,6 +185,7 @@ class Detector {
 	})
       );
     }
+    */
 
 
     /*
@@ -193,18 +198,18 @@ class Detector {
     //return featurePoints;
 
     // Build difference of gaussian pyramid
-    const dogPyramidImagesT = [];
+    //const dogPyramidImagesT = [];
     const dogPyramidImagesT2 = [];
     for (let i = 0; i < this.numOctaves; i++) {
       for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES - 1; j++) {
         if (i === 0 && j === 0) {
-          dogPyramidImagesT.push(null); // the first dog image is never used, so skip to save memory
+          //dogPyramidImagesT.push(null); // the first dog image is never used, so skip to save memory
           dogPyramidImagesT2.push(null); // the first dog image is never used, so skip to save memory
           continue;
         }
-        const image1T = pyramidImagesT[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j];
-        const image2T = pyramidImagesT[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j + 1];
-        dogPyramidImagesT.push(this._differenceImageBinomial(image1T, image2T));
+        //const image1T = pyramidImagesT[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j];
+        //const image2T = pyramidImagesT[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j + 1];
+        //dogPyramidImagesT.push(this._differenceImageBinomial(image1T, image2T));
 
         dogPyramidImagesT2.push(this._differenceImageBinomial(
 	  pyramidImagesT2[i * PYRAMID_NUM_SCALES_PER_OCTAVES + j],
@@ -213,74 +218,80 @@ class Detector {
       }
     }
 
-    //console.log("final", dogPyramidImagesT[dogPyramidImagesT.length-1].sum().arraySync()); 
     //return [];
 
     const dogIndexes = [];
     const extremasResults = [];
     // Find feature points (i.e. extremas in dog images)
-    for (let k = 1; k < dogPyramidImagesT.length - 1; k++) {
+    //for (let k = 1; k < dogPyramidImagesT.length - 1; k++) {
+    for (let k = 1; k < dogPyramidImagesT2.length - 1; k++) {
       // Experimental result shows that no extrema is possible for odd number of k
       // I believe it has something to do with how the gaussian pyramid being constructed
       if (k % 2 === 1) continue;
 
       dogIndexes.push(k);
 
-      let image0 = dogPyramidImagesT[k-1];
-      let image1 = dogPyramidImagesT[k];
-      let image2 = dogPyramidImagesT[k+1];
+      //let image0 = dogPyramidImagesT[k-1];
+      //let image1 = dogPyramidImagesT[k];
+      //let image2 = dogPyramidImagesT[k+1];
 
       // find all extrema for image1
-      const extremasResult = this._buildExtremas(k, image0, image1, image2);
+      //const extremasResult = this._buildExtremas(k, image0, image1, image2);
       const extremasResult2 = this._buildExtremas2(k, dogPyramidImagesT2[k-1], dogPyramidImagesT2[k], dogPyramidImagesT2[k+1]);
 
+      //console.log("extrema result", k, extremasResult2.arraySync());
       //console.log("compare extremas", extremasResult.arraySync(), extremasResult2.arraySync());
       //globalDebug.compareImage('extrema'+k, extremasResult.arraySync(), extremasResult2.arraySync());
 
-      extremasResults.push(extremasResult);
+      //extremasResults.push(extremasResult);
+      extremasResults.push(extremasResult2);
     }
 
-    const prunedExtremas = this._applyPrune(extremasResults, dogIndexes);
+    //const prunedExtremas = this._applyPrune(extremasResults, dogIndexes);
     const prunedExtremas2 = this._applyPrune2(extremasResults, dogIndexes);
+    //console.log("prunedExtremas2", prunedExtremas2.arraySync());
 
-    const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImagesT, dogIndexes);
+    //const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImagesT, dogIndexes);
     const extremaHistograms2 = this._computeOrientationHistograms2(prunedExtremas2, pyramidImagesT2, dogIndexes);
 
-    console.log("histograms", extremaHistograms.arraySync(), extremaHistograms2.arraySync());
-    globalDebug.compareImage('histograms', extremaHistograms.arraySync(), extremaHistograms2.arraySync(), 0.001); 
+    //console.log("histograms", extremaHistograms.arraySync(), extremaHistograms2.arraySync());
+    //globalDebug.compareImage('histograms', extremaHistograms.arraySync(), extremaHistograms2.arraySync(), 0.001); 
 
-    const smoothedHistograms = this._smoothHistograms(extremaHistograms);
-    const smoothedHistograms2 = this._smoothHistograms2(extremaHistograms);
-    globalDebug.compareImage('smoothed histograms', smoothedHistograms.arraySync(), smoothedHistograms2.arraySync(), 0.001); 
+    //const smoothedHistograms = this._smoothHistograms(extremaHistograms);
+    const smoothedHistograms2 = this._smoothHistograms2(extremaHistograms2);
+    //globalDebug.compareImage('smoothed histograms', smoothedHistograms.arraySync(), smoothedHistograms2.arraySync(), 0.001); 
 
-    const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
-    const extremaAngles2 = this._computeExtremaAngles2(smoothedHistograms);
-    globalDebug.compareImage('extremaAngles', extremaAngles.arraySync(), extremaAngles2.arraySync(), 0.001); 
+    //const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
+    const extremaAngles2 = this._computeExtremaAngles2(smoothedHistograms2);
+    //globalDebug.compareImage('extremaAngles', extremaAngles.arraySync(), extremaAngles2.arraySync(), 0.001); 
 
     //const extremaFreaks = this._computeExtremaFreak(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles, dogIndexes);
-    const extremaFreaks = this._computeExtremaFreakOld(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles, dogIndexes);
+    //const extremaFreaks = this._computeExtremaFreakOld(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles, dogIndexes);
     const extremaFreaks2 = this._computeExtremaFreak2(pyramidImagesT2, this.numOctaves, prunedExtremas2, extremaAngles2, dogIndexes);
-    globalDebug.compareImage('extremaFreaks', extremaFreaks.arraySync(), extremaFreaks2.arraySync(), 0.001); 
-
-    const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
+    //globalDebug.compareImage('extremaFreaks', extremaFreaks.arraySync(), extremaFreaks2.arraySync(), 0.001); 
+ 
+    //const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
     const freakDescriptors2 = this._computeFreakDescriptors2(extremaFreaks2);
-    console.log("freakDescriptors", freakDescriptors.arraySync(), freakDescriptors2.arraySync());
-    globalDebug.compareImage('freakDescriptors', freakDescriptors.arraySync(), freakDescriptors2.arraySync());
+    //console.log("freakDescriptors", freakDescriptors.arraySync(), freakDescriptors2.arraySync());
+    //globalDebug.compareImage('freakDescriptors', freakDescriptors.arraySync(), freakDescriptors2.arraySync());
 
     //const encodedDescriptors = this._encodeDescriptors(freakDescriptors);
-    const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
+    //const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
     const combinedExtremas2 = this._combine2(prunedExtremas2, freakDescriptors2);
 
-    console.log("combinedExtremas", combinedExtremas.arraySync(), combinedExtremas2.arraySync());
-    globalDebug.compareImage('combinedExtremas', combinedExtremas.arraySync(), combinedExtremas2.arraySync());
+    //console.log("combinedExtremas", combinedExtremas.arraySync(), combinedExtremas2.arraySync());
+    //globalDebug.compareImage('combinedExtremas', combinedExtremas.arraySync(), combinedExtremas2.arraySync());
 
-    const combinedExtremasArr = combinedExtremas.arraySync();
+    //const combinedExtremasArr = combinedExtremas.arraySync();
+    const combinedExtremasArr = combinedExtremas2.arraySync();
 
     if(typeof inputImageT !== 'undefined') inputImageT.dispose();
-    if(typeof pyramidImagesT !== 'undefined') pyramidImagesT.forEach((t) => t.dispose());
+    if(typeof inputImageT2 !== 'undefined') inputImageT2.dispose();
     if(typeof pyramidImagesT2 !== 'undefined') pyramidImagesT2.forEach((t) => t.dispose());
-    if(typeof dogPyramidImagesT !== 'undefined') dogPyramidImagesT.forEach((t) => t && t.dispose());
+    if(typeof dogPyramidImagesT2 !== 'undefined') dogPyramidImagesT2.forEach((t) => t && t.dispose());
     if(typeof extremasResults !== 'undefined') extremasResults.forEach((t) => t.dispose());
+    if(typeof prunedExtremas2 !== 'undefined') prunedExtremas2.dispose();
+
     if (typeof prunedExtremas !== 'undefined') {
       prunedExtremas.score.dispose();
       prunedExtremas.dogIndex.dispose();
@@ -289,13 +300,13 @@ class Detector {
       prunedExtremas.originalX.dispose();
       prunedExtremas.originalY.dispose();
     }
-    if(typeof extremaHistograms !== 'undefined') extremaHistograms.dispose();
+    if(typeof extremaHistograms2 !== 'undefined') extremaHistograms2.dispose();
 
-    if(typeof smoothedHistograms !== 'undefined') smoothedHistograms.dispose();
-    if(typeof extremaAngles !== 'undefined') extremaAngles.dispose();
-    if(typeof extremaFreaks !== 'undefined') extremaFreaks.dispose();
-    if(typeof freakDescriptors !== 'undefined') freakDescriptors.dispose();
-    if(typeof combinedExtremas !== 'undefined') combinedExtremas.dispose();
+    if(typeof smoothedHistograms2 !== 'undefined') smoothedHistograms2.dispose();
+    if(typeof extremaAngles2 !== 'undefined') extremaAngles2.dispose();
+    if(typeof extremaFreaks2 !== 'undefined') extremaFreaks2.dispose();
+    if(typeof freakDescriptors2 !== 'undefined') freakDescriptors2.dispose();
+    if(typeof combinedExtremas2 !== 'undefined') combinedExtremas2.dispose();
     console.log(tf.memory().numTensors);
     //return [];
 
@@ -648,64 +659,41 @@ class Detector {
     const oneOverLogK = 1.0 / Math.log(mK);
     const expansionFactor = FREAK_EXPANSION_FACTOR;
     const gaussianNumScalesPerOctaves = PYRAMID_NUM_SCALES_PER_OCTAVES;
-
-    // we won't use the last scale image of each octave, so skip those
-    // 	except the last octave
-    const gaussianImagesT = [];
-    for (let i = 0; i < gaussianNumOctaves; i++) {
-      for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES; j++) {
-	if (j ===PYRAMID_NUM_SCALES_PER_OCTAVES -1 && i !== gaussianNumOctaves -1) continue;
-
-	const gaussianIndex = i * PYRAMID_NUM_SCALES_PER_OCTAVES + j;
-	gaussianImagesT.push(pyramidImagesT[gaussianIndex]);
-      }
-    }
     
     if (!this.tensorCaches._computeExtremaFreak) {
       tf.tidy(() => {
 	const freakPoints = tf.tensor(FREAKPOINTS);
-
-	const imageSizes = [];
-	for (let i = 0; i < gaussianImagesT.length; i++) {
-	  imageSizes.push([gaussianImagesT[i].shape[0], gaussianImagesT[i].shape[1]]);
-	}
-
 	this.tensorCaches._computeExtremaFreak = {
 	  freakPointsT: tf.keep(freakPoints),
-	  imageSizesT: tf.keep(tf.tensor(imageSizes, [imageSizes.length, 2]))
 	};
       });
     }
 
-    const {freakPointsT, imageSizesT} = this.tensorCaches._computeExtremaFreak;
+    const interestedGaussianIndexes = [];
+    for (let i = 0; i < gaussianNumOctaves; i++) {
+      for (let j = 0; j < PYRAMID_NUM_SCALES_PER_OCTAVES; j++) {
+	// we didn't use the last scale image of each octave (except last octave), so skip those
+	//   checkout implementation of kernel1
+	if (j ===PYRAMID_NUM_SCALES_PER_OCTAVES -1 && i !== gaussianNumOctaves -1) continue;
+	interestedGaussianIndexes.push(i * PYRAMID_NUM_SCALES_PER_OCTAVES + j);
+      }
+    }
+
+    const {freakPointsT} = this.tensorCaches._computeExtremaFreak;
 
     if (!this.kernelCaches._computeExtremaFreak) {
-      const imageVariableNames = [];
-      for (let i = 0; i < gaussianImagesT.length; i++) {
-	imageVariableNames.push('image' + i);
-      }
-      let imageCodes = `float getPixel(int gaussianIndex, int y, int x) {`;
-      for (let i = 0; i < gaussianImagesT.length; i++) {
-	imageCodes += `
-	  if (gaussianIndex == ${i}) {
-	    return getImage${i}(y, x);
-	  }
-	`
-      }
-      imageCodes += `}`;
 
       const kernel1 = {
-	variableNames: [...imageVariableNames, 'imageSizes', 'extrema', 'angles', 'freakPoints'],
-	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, FREAKPOINTS.length],
+	variableNames: ['extrema', 'angles', 'freakPoints'],
+	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, FREAKPOINTS.length, 3], // imageIndex, y, x
 	userCode: `
-	  ${imageCodes}
-
 	  void main() {
-	    ivec3 coords = getOutputCoords();
+	    ivec4 coords = getOutputCoords();
 
 	    int bucketIndex = coords[0];
 	    int featureIndex = coords[1];
 	    int freakIndex = coords[2];
+	    int propertyIndex = coords[3];
 
 	    float freakSigma = getFreakPoints(freakIndex, 0);
 	    float freakX = getFreakPoints(freakIndex, 1);
@@ -716,6 +704,7 @@ class Detector {
 	    float inputX = getExtrema(bucketIndex, featureIndex, 3);
 
             int inputOctave = extremaIndex + 1; // ref to buildExtrema, it starts at 2nd octave
+
 	    float inputSigma = pow(2., float(inputOctave));
 	    float inputAngle = getAngles(bucketIndex, featureIndex);
 
@@ -728,7 +717,7 @@ class Detector {
 
 	    int octave = int(floor(log(sigma) / ${Math.log(2)}));
 	    float fscale = log( sigma / pow(2., float(octave))) * ${oneOverLogK};
-	    int scale = round(fscale);
+            int scale = int(floor(fscale + 0.5)); // round() has problem in ios
 
             // sgima of last scale = sigma of the first scale in next octave
             // prefer coarser octaves for efficiency
@@ -746,62 +735,111 @@ class Detector {
               scale = ${gaussianNumScalesPerOctaves} - 1;
             }
 
-	    // We skipped the last scale image for each octave when input (refer to input)
-            int imageIndex = octave * (${gaussianNumScalesPerOctaves}-1) + scale;
-
-	    // inputX, Y is the coordinate in the octave scale. scale it back respect to the original size (i.e. octave 0)
-	    float originalY = inputY * pow(2.0, float(inputOctave)) + pow(2.0, float(inputOctave-1)) - 0.5;
-	    float originalX = inputX * pow(2.0, float(inputOctave)) + pow(2.0, float(inputOctave-1)) - 0.5;
-
-	    // compute the freak point location, according to the orientation
-	    float y = originalY + freakX * sin + freakY * cos;
-	    float x = originalX + freakX * cos + freakY * -sin;
-
-            // scale the freak point back into the octave scale
-            float a = 1.0 / pow(2., float(octave));
-            float b = 0.5 * a - 0.5;
-	    float yp = y * a + b; // y in octave
-	    float xp = x * a + b; // x in octave
-
-	    int x0 = int(floor(xp));
-	    int x1 = x0 + 1;
-	    int y0 = int(floor(yp));
-	    int y1 = y0 + 1;
-
-	    if (x0 < 0 || x1 >= int(getImageSizes(imageIndex, 1)) || y0 < 0 || y1 >= int(getImageSizes(imageIndex, 0))) {
-	      setOutput(0.);
+            int imageIndex = octave * ${gaussianNumScalesPerOctaves} + scale;
+	    if (propertyIndex == 0) {
+	      setOutput(float(imageIndex));
 	      return;
 	    }
 
-	    float f1 = getPixel(imageIndex, y0, x0);
-	    float f2 = getPixel(imageIndex, y0, x1);
-	    float f3 = getPixel(imageIndex, y1, x0);
-	    float f4 = getPixel(imageIndex, y1, x1);
+	    // 1) inputX, Y is the coordinate in the octave scale. scale it back respect to the original size (i.e. octave 0)
 
-	    float x1f = float(x1);
-	    float y1f = float(y1);
-	    float x0f = float(x0);
-	    float y0f = float(y0);
+	    // 2) compute the freak point location, according to the orientation
 
-	    // ratio for interpolation between four neighbouring points
-	    float value = (x1f - xp) * (y1f - yp) * f1
-	    		+ (xp - x0f) * (y1f - yp) * f2
-			+ (x1f - xp) * (yp - y0f) * f3
-	    		+ (xp - x0f) * (yp - y0f) * f4;
+            // 3) scale the freak point back into the octave scale
 
-	    setOutput(value);
+	    if (propertyIndex == 1) {
+	      float originalY = inputY * pow(2.0, float(inputOctave)) + pow(2.0, float(inputOctave-1)) - 0.5;
+	      float y = originalY + freakX * sin + freakY * cos;
+	      float a = 1.0 / pow(2., float(octave));
+	      float b = 0.5 * a - 0.5;
+	      float yp = y * a + b; // y in octave
+	      setOutput(yp);
+	      return;
+	    }
+	    if (propertyIndex == 2) {
+	      float originalX = inputX * pow(2.0, float(inputOctave)) + pow(2.0, float(inputOctave-1)) - 0.5;
+	      float x = originalX + freakX * cos + freakY * -sin;
+	      float a = 1.0 / pow(2., float(octave));
+	      float b = 0.5 * a - 0.5;
+	      float xp = x * a + b; // x in octave
+	      setOutput(xp);
+	      return;
+	    }
 	  }
-
 	`
+      };
+
+      const kernel2 = [];
+      for (let i = 0; i < interestedGaussianIndexes.length; i++) {
+	const gaussianIndex = interestedGaussianIndexes[i];
+	const height = pyramidImagesT[gaussianIndex].shape[0];
+	const width = pyramidImagesT[gaussianIndex].shape[1];
+
+	const subkernel = {
+	  variableNames: ['pixel', 'position', 'combine'],
+	  outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, FREAKPOINTS.length],
+	  userCode: `
+	    void main() {
+	      ivec3 coords = getOutputCoords();
+	      int bucketIndex = coords[0];
+	      int featureIndex = coords[1];
+	      int freakIndex = coords[2];
+
+	      int imageIndex = int(getPosition(bucketIndex, featureIndex, freakIndex, 0));
+	      if (imageIndex != ${gaussianIndex}) {
+		setOutput(getCombine(bucketIndex, featureIndex, freakIndex));
+		return;
+	      }
+
+	      float yp = getPosition(bucketIndex, featureIndex, freakIndex, 1);
+	      float xp = getPosition(bucketIndex, featureIndex, freakIndex, 2);
+
+	      int x0 = int(floor(xp));
+	      int x1 = x0 + 1;
+	      int y0 = int(floor(yp));
+	      int y1 = y0 + 1;
+
+	      if (x0 < 0 || x1 >= ${width} || y0 < 0 || y1 >= ${height}) {
+		setOutput(0.);
+		return;
+	      }
+
+	      float f1 = getPixel(y0, x0);
+	      float f2 = getPixel(y0, x1);
+	      float f3 = getPixel(y1, x0);
+	      float f4 = getPixel(y1, x1);
+
+	      float x1f = float(x1);
+	      float y1f = float(y1);
+	      float x0f = float(x0);
+	      float y0f = float(y0);
+
+	      // ratio for interpolation between four neighbouring points
+	      float value = (x1f - xp) * (y1f - yp) * f1
+			  + (xp - x0f) * (y1f - yp) * f2
+			  + (x1f - xp) * (yp - y0f) * f3
+			  + (xp - x0f) * (yp - y0f) * f4;
+
+	      setOutput(value);
+	    }
+	  `
+	}
+	kernel2.push(subkernel);
       }
-      this.kernelCaches._computeExtremaFreak = [kernel1];
+
+      this.kernelCaches._computeExtremaFreak = [kernel1, kernel2];
     }
 
     return tf.tidy(() => {
-      const [program1] = this.kernelCaches._computeExtremaFreak;
-      const result1 = tf.backend().compileAndRun(program1, [...gaussianImagesT, imageSizesT, prunedExtremas, prunedExtremasAngles, freakPointsT]);
-      globalDebug.compareImage('freak1', result1.arraySync(),globalDebug.freakStep1); 
-      return result1;
+      const [program1, program2] = this.kernelCaches._computeExtremaFreak;
+      
+      const positionT = tf.backend().compileAndRun(program1, [prunedExtremas, prunedExtremasAngles, freakPointsT]);
+      let combined = tf.zeros([nBuckets, MAX_FEATURES_PER_BUCKET, FREAKPOINTS.length]);
+      for (let i = 0; i < interestedGaussianIndexes.length; i++) {
+	const gaussianIndex = interestedGaussianIndexes[i];
+	combined = tf.backend().compileAndRun(program2[i], [pyramidImagesT[gaussianIndex], positionT, combined]);
+      }
+      return combined;
     });
   }
 
@@ -977,8 +1015,11 @@ class Detector {
 	    }
 
 	    float an =  2.0 * ${Math.PI} * ((fbin + 0.5 + ${ORIENTATION_NUM_BINS}.) / ${ORIENTATION_NUM_BINS}.);
-	    while (an > 2.0 * ${Math.PI}) { // modula
-	      an -= 2.0 * ${Math.PI};
+
+	    for (int i = 0; i < 3; i++) { // stupid modula, while loop not support
+	      if (an > 2.0 * ${Math.PI}) {
+		an -= 2.0 * ${Math.PI};
+	      }
 	    }
 	    setOutput(an);
 	  }
@@ -1539,13 +1580,7 @@ class Detector {
       // nBuckets x nFeatures x [score, extremaIndex, y, x]
       const result = tf.backend().compileAndRun(program2, [...extremasResults, allPositionsT, topIndices]);
 
-
       const [score, extremaIndex, yx] = result.split([1,1,2], 2);
-      globalDebug.compareImage("top scores", score.squeeze().arraySync(), globalDebug.topScores);
-      globalDebug.compareImage("top dogIndex", extremaIndex.squeeze().add(1).mul(2).arraySync(), globalDebug.topDogIndex);
-      globalDebug.compareImage("top XY", yx.squeeze().arraySync(), globalDebug.topYX);
-
-      console.log("result", result.arraySync());
       return result;
     });
   }
@@ -1975,19 +2010,32 @@ class Detector {
       this.kernelCaches.applyFilter = {};
     }
 
+    const imaxmin = `
+      int imax(int a, int b) {
+	if (a > b) return a;
+	return b;
+      }
+      int imin(int a, int b) {
+	if (a < b) return a;
+	return b;
+      }
+
+    `
+
     if (!this.kernelCaches.applyFilter[kernelKey]) {
       const kernel1 = {
 	variableNames: ['p'],
 	outputShape: [imageHeight, imageWidth],
 	userCode: `
+ 	  ${imaxmin}
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 
-	    float sum = getP(coords[0], max(0, coords[1]-2));
-	    sum += getP(coords[0], max(0, coords[1]-1)) * 4.;
+	    float sum = getP(coords[0], imax(0, coords[1]-2));
+	    sum += getP(coords[0], imax(0, coords[1]-1)) * 4.;
 	    sum += getP(coords[0], coords[1]) * 6.;
-	    sum += getP(coords[0], min(${imageWidth}-1, coords[1]+1)) * 4.;
-	    sum += getP(coords[0], min(${imageWidth}-1, coords[1]+2));
+	    sum += getP(coords[0], imin(${imageWidth}-1, coords[1]+1)) * 4.;
+	    sum += getP(coords[0], imin(${imageWidth}-1, coords[1]+2));
 	    setOutput(sum);
 	  }
 	`
@@ -1997,14 +2045,15 @@ class Detector {
 	variableNames: ['p'],
 	outputShape: [imageHeight, imageWidth],
 	userCode: `
+ 	  ${imaxmin}
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 
-	    float sum = getP(max(coords[0]-2, 0), coords[1]);
-	    sum += getP(max(coords[0]-1, 0), coords[1]) * 4.;
+	    float sum = getP(imax(coords[0]-2, 0), coords[1]);
+	    sum += getP(imax(coords[0]-1, 0), coords[1]) * 4.;
 	    sum += getP(coords[0], coords[1]) * 6.;
-	    sum += getP(min(coords[0]+1, ${imageHeight}-1), coords[1]) * 4.;
-	    sum += getP(min(coords[0]+2, ${imageHeight}-1), coords[1]);
+	    sum += getP(imin(coords[0]+1, ${imageHeight}-1), coords[1]) * 4.;
+	    sum += getP(imin(coords[0]+2, ${imageHeight}-1), coords[1]);
 	    sum /= 256.;
 	    setOutput(sum);
 	  }
