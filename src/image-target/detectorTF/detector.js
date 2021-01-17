@@ -44,6 +44,19 @@ class Detector {
     this.kernelCaches = {};
   }
 
+  // used in compiler
+  detectImageData(imageData) {
+    const arr = new Uint8ClampedArray(4 * imageData.length);
+    for (let i = 0; i < imageData.length; i++) {
+      arr[4*i] = imageData[i];
+      arr[4*i+1] = imageData[i];
+      arr[4*i+2] = imageData[i];
+      arr[4*i+3] = 255;
+    }
+    const img = new ImageData(arr, this.width, this.height);
+    return this.detect(img);
+  }
+
   detect(input) {
     // load input video/image frame into tensor
     const inputImageT = this._loadInput(input);

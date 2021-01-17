@@ -4,7 +4,7 @@ const {buildModelViewProjectionTransform, computeScreenCoordiate} = require('../
 const AR2_DEFAULT_TS = 6;
 const AR2_SEARCH_SIZE = 6;
 const AR2_SEARCH_GAP = 1;
-const AR2_SIM_THRESH = 0.9;
+const AR2_SIM_THRESH = 0.8;
 
 // For some mobile device, only 16bit floating point texture is supported
 //   ref: https://www.tensorflow.org/js/guide/platform_environment#precision
