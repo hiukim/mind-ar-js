@@ -20,6 +20,9 @@ class Controller {
     this.maxTrack = 1; // technically can tracking multiple. but too slow in practice
     this.imageTargetStates = [];
 
+    this.processLoopHandler = null;
+    this.workerLoopHandler = null;
+
     const near = 10;
     const far = 10000;
     const fovy = 45.0 * Math.PI / 180; // 45 in radian. field of view vertical
@@ -123,7 +126,7 @@ class Controller {
     }
 
     let processing = false;
-    setInterval(() => {
+    this.processLoopHandler = setInterval(() => {
       if (!processing) {
         processing = true;
 
@@ -144,7 +147,7 @@ class Controller {
     }, 10);
 
     let workerRunning = false;
-    setInterval(async () => {
+    this.workerLoopHandler = setInterval(async () => {
       if (!workerRunning) {
         workerRunning = true;
 
@@ -216,6 +219,11 @@ class Controller {
         workerRunning = false;
       }
     }, 10);
+  }
+
+  stopProcessVideo() {
+    clearInterval(this.processLoopHandler);
+    clearInterval(this.workerLoopHandler);
   }
 
   workerMatch(featurePoints, skipTargetIndexes) {

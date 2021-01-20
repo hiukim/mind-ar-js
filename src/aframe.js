@@ -6,7 +6,6 @@ const Stats = require("stats-js");
 AFRAME.registerSystem('mindar-system', {
   container: null,
   video: null,
-  processReady: false,
   processingImage: false,
 
   init: function() {
@@ -43,8 +42,12 @@ AFRAME.registerSystem('mindar-system', {
   },
 
   stop: function() {
-    this.processReady = false;
+    this.stopAR();
     this.video.pause();
+  },
+
+  stopAR: function() {
+    this.controller.stopProcessVideo();
   },
 
   _startVideo: function() {
@@ -61,6 +64,7 @@ AFRAME.registerSystem('mindar-system', {
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       // TODO: show unsupported error
+      this.el.emit("arError", {error: 'VIDEO_FAIL'});
       return;
     }
 
@@ -68,7 +72,7 @@ AFRAME.registerSystem('mindar-system', {
       facingMode: 'environment',
     }}).then((stream) => {
       this.video.addEventListener( 'loadedmetadata', () => {
-        console.log("video ready...", this.video);
+        //console.log("video ready...", this.video);
         this.video.setAttribute('width', this.video.videoWidth);
         this.video.setAttribute('height', this.video.videoHeight);
         this._startAR();
@@ -76,6 +80,7 @@ AFRAME.registerSystem('mindar-system', {
       this.video.srcObject = stream;
     }).catch((err) => {
       console.log("getUserMedia error", err);
+      this.el.emit("arError", {error: 'VIDEO_FAIL'});
     });
   },
 
@@ -144,10 +149,9 @@ AFRAME.registerSystem('mindar-system', {
     }
 
     await this.controller.dummyRun(this.video);
-    container.querySelector(".mindar-loading-overlay").style.display = "none";
+    this.el.emit("arReady");
 
     this.controller.processVideo(this.video);
-    this.processReady = true;
   },
 });
 

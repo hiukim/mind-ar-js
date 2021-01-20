@@ -1,36 +1,66 @@
 <!--
- example with events
+ Full example with events
 -->
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
     <script src="../dist/mindar.js"></script>
 
     <script>
-      $(document).ready(function() {
-        let started = false;
-        $("#playButton").click(() => {
-          const sceneEl = document.querySelector('a-scene');
-          const arSystem = sceneEl.systems['mindar-system'];
-          if (!started) {
-            arSystem.start();
-            started = true;
-          } else {
-            arSystem.stop();
-          }
+      document.addEventListener("DOMContentLoaded", function() {
+	const sceneEl = document.querySelector('a-scene');
+	const arSystem = sceneEl.systems["mindar-system"];
+	const exampleTarget = document.querySelector('#example-target');
+	const exampleTargetLink = document.querySelector('#example-target-link');
+
+	const compatibilityOverlay = document.querySelector("#example-compatibility-overlay");
+	const loadingOverlay = document.querySelector("#example-loading-overlay");
+	const controlOverlay = document.querySelector("#example-control-overlay");
+
+	const startButton = document.querySelector("#example-start-button");
+	const stopButton = document.querySelector("#example-stop-button");
+	const stopARButton = document.querySelector("#example-stop-ar-button");
+
+	// arReady event triggered when ready
+        sceneEl.addEventListener("arReady", (event) => {
+	  loadingOverlay.style.display = "none";
         });
 
-        document.querySelector("#link").addEventListener('click', event => {
+	// arError event triggered when something went wrong. Mostly browser compatbility issue
+        sceneEl.addEventListener("arError", (event) => {
+	  loadingOverlay.style.display = "none";
+	  compatibilityOverlay.style.display = "block";
+        });
+
+	// detect click event on tracking object
+        exampleTargetLink.addEventListener("click", event => {
           console.log("clicked...");
         });
 
-        document.querySelector("#target").addEventListener('targetFound', event => {
+	// detect target found
+        exampleTarget.addEventListener("targetFound", event => {
           console.log("target found");
-        })
-        document.querySelector("#target").addEventListener('targetLost', event => {
+        });
+
+	// detect target lost
+        exampleTarget.addEventListener("targetLost", event => {
           console.log("target lost");
-        })
+        });
+
+
+	loadingOverlay.style.display = "block";
+	controlOverlay.style.display = "block";
+
+	startButton.addEventListener('click', () => {
+	  arSystem.start(); // start AR 
+        });
+	stopButton.addEventListener('click', () => {
+	  arSystem.stop(); // stop AR and video
+	});
+	stopARButton.addEventListener('click', () => {
+	  arSystem.stopAR(); // stop AR only, but keep video
+	});
+
       });
     </script>
 
@@ -44,7 +74,8 @@
         width: 100%;
         height: 100%;
       }
-      .example-container .mindar-loading-overlay {
+      .example-container .overlay {
+	display: none;
         position: absolute;
         left: 0;
         right: 0;
@@ -54,20 +85,49 @@
         opacity: 0.5;
         z-index: 2;
       }
-      .example-container .mindar-loading-overlay .content {
-        font-size: 30px;
+      .example-container .overlay .content {
+        font-size: 15px;
         position: absolute;
-        left: 50%;
+	width: 80%;
         top: 50%;
-        transform: translate(-50%, -50%);
+        transform: translate(10%, -50%);
+	text-align: center;
+      }
+      .example-container .overlay .content .large-text{
+	font-size: 40px;
+      }
+      #example-control-overlay {
+	background: none;
+	height: 30px;
+      }
+      #example-control-overlay >div {
+	position: absolute;
+	right: 0;
       }
     </style>
   </head>
   <body>
     <div class="example-container">
-      <div class="mindar-loading-overlay">
-        <div class="content">Loading...</div>
-        <button id="playButton">Play</button>
+      <div id="example-loading-overlay" class="overlay">
+        <div class="content">
+	  <p class="large-text">Loading...</p>
+	</div>
+      </div>
+      <div id="example-compatibility-overlay" class="overlay">
+        <div class="content">
+	  <p>Your device/browser is not compatible</p>
+	  <p>
+	    - For Android device, please use Chrome browser</br>
+	    - For iOS device, please use Safari browser
+	  </p>
+	</div>
+      </div>
+      <div id="example-control-overlay" class="overlay">
+	<div>
+	  <button id="example-start-button">Start</button>
+	  <button id="example-stop-button">Stop</button>
+	  <button id="example-stop-ar-button">Stop AR</button>
+	</div>
       </div>
 
       <a-scene mindar="imageTargetSrc: ./assets/card-example/card.mind; showStats: true; autoStart: false" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
@@ -78,8 +138,8 @@
 
         <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="near: 10; far: 10000"></a-camera>
 
-        <a-entity id="target" mindar-image-target="targetIndex: 0">
-          <a-plane id="link" src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
+        <a-entity id="example-target" mindar-image-target="targetIndex: 0">
+          <a-plane id="example-target-link" src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
           </a-plane>
 
           <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#avatarModel"
@@ -90,4 +150,3 @@
     </div>
   </body>
 </html>
-

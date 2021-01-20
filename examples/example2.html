@@ -1,22 +1,27 @@
+<!--
+ multi-target example
+-->
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"></script>
     <script src="../dist/mindar.js"></script>
 
     <script>
-      $(document).ready(function() {
-        let started = false;
-        $("#playButton").click(() => {
-          const sceneEl = document.querySelector('a-scene');
-          const arSystem = sceneEl.systems['mindar-system'];
-          if (!started) {
-            arSystem.start();
-            started = true;
-          } else {
-            arSystem.stop();
-          }
+      document.addEventListener("DOMContentLoaded", function() {
+	const sceneEl = document.querySelector('a-scene');
+	const arSystem = sceneEl.systems["mindar-system"];
+	const compatibilityOverlay = document.querySelector("#example-compatibility-overlay");
+	const loadingOverlay = document.querySelector("#example-loading-overlay");
+
+	loadingOverlay.style.display = "block";
+        sceneEl.addEventListener("arReady", (event) => {
+	  loadingOverlay.style.display = "none";
         });
+
+        sceneEl.addEventListener("arError", (event) => {
+	  loadingOverlay.style.display = "none";
+	  compatibilityOverlay.style.display = "block";
+	});
       });
     </script>
 
@@ -30,7 +35,8 @@
         width: 100%;
         height: 100%;
       }
-      .example-container .mindar-loading-overlay {
+      .example-container .overlay {
+	display: none;
         position: absolute;
         left: 0;
         right: 0;
@@ -40,23 +46,37 @@
         opacity: 0.5;
         z-index: 2;
       }
-      .example-container .mindar-loading-overlay .content {
-        font-size: 30px;
+      .example-container .overlay .content {
+        font-size: 15px;
         position: absolute;
-        left: 50%;
+	width: 80%;
         top: 50%;
-        transform: translate(-50%, -50%);
+        transform: translate(10%, -50%);
+	text-align: center;
+      }
+      .example-container .overlay .content .large-text{
+	font-size: 40px;
       }
     </style>
   </head>
   <body>
     <div class="example-container">
-      <div class="mindar-loading-overlay">
-        <div class="content">Loading...</div>
-        <button id="playButton">Play</button>
+      <div id="example-loading-overlay" class="overlay">
+        <div class="content">
+	  <p class="large-text">Loading...</p>
+	</div>
+      </div>
+      <div id="example-compatibility-overlay" class="overlay">
+        <div class="content">
+	  <p>Your device/browser is not compatible</p>
+	  <p>
+	    - For Android device, please use Chrome browser</br>
+	    - For iOS device, please use Safari browser
+	  </p>
+	</div>
       </div>
 
-      <a-scene mindar="imageTargetSrc: ./assets/band-example/band.mind; showStats: true; autoStart: false" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      <a-scene mindar="imageTargetSrc: ./assets/band-example/band.mind; showStats: true; autoStart: true" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
           <a-asset-item id="bearModel" src="./assets/band-example/bear/scene.gltf"></a-asset-item>
           <a-asset-item id="raccoonModel" src="./assets/band-example/raccoon/scene.gltf"></a-asset-item>
