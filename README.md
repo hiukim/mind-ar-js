@@ -88,7 +88,75 @@ It's recommended you start with the source of the examples:
 `view-source:https://hiukim.github.io/mind-ar-js/samples/example1.html`
 `view-source:https://hiukim.github.io/mind-ar-js/samples/example2.html`
 
-The library will emit `targetFound` and `targetLost` events for more advanced usage. With these events, you can build a lot of interactive elements depending on your applications. Check out `view-source:https://hiukim.github.io/mind-ar-js/samples/example3.html` to get some ideas.
+If you want more control over the applications, the library also provides the following events/ methods:
+
+1. `targetFound` and `targetLost`
+```
+<a-entity id="example-target" mindar-image-target="targetIndex: 0">
+...
+</a-entity>
+```
+```
+const exampleTarget = document.querySelector('#example-target');
+// detect target found
+exampleTarget.addEventListener("targetFound", event => {
+  console.log("target found");
+});
+
+// detect target lost
+exampleTargetLink.addEventListener("click", event => {
+  console.log("clicked...");
+});
+```
+
+2. target click
+
+You can also register `click` events on any object inside the target entity, e.g.
+```
+<a-entity id="example-target" mindar-image-target="targetIndex: 0">
+  <a-plane id="example-target-link" src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
+  </a-plane>
+</a-entity>
+```
+```
+const exampleTargetLink = document.querySelector('#example-target-link');
+exampleTargetLink.addEventListener("click", event => {
+  console.log("clicked...");
+});
+```
+
+3. control AR engine start and stop
+Inside the `<a-scene>` entity, you can pass in the flag `autoStart: false` if you want disable auto-starting the AR engine
+`
+<a-scene autoStart: false"/>
+`
+After that, you can execute the following code to start or stop later:
+```
+const sceneEl = document.querySelector('a-scene');
+const arSystem = sceneEl.systems["mindar-system"];
+
+arSystem.start(); // start AR 
+
+arSystem.stop(); // stop AR and video
+
+arSystem.stopAR(); // stop AR only, but keep video
+```
+
+4. `arReady` and `arError`
+The engine will trigger an `arReady` event when the AR started, or `arError` if failed. It's a good place to control `loading` and `error` screen.
+
+```
+const sceneEl = document.querySelector('a-scene');
+
+sceneEl.addEventListener("arReady", (event) => {
+  // e.g. remove loading indicator here
+});
+sceneEl.addEventListener("arError", (event) => {
+  // e.g. show error message here
+});
+```
+
+For complete example of events/methods, you can refer to `/examples/example3.html`
 
 # Theory and Algorithm
 I think it frustrating that there is very little educational materials on the Internet that can explain the inside-out of augmented reality. That's one of the main drive of this project. I hope this project can be also educational other being practical. So I'm going to write a series of technical blog posts explaining all the theoretical details of the algorithm. Stay tuned...
