@@ -155,11 +155,11 @@ const _mapCorrespondence = ({querypoint, keypoint, keycenterX, keycenterY, scale
   const S = [cos, -sin, sin, cos];
 
   const tp = [
-    S[0] * keypoint.x2D + S[1] * keypoint.y2D,
-    S[2] * keypoint.x2D + S[3] * keypoint.y2D
+    S[0] * keypoint.x + S[1] * keypoint.y,
+    S[2] * keypoint.x + S[3] * keypoint.y
   ];
-  const tx = querypoint.x2D - tp[0];
-  const ty = querypoint.y2D - tp[1];
+  const tx = querypoint.x - tp[0];
+  const ty = querypoint.y - tp[1];
 
   return {
     x: S[0] * keycenterX + S[1] * keycenterY + tx,

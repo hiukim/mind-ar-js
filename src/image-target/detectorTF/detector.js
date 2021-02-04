@@ -127,7 +127,7 @@ class Detector {
     const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
 
     // combine extrema data and return to cpu
-    const combinedExtremas = this._combine(prunedExtremas, freakDescriptors);
+    const combinedExtremas = this._combine(prunedExtremas, extremaAngles, freakDescriptors);
     const combinedExtremasArr = combinedExtremas.arraySync();
 
     inputImageT.dispose();
@@ -153,7 +153,7 @@ class Detector {
         if (combinedExtremasArr[i][j][0] !== 0) {
           const ext = combinedExtremasArr[i][j];
 
-          const desc = ext.slice(3);
+          const desc = ext.slice(5);
           // encode descriptors in binary format
           // 37 samples = 1+2+3+...+36 = 666 comparisons = 666 bits
           // ceil(666/32) = 21 (32 bits number)
@@ -177,6 +177,8 @@ class Detector {
             maxima: ext[0] > 0,
             x: ext[1],
             y: ext[2],
+            scale: ext[3],
+            angle: ext[4],
             descriptors: descriptors
           });
         }
@@ -193,14 +195,14 @@ class Detector {
     });
   }
 
-  _combine(prunedExtremas, freakDescriptors) {
+  _combine(prunedExtremas, extremaAngles, freakDescriptors) {
     const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
 
     if (!this.kernelCaches.combine) {
-      // first dimension: [score, x, y, freak1, freak2, ..., freak37]
+      // first dimension: [score, x, y, scale, angle, freak1, freak2, ..., freak37]
       const kernel =  {
-	variableNames: ['extrema', 'desc'],
-	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, 3 + FREAK_CONPARISON_COUNT],
+	variableNames: ['extrema', 'angles', 'desc'],
+	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, 5 + FREAK_CONPARISON_COUNT],
 	userCode: `
 	  void main() {
 	    ivec3 coords = getOutputCoords();
@@ -228,7 +230,18 @@ class Detector {
 	      setOutput(originalY);
 	      return;
 	    }
-	    setOutput( getDesc(bucketIndex, featureIndex, propertyIndex - 3));
+	    if (propertyIndex == 3) {
+	      int extremaIndex = int(getExtrema(bucketIndex, featureIndex, 1));
+	      int octave = extremaIndex + 1; // ref to buildExtrema, it starts at 2nd octave
+	      float inputSigma = pow(2., float(octave));
+	      setOutput(inputSigma);
+	      return;
+	    }
+	    if (propertyIndex == 4) {
+	      setOutput(getAngles(bucketIndex, featureIndex));
+	      return;
+	    }
+	    setOutput( getDesc(bucketIndex, featureIndex, propertyIndex - 5));
 	  }
 	`
       }
@@ -237,7 +250,7 @@ class Detector {
 
     return tf.tidy(() => {
       const [program] = this.kernelCaches.combine;
-      const result = tf.backend().compileAndRun(program, [prunedExtremas, freakDescriptors]);
+      const result = tf.backend().compileAndRun(program, [prunedExtremas, extremaAngles, freakDescriptors]);
       return result;
     });
   }
