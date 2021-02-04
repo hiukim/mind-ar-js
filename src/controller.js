@@ -55,6 +55,9 @@ class Controller {
       if (e.data.type === 'trackDone' && this.workerTrackDone !== null) {
         this.workerTrackDone(e.data);
       }
+      if (e.data.type === 'setDebug') {
+	globalDebug[e.data.key] = e.data.data;
+      }
     }
   }
 
@@ -91,7 +94,7 @@ class Controller {
         matchingDataList,
       });
 
-      resolve({dimensions: dimensions});
+      resolve({dimensions: dimensions, matchingDataList, imageListList});
     });
   }
 
@@ -247,6 +250,9 @@ class Controller {
   // html image. this function is mostly for debugging purpose
   // but it demonstrates the whole process. good for development
   async processImage(input) {
+    let detectedWorldMatrix = null;
+    let trackedWorldMatrix = null;
+
     var _start = new Date();
     let featurePoints = await this.detector.detect(input);
     //console.log("featurePoints", featurePoints);
@@ -254,21 +260,28 @@ class Controller {
 
     const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
     console.log("match", targetIndex, modelViewTransform);
-    if (targetIndex === -1) return;
-
-    _start = new Date();
-    const trackFeatures = this.tracker.track(input, modelViewTransform, targetIndex);
-    let modelViewTransform2 = null; 
-    console.log("track features", trackFeatures);
-    if (trackFeatures.length >= 4) {
-      modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
-      console.log("track", modelViewTransform2);
+    if (targetIndex !== -1) {
+      detectedWorldMatrix = _glModelViewMatrix(modelViewTransform);
     }
-    console.log("tracker took", new Date() - _start);
 
-    if (modelViewTransform2 === null) return;
-    const worldMatrix = _glModelViewMatrix(modelViewTransform);
-    console.log("world matrix", worldMatrix);
+    if (targetIndex !== -1) {
+      _start = new Date();
+      const trackFeatures = this.tracker.track(input, modelViewTransform, targetIndex);
+      let modelViewTransform2 = null; 
+      console.log("track features", trackFeatures);
+      if (trackFeatures.length >= 4) {
+	modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
+	console.log("track", modelViewTransform2);
+      }
+      console.log("tracker took", new Date() - _start);
+
+      if (modelViewTransform2 !== null) {
+	trackedWorldMatrix = _glModelViewMatrix(modelViewTransform);
+	console.log("world matrix", trackedWorldMatrix);
+      }
+    }
+
+    return {featurePoints, detectedWorldMatrix, trackedWorldMatrix}
   }
 }
 

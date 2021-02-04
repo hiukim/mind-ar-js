@@ -12,11 +12,14 @@ const HAMMING_THRESHOLD = 0.7;
 
 // match list of querpoints against pre-built list of keyframes
 const match = ({keyframes, querypoints, querywidth, queryheight}) => {
+  let allMatchResults = [];
   let result = null;
 
   for (let i = 0; i < keyframes.length; i++) {
     const keyframe = keyframes[i];
     const keypoints = keyframe.points;
+
+    allMatchResults[i] = {};
 
     const matches = [];
     for (let j = 0; j < querypoints.length; j++) {
@@ -49,6 +52,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
 
+    allMatchResults[i].matches = matches;
+
     if (matches.length < MIN_NUM_INLIERS) {
       continue;
     }
@@ -62,6 +67,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       queryheight,
       matches,
     });
+
+    allMatchResults[i].houghMatches = houghMatches;
 
     const srcPoints = [];
     const dstPoints = [];
@@ -78,6 +85,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       keyframe,
     });
 
+
     if (H === null) continue;
 
     const inlierMatches = _findInlierMatches({
@@ -88,10 +96,12 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       threshold: INLIER_THRESHOLD
     });
 
+    allMatchResults[i].inlierMatches = inlierMatches;
 
     if (inlierMatches.length < MIN_NUM_INLIERS) {
       continue;
     }
+
 
     // do another loop of match using the homography
     const HInv = matrixInverse33(H, 0.00001);
@@ -129,6 +139,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
 
+    allMatchResults[i].matches2 = matches2;
+
     const houghMatches2 = computeHoughMatches({
       keypoints: keyframe.points,
       querypoints,
@@ -138,6 +150,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       queryheight,
       matches: matches2,
     });
+
+    allMatchResults[i].houghMatches2 = houghMatches2;
 
     const srcPoints2 = [];
     const dstPoints2 = [];
@@ -168,6 +182,9 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       continue;
     }
 
+    allMatchResults[i].inlierMatches2 = inlierMatches2;
+    allMatchResults[i].H2 = H2;
+
     if (result === null || result.matches.length < inlierMatches2.length) {
       result = {
         keyframeIndex: i,
@@ -176,6 +193,12 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
   }
+
+  postMessage({
+    type: 'setDebug',
+    key: 'allMatchResults',
+    data: allMatchResults
+  });
 
   return result;
 };
