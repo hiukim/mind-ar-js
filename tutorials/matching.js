@@ -3,17 +3,18 @@ const { useEffect, useMemo, useRef, useState, useCallback } = React;
 const MATCH_TYPES = ['none', 'matches', 'houghMatches', 'inlierMatches', 'matches2', 'houghMatches2', 'inlierMatches2'];
 const COLORS = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080', '#ffffff', '#000000'];
 
-const Display = ({target, queryImage, result}) => {
+const Display = ({result}) => {
+  const {queryImage, queryFeaturePoints, target, matchResults} = result; 
+  const {images: targetImages, matchingData: targetMatchingData} = target;
+
   const [matchType, setMatchType] = useState('none');
   const [pointScale, setPointScale] = useState('');
   const [keyframeIndex, setKeyframeIndex] = useState(0);
   const canvasRef = useRef(null);
 
-  const {images: targetImages, matchingData: targetMatchingData} = target;
-
   const inputWidth = queryImage.width;
   const inputHeight = queryImage.height;
-  const displayWidth = 300;
+  const displayWidth = 500;
   const displayHeight = parseInt(displayWidth * inputHeight / inputWidth);
 
   useEffect(() => {
@@ -32,7 +33,6 @@ const Display = ({target, queryImage, result}) => {
     ctx.drawImage(queryImage, 0, 0);
 
     const targetImage = targetImages[keyframeIndex];
-    console.log("target image", targetImage);
 
     const tData = new Uint8ClampedArray(targetImage.width * targetImage.height * 4);
     for (let i = 0; i < targetImage.data.length; i++) {
@@ -46,15 +46,13 @@ const Display = ({target, queryImage, result}) => {
     const imageData = new ImageData(tData, targetImage.width, targetImage.height);
     ctx.putImageData(imageData, targetOffsetX, targetOffsetY, 0, 0, targetImage.width, targetImage.height);
 
-    const featurePoints = result.processResult.featurePoints;
     const targetFeaturePoints = targetMatchingData[keyframeIndex].points;
-    console.log("result", result, targetMatchingData);
 
-    const matchResult = result.matchResults[keyframeIndex];
+    const matchResult = matchResults[keyframeIndex];
     if (matchType === 'none') {
-      for (let i = 0; i < featurePoints.length; i++) {
-	if (pointScale === '' || pointScale == featurePoints[i].scale) {
-	  utils.drawPoint(ctx, '#ff0000', Math.round(featurePoints[i].x), Math.round(featurePoints[i].y), featurePoints[i].scale);
+      for (let i = 0; i < queryFeaturePoints.length; i++) {
+	if (pointScale === '' || pointScale == queryFeaturePoints[i].scale) {
+	  utils.drawPoint(ctx, '#ff0000', Math.round(queryFeaturePoints[i].x), Math.round(queryFeaturePoints[i].y), queryFeaturePoints[i].scale);
 	}
       }
       for (let i = 0; i < targetFeaturePoints.length; i++) {
@@ -66,7 +64,7 @@ const Display = ({target, queryImage, result}) => {
       if (matchResult[matchType]) {
 	const matches = matchResult[matchType];
 	for (let m = 0; m < matches.length; m++) {
-	  const querypoint = featurePoints[matches[m].querypointIndex];
+	  const querypoint = queryFeaturePoints[matches[m].querypointIndex];
 	  const targetpoint = targetFeaturePoints[matches[m].keypointIndex];
 	  const color = COLORS[m % COLORS.length];
 
@@ -87,8 +85,8 @@ const Display = ({target, queryImage, result}) => {
   }, [matchType, keyframeIndex, pointScale]);
   
   const targetScaleList = useMemo(() => {
-    return Object.keys(result.matchResults).map((index) => {
-      const matchResult = result.matchResults[index];
+    return Object.keys(matchResults).map((index) => {
+      const matchResult = matchResults[index];
 
       let count = [];
       for (let i = 0; i < MATCH_TYPES.length; i++) {
@@ -98,16 +96,15 @@ const Display = ({target, queryImage, result}) => {
       }
       return 'T' + index + '[' + count.join("-") + ']';
     });
-  }, result);
+  }, [result]);
 
   const pointScaleList = useMemo(() => {
     const scaleSet = {};
-    const featurePoints = result.processResult.featurePoints;
-    featurePoints.forEach((featurePoint) => {
+    queryFeaturePoints.forEach((featurePoint) => {
       scaleSet[featurePoint.scale] = true;
     });
     return ['', ...Object.keys(scaleSet)];
-  }, result);
+  }, [result]);
 
   return (
     <div>
@@ -135,8 +132,6 @@ const Display = ({target, queryImage, result}) => {
 
 const Main = () => {
   const [result, setResult] = useState();
-  const [queryImage, setQueryImage] = useState();
-  const [target, setTarget] = useState();
 
   useEffect(() => {
     const process = async () => {
@@ -146,24 +141,30 @@ const Main = () => {
       const inputHeight = queryImage.height;
       const controller = new MINDAR.Controller(inputWidth, inputHeight);
       const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
-      const processResult = await controller.processImage(queryImage);
-      const matchResults = Object.assign({}, globalDebug.allMatchResults);
 
-      setTarget({
-	images: imageListList[0],
-	matchingData: matchingDataList[0]
-      });
-      setQueryImage(queryImage);
-      setResult({processResult, matchResults});
+      const featurePoints = await controller.detect(queryImage);
+      const {modelViewTransform, allMatchResults: matchResults} = await controller.match(featurePoints);
+
+      const result = {
+	queryImage: queryImage,
+	queryFeaturePoints: featurePoints,
+	target: {
+	  images: imageListList[0],
+	  matchingData: matchingDataList[0]
+	},
+	matchResults: matchResults,
+      }
+      setResult(result);
     }
     process();
   }, []);
 
+  console.log("result", result);
+
   return (
     <div className="matching">
-      {result && <Display target={target} queryImage={queryImage} result={result} />}
+      {result && <Display result={result} />}
       {!result && <div>Loading...</div>}
-
     </div>
   )
 };

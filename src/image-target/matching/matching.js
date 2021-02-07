@@ -195,7 +195,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
   }
 
   postMessage({
-    type: 'setDebug',
+    type: 'setInterim',
     key: 'allMatchResults',
     data: allMatchResults
   });

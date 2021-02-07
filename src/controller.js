@@ -1,10 +1,13 @@
 const Worker = require("./controller.worker.js");
 const {Tracker} = require('./image-target/trackingTF/tracker.js');
+const {Tracker: Tracker2} = require('./image-target/trackingTF/tracker2.js');
 const {Detector} = require('./image-target/detectorTF/detector.js');
 const {Compiler} = require('./compiler.js');
 
 const INTERPOLATION_FACTOR = 10;
 const MISS_COUNT_TOLERANCE = 10;
+
+const interim = {};
 
 class Controller {
   constructor(inputWidth, inputHeight, onUpdate) {
@@ -55,10 +58,14 @@ class Controller {
       if (e.data.type === 'trackDone' && this.workerTrackDone !== null) {
         this.workerTrackDone(e.data);
       }
-      if (e.data.type === 'setDebug') {
-	globalDebug[e.data.key] = e.data.data;
+      if (e.data.type === 'setInterim') {
+	interim[e.data.key] = e.data.data;
       }
     }
+  }
+
+  setInterim(key, value) {
+    interim[key] = value;
   }
 
   getProjectionMatrix() {
@@ -84,7 +91,8 @@ class Controller {
 
         this.imageTargetStates[i] = {isTracking: false};
       }
-      this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight);
+      this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight, this);
+      this.tracker2 = new Tracker2(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight, this);
 
       this.worker.postMessage({
         type: 'setup',
@@ -94,7 +102,7 @@ class Controller {
         matchingDataList,
       });
 
-      resolve({dimensions: dimensions, matchingDataList, imageListList});
+      resolve({dimensions: dimensions, matchingDataList, trackingDataList, imageListList});
     });
   }
 
@@ -245,6 +253,35 @@ class Controller {
       }
       this.worker.postMessage({type: 'track', modelViewTransform, selectedFeatures: selectedFeatures});
     });
+  }
+
+  async detect(input) {
+    const featurePoints = await this.detector.detect(input);
+    return featurePoints;
+  }
+  async match(featurePoints) {
+    const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
+    return {modelViewTransform, allMatchResults: interim['allMatchResults']};
+  }
+  async track(input, modelViewTransform, targetIndex, nKeyframes) {
+    const trackResults = [];
+
+    const track2Result = this.tracker2.track(input, modelViewTransform, targetIndex);
+
+    for (let i = 0; i < nKeyframes; i++) {
+    //for (let i = 0; i < 3; i++) {
+      const trackedPoints = this.tracker.track(input, modelViewTransform, targetIndex, i);
+
+      const searchPoints = interim['searchPoints'];
+      trackResults.push({
+	searchPoints,
+	trackedPoints,
+      });
+    }
+    return {trackResults, track2Result};
+  }
+  getWorldMatrix(modelViewTransform) {
+    return _glModelViewMatrix(modelViewTransform);
   }
 
   // html image. this function is mostly for debugging purpose

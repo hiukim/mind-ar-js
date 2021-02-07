@@ -1,11 +1,6 @@
 const tf = require('@tensorflow/tfjs');
 const {buildModelViewProjectionTransform, computeScreenCoordiate} = require('../icp/utils.js');
 
-const AR2_DEFAULT_TS = 6;
-const AR2_SEARCH_SIZE = 6;
-const AR2_SEARCH_GAP = 1;
-const AR2_SIM_THRESH = 0.8;
-
 // For some mobile device, only 16bit floating point texture is supported
 //   ref: https://www.tensorflow.org/js/guide/platform_environment#precision
 // Empirical results shows that modelViewProjectTransform can go up beyond that, resulting in error
@@ -22,16 +17,8 @@ class Tracker {
 
     this.controller = controller;
 
-    // prebuild feature and image pixel tensors
-    this.featurePointsListT = [];
-    this.imagePixelsListT = [];
-    this.imagePropertiesListT = [];
-    for (let i = 0; i < trackingDataList.length; i++) {
-      const {featureList, imagePixelsList, imagePropertiesList} = this._prebuild(trackingDataList[i], imageListList[i]);
-      this.featurePointsListT[i] = featureList;
-      this.imagePixelsListT[i] = imagePixelsList;
-      this.imagePropertiesListT[i] = imagePropertiesList;
-    }
+    this.markerWidth = imageListList[0][0].width;
+    this.markerHeight = imageListList[0][0].height;
 
     this.kernelCaches = {};
   }
@@ -44,59 +31,21 @@ class Tracker {
     }
   }
 
-  track(input, lastModelViewTransform, targetIndex, inputKeyframeIndex=-1) {
+  track(input, lastModelViewTransform, targetIndex) {
     let modelViewProjectionTransform = buildModelViewProjectionTransform(this.projectionTransform, lastModelViewTransform);
-
-    // expected keyframe, if not provided in input, compute the expected.
-    const keyframeIndex = inputKeyframeIndex !== -1? inputKeyframeIndex: this._computeExpectedKeyframe(modelViewProjectionTransform, targetIndex);
 
     // model view projection transform tensor
     const modelViewProjectionTransformT = this._buildAdjustedModelViewTransform(modelViewProjectionTransform);
-
-    // prebuilt tensors for current keyframe
-    const featurePointsT = this.featurePointsListT[targetIndex][keyframeIndex];
-    const imagePixelsT = this.imagePixelsListT[targetIndex][keyframeIndex];
-    const imagePropertiesT = this.imagePropertiesListT[targetIndex][keyframeIndex];
 
     // read input image as tensor
     const inputImageT = this._loadInput(input);
 
     // find the expected position of the feature points (using the previously modelViewProjection transform
-    const searchPointsT = this._computeSearchPoints(featurePointsT, modelViewProjectionTransformT);
+    const projectedImageT = this._computeProjection(modelViewProjectionTransformT, inputImageT);
 
-    this.controller.setInterim('searchPoints', searchPointsT.arraySync());
-
-    // compute templates (i.e. surrounding pixels) of each search points (inverse project marker pixels)
-    const templatesT = this._buildTemplates(imagePixelsT, searchPointsT, imagePropertiesT, modelViewProjectionTransformT);
-
-    // compute the similarity (normalized cross-correlation) of templates and search points 
-    const similaritiesT = this._computeSimilarity(inputImageT, searchPointsT, templatesT);
-
-    // download data for further CPU computation
-    const similaritiesArr = similaritiesT.arraySync();
-
-    // tensors cleanup
-    modelViewProjectionTransformT.dispose();
-    inputImageT.dispose();
-    searchPointsT.dispose();
-    templatesT.dispose();
-    similaritiesT.dispose();
-
-    // tracking features set if similarity exceed certain threshold
-    const featureSet = this.trackingDataList[targetIndex][keyframeIndex];
-    const selectedFeatures = [];
-    for (let i = 0; i < featureSet.coords.length; i++) {
-      if (similaritiesArr[i][2] > AR2_SIM_THRESH) {
-        selectedFeatures.push({
-          pos2D: {x: similaritiesArr[i][0], y: similaritiesArr[i][1]},
-          pos3D: {x: featureSet.coords[i].mx, y: featureSet.coords[i].my, z: 0},
-          sim: similaritiesArr[i][2]
-        });
-      }
-    }
-    //console.log("seleccted features length", keyframeIndex, selectedFeatures.length, '/', featureSet.coords.length);
-    //console.log('n tensorss: ', tf.memory().numTensors);
-    return selectedFeatures;
+    const arr = projectedImageT.arraySync();
+    console.log("arr", arr);
+    return arr;
   }
 
   _computeSimilarity(targetImage, searchPointsT, templates) {
@@ -264,11 +213,11 @@ class Tracker {
     });
   }
 
-  _computeSearchPoints(featurePoints, modelViewProjectionTransformT) {
-    if (!this.kernelCaches.computeSearchPoints) {
-      const kernel = outputShape => ({
-	variableNames: ['f', 'M'],
-	outputShape: outputShape,
+  _computeProjection(modelViewProjectionTransformT, inputImageT) {
+    if (!this.kernelCaches.computeProjection) {
+      const kernel = {
+	variableNames: ['M', 'pixel'],
+	outputShape: [this.markerHeight, this.markerWidth],
 	userCode: `
 	  void main() {
 	      ivec2 coords = getOutputCoords();
@@ -283,29 +232,27 @@ class Tracker {
 	      float m21 = getM(2, 1) * ${PRECISION_ADJUST}.;
 	      float m23 = getM(2, 3) * ${PRECISION_ADJUST}.;
 
-	      float x = getF(coords.x, 0);
-	      float y = getF(coords.x, 1);
+	      float y = float(coords[0]);
+	      float x = float(coords[1]);
 	      float uz = (x * m20) + (y * m21) + m23;
 	      float oneOverUz = 1. / uz;
 
-	      if (coords.y == 0) {
-		  float ux = (x * m00) + (y * m01) + m03;
-		  setOutput(floor(ux * oneOverUz + 0.5));
-	      }
-	      if (coords.y == 1) {
-		  float uy = (x * m10) + (y * m11) + m13;
-		  setOutput(floor(uy * oneOverUz + 0.5));
-	      }
+	      float ux = (x * m00) + (y * m01) + m03;
+	      float uy = (x * m10) + (y * m11) + m13;
+
+	      ux = floor(ux * oneOverUz + 0.5);
+	      uy = floor(uy * oneOverUz + 0.5);
+
+	      setOutput(getPixel( int(uy), int(ux)));
 	    }
 	`
-      });
-      const program = kernel([featurePoints.shape[0], 2]);
-      this.kernelCaches.computeSearchPoints = program;
+      };
+      this.kernelCaches.computeProjection = kernel;
     }
 
     return tf.tidy(() => {
-      const program = this.kernelCaches.computeSearchPoints;
-      const result = tf.backend().compileAndRun(program, [featurePoints, modelViewProjectionTransformT]);
+      const program = this.kernelCaches.computeProjection;
+      const result = tf.backend().compileAndRun(program, [modelViewProjectionTransformT, inputImageT]);
       return result;
     });
   }
@@ -396,3 +343,4 @@ class Tracker {
 module.exports = {
   Tracker
 };
+
