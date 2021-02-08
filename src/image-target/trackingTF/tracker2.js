@@ -1,5 +1,14 @@
 const tf = require('@tensorflow/tfjs');
 const {buildModelViewProjectionTransform, computeScreenCoordiate} = require('../icp/utils.js');
+const {computeHomography} = require('../matching/homography.js');
+const {multiplyPointHomographyInhomogenous, matrixInverse33} = require('../utils/geometry.js');
+
+const AR2_DEFAULT_TS = 6;
+const AR2_SEARCH_SIZE = 6;
+const AR2_SEARCH_GAP = 1;
+const AR2_SIM_THRESH = 0.8;
+
+const INLIER_THRESHOLD = 3;
 
 // For some mobile device, only 16bit floating point texture is supported
 //   ref: https://www.tensorflow.org/js/guide/platform_environment#precision
@@ -20,6 +29,17 @@ class Tracker {
     this.markerWidth = imageListList[0][0].width;
     this.markerHeight = imageListList[0][0].height;
 
+    // prebuild feature and image pixel tensors
+    this.featurePointsListT = [];
+    this.imagePixelsListT = [];
+    this.imagePropertiesListT = [];
+    for (let i = 0; i < trackingDataList.length; i++) {
+      const {featureList, imagePixelsList, imagePropertiesList} = this._prebuild(trackingDataList[i], imageListList[i]);
+      this.featurePointsListT[i] = featureList;
+      this.imagePixelsListT[i] = imagePixelsList;
+      this.imagePropertiesListT[i] = imagePropertiesList;
+    }
+
     this.kernelCaches = {};
   }
 
@@ -31,6 +51,46 @@ class Tracker {
     }
   }
 
+  filter(selectedFeatures, keyframeIndex) {
+    const keyWidth = this.imageListList[0][keyframeIndex].width;
+    const keyHeight = this.imageListList[0][keyframeIndex].height;
+    const srcPoints = [];
+    const dstPoints = [];
+    const querypoints = [];
+    const keypoints = [];
+    selectedFeatures.forEach((f) => {
+      srcPoints.push([f.pos3D.x, keyHeight - f.pos3D.y]);
+      dstPoints.push([f.pos2D.x, f.pos2D.y]);
+
+      keypoints.push({x: f.pos3D.x, y: keyHeight - f.pos3D.y});
+      querypoints.push(f.pos2D);
+    });
+    const keyframe = {width: keyWidth, height: keyHeight};
+
+    const H = computeHomography({
+      srcPoints,
+      dstPoints,
+      keyframe,
+    });
+
+    if (!H) return [];
+
+    const inlierMatches = _findInlierMatches({
+      querypoints,
+      keypoints,
+      H,
+      threshold: INLIER_THRESHOLD
+    });
+
+    const filtered = [];
+    inlierMatches.forEach((index) => {
+      filtered.push(selectedFeatures[index]); 
+    });
+    //console.log("filtered", filtered);
+    return filtered;
+  }
+  
+
   track(input, lastModelViewTransform, targetIndex) {
     let modelViewProjectionTransform = buildModelViewProjectionTransform(this.projectionTransform, lastModelViewTransform);
 
@@ -40,26 +100,42 @@ class Tracker {
     // read input image as tensor
     const inputImageT = this._loadInput(input);
 
+    // prebuilt tensors for current keyframe
+    const keyframeIndex = 0;
+    const featurePointsT = this.featurePointsListT[targetIndex][keyframeIndex];
+    const imagePixelsT = this.imagePixelsListT[targetIndex][keyframeIndex];
+    const imagePropertiesT = this.imagePropertiesListT[targetIndex][keyframeIndex];
+
     // find the expected position of the feature points (using the previously modelViewProjection transform
     const projectedImageT = this._computeProjection(modelViewProjectionTransformT, inputImageT);
 
-    const arr = projectedImageT.arraySync();
-    console.log("arr", arr);
-    return arr;
+    // compute the similarity (normalized cross-correlation) of templates and search points 
+    const similaritiesT = this._computeSimilarity(featurePointsT, imagePixelsT, imagePropertiesT, projectedImageT);
+
+    const projected = projectedImageT.arraySync();
+    return {projected}
+    //console.log("arr", projected);
+
+    //const sim = similaritiesT.arraySync();
+    //console.log("sim", sim);
+
+    //return {projected, markerPixels: imagePixelsT.reshape([this.markerHeight, this.markerWidth]).arraySync()};
   }
 
-  _computeSimilarity(targetImage, searchPointsT, templates) {
+  _computeSimilarity(featurePointsT, imagePixelsT, imagePropertiesT, projectedImageT) {
     const templateOneSize = AR2_DEFAULT_TS;
     const templateSize = templateOneSize * 2 + 1;
     const searchOneSize = AR2_SEARCH_SIZE;
     const searchSize = searchOneSize * 2 + 1;
-    const targetWidth = this.width;
-    const targetHeight = this.height;
+    //const targetWidth = this.width;
+    //const targetHeight = this.height;
+    const targetHeight = projectedImageT.shape[0];
+    const targetWidth = projectedImageT.shape[1];
 
     if (!this.kernelCaches.computeSimilarity) {
       const kernel = {
-	variableNames: ['search', 'pixels', 'templates'],
-	outputShape: [searchPointsT.shape[0], searchSize*searchSize],
+	variableNames: ['features', 'markerPixels', 'markerProperties', 'targetPixels'],
+	outputShape: [featurePointsT.shape[0], searchSize*searchSize],
 	userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
@@ -67,16 +143,23 @@ class Tracker {
 	    int featureIndex = coords[0];
 	    int searchOffsetIndex = coords[1];
 
+	    float markerWidth = getMarkerProperties(0);
+	    float markerHeight = getMarkerProperties(1);
+
 	    int searchOffsetX = imod(searchOffsetIndex, ${searchSize});
 	    int searchOffsetY = searchOffsetIndex / ${searchSize};
 
-	    float sx = getSearch(featureIndex, 0);
-	    float sy = getSearch(featureIndex, 1);
-	    int sx2 = int(sx) + searchOffsetX - ${searchOneSize};
-	    int sy2 = int(sy) + searchOffsetY - ${searchOneSize};
+	    int fx = int(getFeatures(featureIndex, 0));
+	    int fy = int(getFeatures(featureIndex, 1));
+
+	    int sx2 = fx + searchOffsetX - ${searchOneSize};
+	    int sy2 = fy + searchOffsetY - ${searchOneSize};
+
+	    //setOutput( float(1000 * sy2 + sx2));
+	    //return;
 
 	    if (sx2 < ${templateOneSize} || sx2 >= (${targetWidth} - ${templateOneSize}) || sy2 < ${templateOneSize} || sy2 >= (${targetHeight} - ${templateOneSize})) {
-	      setOutput(-1.);
+	      setOutput(-2.);
 	    } 
 	    else {
 	      float sumPoint = 0.;
@@ -89,18 +172,30 @@ class Tracker {
 		int templateOffsetX = imod(i, ${templateSize});
 		int templateOffsetY = i / ${templateSize};
 
-		int x = sx2 + templateOffsetX - ${templateOneSize};
-		int y = sy2 + templateOffsetY - ${templateOneSize};
+		int fx2 = fx + templateOffsetX - ${templateOneSize};
+		int fy2 = fy + templateOffsetY - ${templateOneSize};
 
-		float templatePixel = getTemplates(featureIndex, i);
-		float pointPixel = getPixels(y,x);
+		int ix = sx2 + templateOffsetX - ${templateOneSize};
+		int iy = sy2 + templateOffsetY - ${templateOneSize};
 
-	      	sumTemplate += templatePixel;
-	      	sumTemplateSquare += templatePixel * templatePixel;
-		sumPoint += pointPixel;
-		sumPointSquare += pointPixel * pointPixel;
-		sumPointTemplate += pointPixel * templatePixel;
+		int markerPixelIndex = (int(markerHeight) - 1 - fy2) * int(markerWidth) + fx2;
+		float markerPixel = getMarkerPixels(markerPixelIndex);
+		float targetPixel = getTargetPixels(iy, ix);
+
+	      	sumTemplate += markerPixel;
+	      	sumTemplateSquare += markerPixel * markerPixel;
+		sumPoint += targetPixel;
+		sumPointSquare += targetPixel * targetPixel;
+		sumPointTemplate += targetPixel * markerPixel;
 	      }
+
+	      //int markerPixelIndex = (int(markerHeight) - 1 - fy) * int(markerWidth) + fx;
+	      //float markerPixel = getMarkerPixels(markerPixelIndex);
+	      //setOutput(markerPixel);
+	      //return;
+
+	      //setOutput(sumTemplate);
+	      //return;
 	      
 	      // Normalized cross-correlation
 	      // !important divide first avoid overflow (e.g. sumPoint / count * sumPoint)
@@ -109,7 +204,7 @@ class Tracker {
 	      float templateVariance = sqrt(sumTemplateSquare - sumTemplate / count * sumTemplate);
 
 	      if (pointVariance < 0.0000001 || templateVariance < 0.0000001) {
-		setOutput(-1.);
+		setOutput(-3.);
 	      } else {
 		sumPointTemplate -= sumPoint / count * sumTemplate;
 		float sim = sumPointTemplate / pointVariance / templateVariance;  
@@ -124,17 +219,22 @@ class Tracker {
 
     return tf.tidy(() => {
       const program = this.kernelCaches.computeSimilarity;
-      const sims = tf.backend().compileAndRun(program, [searchPointsT, targetImage, templates]);
+      const sims = tf.backend().compileAndRun(program, [featurePointsT, imagePixelsT, imagePropertiesT, projectedImageT]);
+
+      //console.log("marker pixels", imagePixelsT.arraySync()); 
+      //console.log("featurePointsT", featurePointsT.arraySync());
+      //console.log("sims", sims.arraySync());
 
       const maxIndex = sims.argMax(1);
       const sim = sims.max(1);
       const searchY = maxIndex.floorDiv(searchSize).sub(searchOneSize);
       const searchX = maxIndex.mod(searchSize).sub(searchOneSize);
-      const [sx, sy] = searchPointsT.split([1,1], 1);
+      const [sx, sy] = featurePointsT.split([1,1], 1);
       const x = sx.squeeze(1).add(searchX);
       const y = sy.squeeze(1).add(searchY);
 
-      const result = tf.stack([x,y,sim], 1);
+      //const result = tf.stack([x,y,sim], 1);
+      const result = tf.stack([sx.squeeze(1),sy.squeeze(1),sim], 1);
       return result;
     });
   }
@@ -337,7 +437,24 @@ class Tracker {
     }
     return 0;
   }
+}
 
+const _findInlierMatches = (options) => {
+  const {keypoints, querypoints, H, threshold} = options;
+
+  const threshold2 = threshold * threshold;
+
+  const goodMatches = [];
+  for (let i = 0; i < keypoints.length; i++) {
+    const querypoint = querypoints[i];
+    const keypoint = keypoints[i];
+    const mp = multiplyPointHomographyInhomogenous([keypoint.x, keypoint.y], H);
+    const d2 = (mp[0] - querypoint.x) * (mp[0] - querypoint.x) + (mp[1] - querypoint.y) * (mp[1] - querypoint.y);
+    if (d2 <= threshold2) {
+      goodMatches.push(i);
+    }
+  }
+  return goodMatches;
 }
 
 module.exports = {

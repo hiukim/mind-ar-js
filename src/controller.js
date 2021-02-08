@@ -266,8 +266,6 @@ class Controller {
   async track(input, modelViewTransform, targetIndex, nKeyframes) {
     const trackResults = [];
 
-    const track2Result = this.tracker2.track(input, modelViewTransform, targetIndex);
-
     for (let i = 0; i < nKeyframes; i++) {
     //for (let i = 0; i < 3; i++) {
       const trackedPoints = this.tracker.track(input, modelViewTransform, targetIndex, i);
@@ -278,8 +276,20 @@ class Controller {
 	trackedPoints,
       });
     }
-    return {trackResults, track2Result};
+    return trackResults;
   }
+  filterTrack(selectedFeatures, keyframeIndex) {
+    return this.tracker2.filter(selectedFeatures, keyframeIndex);
+  }
+  async trackProjection(input, modelViewTransform, targetIndex) {
+    const {projected} = this.tracker2.track(input, modelViewTransform, targetIndex);
+    return projected;
+  }
+  async trackUpdate(modelViewTransform, trackFeatures) {
+    const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
+    return modelViewTransform2;
+  }
+
   getWorldMatrix(modelViewTransform) {
     return _glModelViewMatrix(modelViewTransform);
   }
