@@ -144,7 +144,9 @@ class Controller {
         let trackingCount = 0;
         for (let i = 0; i < this.imageTargetStates.length; i++) {
           if (this.imageTargetStates[i].isTracking) {
-            trackingFeatures[i] = this.tracker.track(input, this.imageTargetStates[i].lastModelViewTransform, i);
+            //trackingFeatures[i] = this.tracker.track(input, this.imageTargetStates[i].lastModelViewTransform, i);
+            trackingFeatures[i] = this.tracker2.track(input, this.imageTargetStates[i].lastModelViewTransform, i);
+
             trackingCount += 1;
           }
         }
@@ -193,7 +195,7 @@ class Controller {
               modelViewTransform = await this.workerTrack(this.imageTargetStates[i].lastModelViewTransform, trackingFeatures[i]);
             }
             // remove this
-            //modelViewTransform = this.imageTargetStates[i].lastModelViewTransform;
+            modelViewTransform = this.imageTargetStates[i].lastModelViewTransform;
 
             if (modelViewTransform === null) {
               this.imageTargetStates[i].missCount += 1;
@@ -263,27 +265,16 @@ class Controller {
     const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
     return {modelViewTransform, allMatchResults: interim['allMatchResults']};
   }
-  async track(input, modelViewTransform, targetIndex, nKeyframes) {
+  async track(input, modelViewTransforms, targetIndex, nKeyframes) {
     const trackResults = [];
 
     for (let i = 0; i < nKeyframes; i++) {
     //for (let i = 0; i < 3; i++) {
-      const trackedPoints = this.tracker.track(input, modelViewTransform, targetIndex, i);
-
-      const searchPoints = interim['searchPoints'];
-      trackResults.push({
-	searchPoints,
-	trackedPoints,
-      });
+      //const trackedPoints = this.tracker.track(input, modelViewTransform, targetIndex, i);
+      const result = this.tracker2.track(input, modelViewTransforms, targetIndex, i);
+      trackResults.push(result);
     }
     return trackResults;
-  }
-  filterTrack(selectedFeatures, keyframeIndex) {
-    return this.tracker2.filter(selectedFeatures, keyframeIndex);
-  }
-  async trackProjection(input, modelViewTransform, targetIndex) {
-    const {projected} = this.tracker2.track(input, modelViewTransform, targetIndex);
-    return projected;
   }
   async trackUpdate(modelViewTransform, trackFeatures) {
     const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
@@ -314,6 +305,7 @@ class Controller {
     if (targetIndex !== -1) {
       _start = new Date();
       const trackFeatures = this.tracker.track(input, modelViewTransform, targetIndex);
+
       let modelViewTransform2 = null; 
       console.log("track features", trackFeatures);
       if (trackFeatures.length >= 4) {

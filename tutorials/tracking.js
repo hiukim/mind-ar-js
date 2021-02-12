@@ -4,6 +4,10 @@ const COLORS = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4'
 
 const THREE = AFRAME.THREE;
 
+const TEMPLATE_RADIUS = 6;
+const AR2_SIM_THRESH = 0.8;
+const AR2_SEARCH_SIZE = 6;
+
 const Display = ({result}) => {
   const {queryImages, target, allTrackResults, dimensions, allWorldMatrices, allBeforeProjected, allAfterProjected, projectionMatrix} = result; 
   const {images: targetImages, trackingData: targetTrackingData} = target;
@@ -92,100 +96,61 @@ const Display = ({result}) => {
   }, [queryIndex, planeParams]);
 
   useEffect(() => {
+    const targetImage = targetImages[keyframeIndex];
+
+    const targetOffsetX = inputWidth + 100; 
+    const targetOffsetYMarker = 0;
+    const targetOffsetYBeforeProjection = targetImage.height + 10;
+    const targetOffsetYAfterProjection = (targetImage.height + 10) * 2;
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(queryImage, 0, 0);
 
-    const targetImage = targetImages[keyframeIndex];
-    const tData = new Uint8ClampedArray(targetImage.width * targetImage.height * 4);
-    for (let i = 0; i < targetImage.data.length; i++) {
-      tData[i*4+0] = targetImage.data[i];
-      tData[i*4+1] = targetImage.data[i];
-      tData[i*4+2] = targetImage.data[i];
-      tData[i*4+3] = 255;
-    }
-    const targetOffsetX = inputWidth + 100;
-    const targetOffsetY = Math.floor((inputHeight - targetImage.height) / 2);
-    const imageData = new ImageData(tData, targetImage.width, targetImage.height);
-    ctx.putImageData(imageData, targetOffsetX, targetOffsetY, 0, 0, targetImage.width, targetImage.height);
+    const imageData = utils.pixel1DToImageData(targetImage.data, targetImage.width, targetImage.height);
+    ctx.putImageData(imageData, targetOffsetX, targetOffsetYMarker, 0, 0, targetImage.width, targetImage.height);
 
-    const t2Image = allBeforeProjected[queryIndex]; 
-    if (t2Image) {
-      const t2Height = t2Image.length;
-      const t2Width = t2Image[0].length;
-      const t2Data = new Uint8ClampedArray(t2Height * t2Width * 4);
-      for (let j = 0; j < t2Height; j++) {
-	for (let i = 0; i < t2Width; i++) {
-	  const pos = (t2Height -1 -j) * t2Width + i;
-	  t2Data[pos*4 + 0] = t2Image[j][i];
-	  t2Data[pos*4 + 1] = t2Image[j][i];
-	  t2Data[pos*4 + 2] = t2Image[j][i];
-	  t2Data[pos*4 + 3] = 255; 
-	}
-      }
-      const imageData2 = new ImageData(t2Data, t2Width, t2Height);
-      ctx.putImageData(imageData2, inputWidth+100, 0, 0, 0, t2Width, t2Height);
+    const beforeProjectedImage = allBeforeProjected[queryIndex][keyframeIndex]; 
+    if (beforeProjectedImage) {
+      const imageData = utils.pixel2DToImageData(beforeProjectedImage);
+      ctx.putImageData(imageData, targetOffsetX, targetOffsetYBeforeProjection, 0, 0, beforeProjectedImage[0].length, beforeProjectedImage.length);
     }
-
-    const t2ImageAfter = allAfterProjected[queryIndex]; 
-    if (t2ImageAfter) {
-      const t2Height = t2ImageAfter.length;
-      const t2Width = t2ImageAfter[0].length;
-      const t2DataAfter = new Uint8ClampedArray(t2Height * t2Width * 4);
-      const imageData2After = new ImageData(t2DataAfter, t2Width, t2Height);
-      for (let j = 0; j < t2Height; j++) {
-	for (let i = 0; i < t2Width; i++) {
-	  const pos = (t2Height -1 -j) * t2Width + i;
-	  t2DataAfter[pos*4 + 0] = t2ImageAfter[j][i];
-	  t2DataAfter[pos*4 + 1] = t2ImageAfter[j][i];
-	  t2DataAfter[pos*4 + 2] = t2ImageAfter[j][i];
-	  t2DataAfter[pos*4 + 3] = 255; 
-	}
-      }
-      ctx.putImageData(imageData2After, inputWidth+100, t2Height+5, 0, 0, t2Width, t2Height);
+    const afterProjectedImage = allBeforeProjected[queryIndex][keyframeIndex]; 
+    if (afterProjectedImage) {
+      const imageData = utils.pixel2DToImageData(afterProjectedImage);
+      ctx.putImageData(imageData, targetOffsetX, targetOffsetYAfterProjection, 0, 0, afterProjectedImage[0].length, afterProjectedImage.length);
     }
-
 
     const targetTrackingPoints = targetTrackingData[keyframeIndex].coords;
     const keyScale = targetImage.scale;
     const trackResult = trackResults[keyframeIndex];
 
-    if (trackType === 'none') {
-      for (let i = 0; i < targetTrackingPoints.length; i++) {
-	utils.drawPoint(ctx, '#ff0000', Math.round(targetTrackingPoints[i].mx * keyScale) + targetOffsetX, Math.round(targetImage.height - targetTrackingPoints[i].my * keyScale) + targetOffsetY, 10);
-      }
+    for (let i = 0; i < targetTrackingPoints.length; i++) {
+      const color = COLORS[i % COLORS.length];
+      const targetPoint = targetTrackingPoints[i];
+      utils.drawPoint(ctx, color, Math.round(targetPoint.mx * keyScale) + targetOffsetX, Math.round(targetImage.height - targetPoint.my * keyScale) + targetOffsetYMarker, TEMPLATE_RADIUS);
+    }
 
+    if (trackType === 'none') {
 
     } else if (trackType === 'search') {
       for (let i = 0; i < targetTrackingPoints.length; i++) {
 	const color = COLORS[i % COLORS.length];
-	const queryPoint = trackResult.searchPoints[i];
-	const targetPoint = trackResult.searchPoints[i];
+	const searchPoints = [trackResult.searchPoints[0][i], trackResult.searchPoints[1][i], trackResult.searchPoints[2][i]];
 
-	utils.drawPoint(ctx, color, Math.round(queryPoint[0]), Math.round(queryPoint[1]), 10);
-	utils.drawPoint(ctx, color, Math.round(targetTrackingPoints[i].mx * keyScale) + targetOffsetX, Math.round(targetImage.height - targetTrackingPoints[i].my * keyScale) + targetOffsetY, 10);
+	searchPoints.forEach((searchPoint) => {
+	  utils.drawPoint(ctx, color, Math.round(searchPoint[0] * keyScale) + targetOffsetX, Math.round(targetImage.height - searchPoint[1] * keyScale) + targetOffsetYBeforeProjection, AR2_SEARCH_SIZE);
+	});
       }
-
-    } else if (trackType === 'track') {
-      for (let i = 0; i < trackResult.trackedPoints.length; i++) {
-	//const color = COLORS[i % COLORS.length];
-	const queryPoint = trackResult.trackedPoints[i].pos2D;
-	const targetPoint = trackResult.trackedPoints[i].pos3D;
-	const color = COLORS[ parseInt(queryPoint.x + queryPoint.y + targetPoint.x + targetPoint.y) % COLORS.length];
-
-	utils.drawPoint(ctx, color, Math.round(queryPoint.x), Math.round(queryPoint.y), 10);
-	utils.drawPoint(ctx, color, Math.round(targetPoint.x * keyScale) + targetOffsetX, Math.round(targetImage.height - targetPoint.y * keyScale) + targetOffsetY, 10);
-      }
-    } else if (trackType === 'filteredTrack') {
-      let colorIndex = 0;
-      for (let i = 0; i < trackResult.filteredTrackedPoints.length; i++) {
-	const queryPoint = trackResult.filteredTrackedPoints[i].pos2D;
-	const targetPoint = trackResult.filteredTrackedPoints[i].pos3D;
-	const color = COLORS[ parseInt(queryPoint.x + queryPoint.y + targetPoint.x + targetPoint.y) % COLORS.length];
-
-	utils.drawPoint(ctx, color, Math.round(queryPoint.x), Math.round(queryPoint.y), 10);
-	utils.drawPoint(ctx, color, Math.round(targetPoint.x * keyScale) + targetOffsetX, Math.round(targetImage.height - targetPoint.y * keyScale) + targetOffsetY, 10);
+    } else if (trackType === 'track' || trackType === 'goodTrack') {
+      for (let i = 0; i < targetTrackingPoints.length; i++) {
+	const color = COLORS[i % COLORS.length];
+	const matchingPoint = trackResult.matchingPoints[i]; 
+	const sim = trackResult.sim[i]; 
+	if (trackType === 'track' || sim >= AR2_SIM_THRESH) {
+	  utils.drawPoint(ctx, color, Math.round(matchingPoint[0] * keyScale) + targetOffsetX, Math.round(targetImage.height - matchingPoint[1] * keyScale) + targetOffsetYBeforeProjection, TEMPLATE_RADIUS);
+	}
       }
     }
   }, [queryIndex, keyframeIndex, trackType]);
@@ -193,7 +158,7 @@ const Display = ({result}) => {
   const targetScaleList = useMemo(() => {
     return Object.keys(trackResults).map((index) => {
       const trackResult = trackResults[index];
-      return 'T' + index + ' [' + trackResult.trackedPoints.length + '-' + trackResult.filteredTrackedPoints.length + ']';
+      return 'T' + index + ' [' + targetTrackingData[index].coords.length + '-' + trackResult.selectedFeatures.length + ']';
     });
   }, [trackResults, queryIndex]);
 
@@ -210,7 +175,7 @@ const Display = ({result}) => {
 	  <button className={trackType==='none'? 'selected': ''} onClick={() => {setTrackType('none')}}>none</button>
 	  <button className={trackType==='search'? 'selected': ''} onClick={() => {setTrackType('search')}}>search</button>
 	  <button className={trackType==='track'? 'selected': ''} onClick={() => {setTrackType('track')}}>track</button>
-	  <button className={trackType==='filteredTrack'? 'selected': ''} onClick={() => {setTrackType('filteredTrack')}}>filtered track</button>
+	  <button className={trackType==='goodTrack'? 'selected': ''} onClick={() => {setTrackType('goodTrack')}}>good track</button>
 	</div>
 
 	<div className="section">
@@ -233,7 +198,8 @@ const Main = () => {
   useEffect(() => {
     const process = async () => {
       const queryImages = [];
-      for (let i = 11; i <= 22; i++) {
+      for (let i = 11; i <= 32; i+=2) {
+      //for (let i = 11; i <= 15; i++) {
 	queryImages.push(await utils.loadImage('../tests/video2/out' + i + '.png'));
       }
       /*
@@ -257,39 +223,52 @@ const Main = () => {
       const featurePoints = await controller.detect(queryImage0);
       const {modelViewTransform: firstModelViewTransform, allMatchResults} = await controller.match(featurePoints);
 
-      let modelViewTransform = firstModelViewTransform;
+      if (!firstModelViewTransform) {
+	console.log("no match...");
+	return;
+      }
+
+      //const nKeyframes = trackingDataList[0].length;
+      const nKeyframes = 3;
+
+      const lastModelViewTransforms = [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform];
       for (let i = 0; i < queryImages.length; i++) {
-	allWorldMatrices.push(modelViewTransform && controller.getWorldMatrix(modelViewTransform));
+	allWorldMatrices.push(controller.getWorldMatrix(lastModelViewTransforms[0]));
 
-	const trackResults = await controller.track(queryImages[i], modelViewTransform, 0, trackingDataList[0].length);
-	for (let j = 0; j < trackResults.length; j++) {
-	  const filteredTrackedPoints = controller.filterTrack(trackResults[j].trackedPoints, j);
-	  trackResults[j].filteredTrackedPoints = filteredTrackedPoints; 
-	}
-
+	const trackResults = await controller.track(queryImages[i], lastModelViewTransforms, 0, nKeyframes);
 	allTrackResults.push(trackResults);
 
-	let bestTrackedPoints = [];
-	for (let j = 0; j < trackResults.length; j++) {
-	  if(trackResults[j].trackedPoints.length > bestTrackedPoints.length) {
-	    bestTrackedPoints = trackResults[j].trackedPoints;
+	let bestKeyframe = 0;
+	for (let j = 1; j < trackResults.length; j++) {
+	  if (trackResults[j].selectedFeatures.length > trackResults[bestKeyframe].selectedFeatures.length) {
+	    bestKeyframe = j;
 	  }
-	  //if(trackResults[j].filteredTrackedPoints.length > bestTrackedPoints.length) {
-	  //  bestTrackedPoints = trackResults[j].filteredTrackedPoints;
-	  //}
 	}
-	console.log("best", bestTrackedPoints);
+	const bestSelectedFeatures = trackResults[bestKeyframe].selectedFeatures; 
+	console.log("best selected features", bestKeyframe, bestSelectedFeatures);
 
-	const projectedBefore = modelViewTransform && await controller.trackProjection(queryImages[i], modelViewTransform, 0);
-	modelViewTransform = await controller.trackUpdate(modelViewTransform, bestTrackedPoints);
-	const projectedAfter = modelViewTransform && await controller.trackProjection(queryImages[i], modelViewTransform, 0);
+	const projectedBefore = [];
+	const projectedAfter = [];
+	for (let j = 0; j < trackResults.length; j++) {
+	  projectedBefore.push(trackResults[j].projectedImage);
+	}
+	const newModelViewTransform = await controller.trackUpdate(lastModelViewTransforms[0], bestSelectedFeatures);
+
+	const trackAgainResults = newModelViewTransform && await controller.track(queryImages[i], lastModelViewTransforms, 0, nKeyframes);
+	for (let j = 0; j < trackResults.length; j++) {
+	  projectedAfter.push(trackAgainResults && trackAgainResults[j].projectedImage);
+	}
+
+	lastModelViewTransforms.unshift(newModelViewTransform);
+	lastModelViewTransforms.pop();
+
+	console.log("lastModelViewTransforms", Object.assign({}, lastModelViewTransforms));
 
 	allBeforeProjected.push(projectedBefore);
 	allAfterProjected.push(projectedAfter);
 
-	if (!modelViewTransform) break;
+	if (!newModelViewTransform) break;
       }
-      allWorldMatrices.push(modelViewTransform && controller.getWorldMatrix(modelViewTransform));
 
       const projectionMatrix = controller.getProjectionMatrix();
 

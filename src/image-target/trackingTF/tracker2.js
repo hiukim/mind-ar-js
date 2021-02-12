@@ -4,6 +4,7 @@ const {computeHomography} = require('../matching/homography.js');
 const {multiplyPointHomographyInhomogenous, matrixInverse33} = require('../utils/geometry.js');
 
 const AR2_DEFAULT_TS = 6;
+//const AR2_DEFAULT_TS = 22;
 const AR2_SEARCH_SIZE = 6;
 const AR2_SEARCH_GAP = 1;
 const AR2_SIM_THRESH = 0.8;
@@ -91,38 +92,211 @@ class Tracker {
   }
   
 
-  track(input, lastModelViewTransform, targetIndex) {
-    let modelViewProjectionTransform = buildModelViewProjectionTransform(this.projectionTransform, lastModelViewTransform);
+  track(input, lastModelViewTransforms, targetIndex, inputKeyframeIndex=-1) {
+    const lastModelViewTransform = lastModelViewTransforms[0];
 
-    // model view projection transform tensor
-    const modelViewProjectionTransformT = this._buildAdjustedModelViewTransform(modelViewProjectionTransform);
+    const modelViewProjectionTransforms = [];
+    const modelViewProjectionTransformsT = [];
+    for (let i = 0; i < lastModelViewTransforms.length; i++) {
+      modelViewProjectionTransforms.push(buildModelViewProjectionTransform(this.projectionTransform, lastModelViewTransforms[i]));
+      modelViewProjectionTransformsT.push(this._buildAdjustedModelViewTransform(modelViewProjectionTransforms[i]));
+    }
+    const modelViewProjectionTransform = modelViewProjectionTransforms[0];
+    const modelViewProjectionTransformT = modelViewProjectionTransformsT[0];
+
+    // expected keyframe, if not provided in input, compute the expected.
+    const keyframeIndex = inputKeyframeIndex !== -1? inputKeyframeIndex: this._computeExpectedKeyframe(modelViewProjectionTransform, targetIndex);
 
     // read input image as tensor
     const inputImageT = this._loadInput(input);
 
     // prebuilt tensors for current keyframe
-    const keyframeIndex = 0;
     const featurePointsT = this.featurePointsListT[targetIndex][keyframeIndex];
     const imagePixelsT = this.imagePixelsListT[targetIndex][keyframeIndex];
     const imagePropertiesT = this.imagePropertiesListT[targetIndex][keyframeIndex];
 
-    // find the expected position of the feature points (using the previously modelViewProjection transform
-    const projectedImageT = this._computeProjection(modelViewProjectionTransformT, inputImageT);
+    // project the input image into the marker according to previous transform
+    const projectedImageT = this._computeProjection(modelViewProjectionTransformT, inputImageT, keyframeIndex);
 
-    // compute the similarity (normalized cross-correlation) of templates and search points 
-    const similaritiesT = this._computeSimilarity(featurePointsT, imagePixelsT, imagePropertiesT, projectedImageT);
+    // compute a few expected locations for each feature points according to previous 3 transforms 
+    const searchPointsT = this._computeSearchPoints(featurePointsT, modelViewProjectionTransformsT);
 
-    const projected = projectedImageT.arraySync();
-    return {projected}
-    //console.log("arr", projected);
+    // find a best matching point around the neithbours of the expected locations for each feature points
+    //   normalized cross-correlation (similarity should be in range [-1, 1]
+    const {matchingPointsT, simT} = this._computeMatching(featurePointsT, searchPointsT, imagePixelsT, imagePropertiesT, projectedImageT);
 
-    //const sim = similaritiesT.arraySync();
-    //console.log("sim", sim);
+    // re-project matching positions back to input positions 
+    const trackedPointsT = this.__markerPointToScreen(matchingPointsT, modelViewProjectionTransformT); 
 
-    //return {projected, markerPixels: imagePixelsT.reshape([this.markerHeight, this.markerWidth]).arraySync()};
+    const combinedT = this._combine(trackedPointsT, simT);
+
+    // download data for further CPU computatio
+    const matchingPoints = matchingPointsT.arraySync();
+    const trackedPoints = trackedPointsT.arraySync();
+    const searchPoints = searchPointsT.arraySync();
+    const projectedImage = projectedImageT.arraySync();
+    const sim = simT.arraySync();
+    const combinedArr = combinedT.arraySync();
+
+    // tensors cleanup
+    modelViewProjectionTransformsT.forEach((modelViewProjectionTransformT) => {
+      modelViewProjectionTransformT.dispose();
+    });
+    inputImageT.dispose();
+    projectedImageT.dispose();
+    modelViewProjectionTransformT.dispose();
+    matchingPointsT.dispose();
+    trackedPointsT.dispose();
+    combinedT.dispose();
+
+    //console.log("track1 sims", similaritiesArr);
+
+    // tracking features set if similarity exceed certain threshold
+    const featureSet = this.trackingDataList[targetIndex][keyframeIndex];
+    const selectedFeatures = [];
+    for (let i = 0; i < featureSet.coords.length; i++) {
+      if (combinedArr[i][2] > AR2_SIM_THRESH) {
+        selectedFeatures.push({
+          pos2D: {x: combinedArr[i][0], y: combinedArr[i][1]},
+          pos3D: {x: featureSet.coords[i].mx, y: featureSet.coords[i].my, z: 0},
+          sim: combinedArr[i][2]
+        });
+      }
+    }
+    //console.log('n tensorss: ', tf.memory().numTensors);
+    //console.log("track2 selectedFeatures", selectedFeatures, mappedTrackedPoints);
+
+    return {projectedImage, searchPoints, matchingPoints, trackedPoints, sim, selectedFeatures};
   }
 
-  _computeSimilarity(featurePointsT, imagePixelsT, imagePropertiesT, projectedImageT) {
+  _combine(trackedPointsT, similaritiesT) {
+    return tf.tidy(() => {
+      const combinedT = tf.concat([trackedPointsT, similaritiesT.expandDims(1)], 1);
+      return combinedT;
+    });
+  }
+
+  _computeSearchPoints(featurePointsT, modelViewProjectionTransformsT) {
+    return tf.tidy(() => {
+      const p0 = this.__markerPointToScreen(featurePointsT, modelViewProjectionTransformsT[0]);
+      const p1 = this.__markerPointToScreen(featurePointsT, modelViewProjectionTransformsT[1]);
+      const p2 = this.__markerPointToScreen(featurePointsT, modelViewProjectionTransformsT[2]);
+
+      const s0 = p0;
+      const s1 = p0.mul(2).sub(p1); // expected location if move at constant speed
+      const s2 = p0.mul(3).sub(p1.mul(3)).add(p2); // expected location if move at constant acceleration
+
+      const m0 = this.__screenPointToMarker(s0, modelViewProjectionTransformsT[0]);
+      const m1 = this.__screenPointToMarker(s1, modelViewProjectionTransformsT[0]);
+      const m2 = this.__screenPointToMarker(s2, modelViewProjectionTransformsT[0]);
+
+      //console.log("F", featurePointsT.arraySync());
+      //console.log("P", p0.arraySync(), p1.arraySync(), p2.arraySync());
+      //console.log("S", s0.arraySync(), s1.arraySync(), s2.arraySync());
+      //console.log("M", m0.arraySync(), m1.arraySync(), m2.arraySync());
+      return tf.stack([m0, m1, m2], 0);
+    });
+  }
+
+  __screenPointToMarker(pointsT, modelViewProjectionTransformT) {
+    if (!this.kernelCaches.screenPointToMarker) {
+      const kernel = {
+	variableNames: ['point', 'M'],
+	outputShape: pointsT.shape,
+	userCode: `
+	  void main() {
+	      ivec2 coords = getOutputCoords();
+
+	      float m00 = getM(0, 0) * ${PRECISION_ADJUST}.;
+	      float m01 = getM(0, 1) * ${PRECISION_ADJUST}.;
+	      float m03 = getM(0, 3) * ${PRECISION_ADJUST}.;
+	      float m10 = getM(1, 0) * ${PRECISION_ADJUST}.;
+	      float m11 = getM(1, 1) * ${PRECISION_ADJUST}.;
+	      float m13 = getM(1, 3) * ${PRECISION_ADJUST}.;
+	      float m20 = getM(2, 0) * ${PRECISION_ADJUST}.;
+	      float m21 = getM(2, 1) * ${PRECISION_ADJUST}.;
+	      float m23 = getM(2, 3) * ${PRECISION_ADJUST}.;
+
+	      float sx2 = getPoint(coords[0], 0);
+	      float sy2 = getPoint(coords[0], 1);
+
+	      float c11 = m20 * sx2 - m00;
+	      float c12 = m21 * sx2 - m01;
+	      float c21 = m20 * sy2 - m10;
+	      float c22 = m21 * sy2 - m11;
+	      float b1 = m03 - m23 * sx2;
+	      float b2 = m13 - m23 * sy2;
+
+	      float m = c11 * c22 - c12 * c21;
+
+	      float mx2 = (c22 * b1 - c12 * b2) / m;
+	      float my2 = (c11 * b2 - c21 * b1) / m;
+
+	      if (coords[1] == 0) {
+		setOutput(mx2);
+	      }
+	      if (coords[1] == 1) {
+		setOutput(my2);
+	      }
+	    }
+	`
+      };
+      this.kernelCaches.screenPointToMarker = kernel;
+    }
+
+    return tf.tidy(() => {
+      const program = this.kernelCaches.screenPointToMarker;
+      const result = tf.backend().compileAndRun(program, [pointsT, modelViewProjectionTransformT]);
+      return result;
+    });
+  }
+
+  __markerPointToScreen(pointsT, modelViewProjectionTransformT) {
+    if (!this.kernelCaches.markerPointToScreen) {
+      const kernel = {
+	variableNames: ['point', 'M'],
+	outputShape: pointsT.shape,
+	userCode: `
+	  void main() {
+	      ivec2 coords = getOutputCoords();
+
+	      float m00 = getM(0, 0) * ${PRECISION_ADJUST}.;
+	      float m01 = getM(0, 1) * ${PRECISION_ADJUST}.;
+	      float m03 = getM(0, 3) * ${PRECISION_ADJUST}.;
+	      float m10 = getM(1, 0) * ${PRECISION_ADJUST}.;
+	      float m11 = getM(1, 1) * ${PRECISION_ADJUST}.;
+	      float m13 = getM(1, 3) * ${PRECISION_ADJUST}.;
+	      float m20 = getM(2, 0) * ${PRECISION_ADJUST}.;
+	      float m21 = getM(2, 1) * ${PRECISION_ADJUST}.;
+	      float m23 = getM(2, 3) * ${PRECISION_ADJUST}.;
+
+	      float x = getPoint(coords.x, 0);
+	      float y = getPoint(coords.x, 1);
+	      float uz = (x * m20) + (y * m21) + m23;
+
+	      if (coords.y == 0) {
+		  float ux = (x * m00) + (y * m01) + m03;
+		  setOutput(ux / uz);
+	      }
+	      if (coords.y == 1) {
+		  float uy = (x * m10) + (y * m11) + m13;
+		  setOutput(uy / uz);
+	      }
+	    }
+	`
+      };
+      const program = kernel;
+      this.kernelCaches.markerPointToScreen = program;
+    }
+
+    return tf.tidy(() => {
+      const program = this.kernelCaches.markerPointToScreen;
+      const result = tf.backend().compileAndRun(program, [pointsT, modelViewProjectionTransformT]);
+      return result;
+    });
+  }
+
+  _computeMatching(featurePointsT, searchPointsT, imagePixelsT, imagePropertiesT, projectedImageT) {
     const templateOneSize = AR2_DEFAULT_TS;
     const templateSize = templateOneSize * 2 + 1;
     const searchOneSize = AR2_SEARCH_SIZE;
@@ -132,33 +306,44 @@ class Tracker {
     const targetHeight = projectedImageT.shape[0];
     const targetWidth = projectedImageT.shape[1];
 
-    if (!this.kernelCaches.computeSimilarity) {
-      const kernel = {
-	variableNames: ['features', 'markerPixels', 'markerProperties', 'targetPixels'],
-	outputShape: [featurePointsT.shape[0], searchSize*searchSize],
+    const featureLocationCount = searchPointsT.shape[0];
+    const featureCount = searchPointsT.shape[1];
+
+    if (!this.kernelCaches.computeMatching) {
+      const kernel1 = {
+	variableNames: ['features', 'search', 'markerPixels', 'markerProperties', 'targetPixels'],
+	outputShape: [featureCount, featureLocationCount * searchSize * searchSize],
 	userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 
 	    int featureIndex = coords[0];
-	    int searchOffsetIndex = coords[1];
+	    int searchLocationIndex = coords[1] / ${searchSize * searchSize};
+	    int searchOffsetIndex = imod(coords[1], ${searchSize * searchSize});
 
 	    float markerWidth = getMarkerProperties(0);
 	    float markerHeight = getMarkerProperties(1);
+	    float markerScale = getMarkerProperties(2);
 
 	    int searchOffsetX = imod(searchOffsetIndex, ${searchSize});
 	    int searchOffsetY = searchOffsetIndex / ${searchSize};
 
-	    int fx = int(getFeatures(featureIndex, 0));
-	    int fy = int(getFeatures(featureIndex, 1));
+	    int fCenterX = int(getFeatures(featureIndex, 0) * markerScale);
+	    int fCenterY = int(getFeatures(featureIndex, 1) * markerScale);
+	    fCenterY = int(markerHeight) - 1 - fCenterY;
 
-	    int sx2 = fx + searchOffsetX - ${searchOneSize};
-	    int sy2 = fy + searchOffsetY - ${searchOneSize};
+	    int sCenterX = int(getSearch(searchLocationIndex, featureIndex, 0) * markerScale);
+	    int sCenterY = int(getSearch(searchLocationIndex, featureIndex, 1) * markerScale);
+	    sCenterY = int(markerHeight) - 1 - sCenterY; // upside down
+
+	    int sx = sCenterX + searchOffsetX - ${searchOneSize};
+	    //int sy = sCenterY + searchOffsetY - ${searchOneSize};
+	    int sy = sCenterY - searchOffsetY + ${searchOneSize}; // upside down
 
 	    //setOutput( float(1000 * sy2 + sx2));
 	    //return;
 
-	    if (sx2 < ${templateOneSize} || sx2 >= (${targetWidth} - ${templateOneSize}) || sy2 < ${templateOneSize} || sy2 >= (${targetHeight} - ${templateOneSize})) {
+	    if (sx < ${templateOneSize} || sx >= (${targetWidth} - ${templateOneSize}) || sy < ${templateOneSize} || sy >= (${targetHeight} - ${templateOneSize})) {
 	      setOutput(-2.);
 	    } 
 	    else {
@@ -172,15 +357,15 @@ class Tracker {
 		int templateOffsetX = imod(i, ${templateSize});
 		int templateOffsetY = i / ${templateSize};
 
-		int fx2 = fx + templateOffsetX - ${templateOneSize};
-		int fy2 = fy + templateOffsetY - ${templateOneSize};
+		int fx2 = fCenterX + templateOffsetX - ${templateOneSize};
+		int fy2 = fCenterY + templateOffsetY - ${templateOneSize};
 
-		int ix = sx2 + templateOffsetX - ${templateOneSize};
-		int iy = sy2 + templateOffsetY - ${templateOneSize};
+		int sx2 = sx + templateOffsetX - ${templateOneSize};
+		int sy2 = sy + templateOffsetY - ${templateOneSize};
 
-		int markerPixelIndex = (int(markerHeight) - 1 - fy2) * int(markerWidth) + fx2;
+		int markerPixelIndex = fy2 * int(markerWidth) + fx2;
 		float markerPixel = getMarkerPixels(markerPixelIndex);
-		float targetPixel = getTargetPixels(iy, ix);
+		float targetPixel = getTargetPixels(sy2, sx2);
 
 	      	sumTemplate += markerPixel;
 	      	sumTemplateSquare += markerPixel * markerPixel;
@@ -203,8 +388,11 @@ class Tracker {
 	      float pointVariance = sqrt(sumPointSquare - sumPoint / count * sumPoint);
 	      float templateVariance = sqrt(sumTemplateSquare - sumTemplate / count * sumTemplate);
 
-	      if (pointVariance < 0.0000001 || templateVariance < 0.0000001) {
+	      if (pointVariance < 0.0000001) {
 		setOutput(-3.);
+	      } else if (templateVariance < 0.0000001) {
+		//setOutput(sumTemplate);
+		setOutput(-4.);
 	      } else {
 		sumPointTemplate -= sumPoint / count * sumTemplate;
 		float sim = sumPointTemplate / pointVariance / templateVariance;  
@@ -214,110 +402,70 @@ class Tracker {
 	  }
 	`
       };
-      this.kernelCaches.computeSimilarity = kernel;
-    }
 
-    return tf.tidy(() => {
-      const program = this.kernelCaches.computeSimilarity;
-      const sims = tf.backend().compileAndRun(program, [featurePointsT, imagePixelsT, imagePropertiesT, projectedImageT]);
-
-      //console.log("marker pixels", imagePixelsT.arraySync()); 
-      //console.log("featurePointsT", featurePointsT.arraySync());
-      //console.log("sims", sims.arraySync());
-
-      const maxIndex = sims.argMax(1);
-      const sim = sims.max(1);
-      const searchY = maxIndex.floorDiv(searchSize).sub(searchOneSize);
-      const searchX = maxIndex.mod(searchSize).sub(searchOneSize);
-      const [sx, sy] = featurePointsT.split([1,1], 1);
-      const x = sx.squeeze(1).add(searchX);
-      const y = sy.squeeze(1).add(searchY);
-
-      //const result = tf.stack([x,y,sim], 1);
-      const result = tf.stack([sx.squeeze(1),sy.squeeze(1),sim], 1);
-      return result;
-    });
-  }
-
-  _buildTemplates(imagePixelsT, searchPointsT, imagePropertiesT, modelViewProjectionTransformT) {
-    const templateOneSize = AR2_DEFAULT_TS;
-    const templateSize = templateOneSize * 2 + 1;
-
-    if (!this.kernelCaches.buildTemplates) {
-      const kernel = {
-	variableNames: ['search', 'pixels', 'properties', 'M'],
-	outputShape: [searchPointsT.shape[0], templateSize*templateSize],
+      const kernel2 = {
+	variableNames: ['searchPoints', 'maxIndex'],
+	outputShape: [featureCount, 2], // [x, y]
 	userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 
-	    float m00 = getM(0, 0) * ${PRECISION_ADJUST}.;
-	    float m01 = getM(0, 1) * ${PRECISION_ADJUST}.;
-	    float m03 = getM(0, 3) * ${PRECISION_ADJUST}.;
-	    float m10 = getM(1, 0) * ${PRECISION_ADJUST}.;
-	    float m11 = getM(1, 1) * ${PRECISION_ADJUST}.;
-	    float m13 = getM(1, 3) * ${PRECISION_ADJUST}.;
-	    float m20 = getM(2, 0) * ${PRECISION_ADJUST}.;
-	    float m21 = getM(2, 1) * ${PRECISION_ADJUST}.;
-	    float m23 = getM(2, 3) * ${PRECISION_ADJUST}.;
-
 	    int featureIndex = coords[0];
-	    int templateIndex = coords[1];
+	    int maxIndex = int(getMaxIndex(featureIndex));
+	    int searchLocationIndex = maxIndex / ${searchSize * searchSize};
+	    int searchOffsetIndex = imod(maxIndex, ${searchSize * searchSize});
 
-	    float imageWidth = getProperties(0);
-	    float imageHeight = getProperties(1);
-	    float imageScale = getProperties(2);
-
-	    float sx = getSearch(featureIndex, 0);
-	    float sy = getSearch(featureIndex, 1);
-
-	    int templateX = imod(templateIndex, ${templateSize});
-	    int templateY = templateIndex / ${templateSize};
-
-	    float sx2 = sx + float(templateX) - ${templateOneSize}.;
-	    float sy2 = sy + float(templateY) - ${templateOneSize}.;
-
-	    // compute screenToMarker coordinate
-	    float c11 = m20 * sx2 - m00;
-	    float c12 = m21 * sx2 - m01;
-	    float c21 = m20 * sy2 - m10;
-	    float c22 = m21 * sy2 - m11;
-	    float b1 = m03 - m23 * sx2;
-	    float b2 = m13 - m23 * sy2;
-
-	    float m = c11 * c22 - c12 * c21;
-
-	    float mx2 = (c22 * b1 - c12 * b2) / m;
-	    float my2 = (c11 * b2 - c21 * b1) / m;
-
-	    float ix = floor(mx2 * imageScale + 0.5);
-	    float iy = floor(imageHeight - my2 * imageScale + 0.5);
-
-	    if (ix < 0. || ix >= imageWidth || iy < 0. || iy >= imageHeight) {
-	      setOutput(0.);
-	    } else {
-	      int index = int(iy * imageWidth + ix);
-	      setOutput(getPixels(index));
+	    if (coords[1] == 0) {
+	      int searchOffsetX = imod(searchOffsetIndex, ${searchSize});
+	      setOutput(getSearchPoints(searchLocationIndex, featureIndex, 0) + float(searchOffsetX) - ${searchOneSize}.);
+	    }
+	    else if (coords[1] == 1) {
+	      int searchOffsetY = searchOffsetIndex / ${searchSize};
+	      setOutput(getSearchPoints(searchLocationIndex, featureIndex, 1) + float(searchOffsetY) - ${searchOneSize}.);
 	    }
 	  }
 	`
-      };
-      this.kernelCaches.buildTemplates = kernel;
+      }
+
+      const kernel3 = {
+	variableNames: ['sims', 'maxIndex'],
+	outputShape: [featureCount],
+	userCode: `
+	  void main() {
+	    int coord = getOutputCoords();
+	    int featureIndex = coord;
+	    int maxIndex = int(getMaxIndex(featureIndex));
+	    setOutput(getSims(featureIndex, maxIndex));
+	  }
+	`
+      }
+
+      this.kernelCaches.computeMatching = [kernel1, kernel2, kernel3];
     }
 
     return tf.tidy(() => {
-      const program = this.kernelCaches.buildTemplates;
-      const templates = tf.backend().compileAndRun(program, [searchPointsT, imagePixelsT, imagePropertiesT, modelViewProjectionTransformT]);
-
-      return templates;
+      const programs = this.kernelCaches.computeMatching;
+      const allSims = tf.backend().compileAndRun(programs[0], [featurePointsT, searchPointsT, imagePixelsT, imagePropertiesT, projectedImageT]);
+      const maxIndex = allSims.argMax(1);
+      const matchingPointsT = tf.backend().compileAndRun(programs[1], [searchPointsT, maxIndex]);
+      const simT = tf.backend().compileAndRun(programs[2], [allSims, maxIndex]);
+      return {matchingPointsT, simT};
     });
   }
 
-  _computeProjection(modelViewProjectionTransformT, inputImageT) {
+  _computeProjection(modelViewProjectionTransformT, inputImageT, keyframeIndex) {
     if (!this.kernelCaches.computeProjection) {
+      this.kernelCaches.computeProjection = [];
+    }
+
+    if (!this.kernelCaches.computeProjection[keyframeIndex]) {
+      const markerWidth = this.imageListList[0][keyframeIndex].width;
+      const markerHeight = this.imageListList[0][keyframeIndex].height;
+      const markerScale = this.imageListList[0][keyframeIndex].scale;
+
       const kernel = {
 	variableNames: ['M', 'pixel'],
-	outputShape: [this.markerHeight, this.markerWidth],
+	outputShape: [markerHeight, markerWidth],
 	userCode: `
 	  void main() {
 	      ivec2 coords = getOutputCoords();
@@ -332,8 +480,8 @@ class Tracker {
 	      float m21 = getM(2, 1) * ${PRECISION_ADJUST}.;
 	      float m23 = getM(2, 3) * ${PRECISION_ADJUST}.;
 
-	      float y = float(coords[0]);
-	      float x = float(coords[1]);
+	      float y = float( ${markerHeight} - coords[0]) / float(${markerScale});
+	      float x = float(coords[1]) / float(${markerScale});
 	      float uz = (x * m20) + (y * m21) + m23;
 	      float oneOverUz = 1. / uz;
 
@@ -347,11 +495,11 @@ class Tracker {
 	    }
 	`
       };
-      this.kernelCaches.computeProjection = kernel;
+      this.kernelCaches.computeProjection[keyframeIndex] = kernel;
     }
 
     return tf.tidy(() => {
-      const program = this.kernelCaches.computeProjection;
+      const program = this.kernelCaches.computeProjection[keyframeIndex];
       const result = tf.backend().compileAndRun(program, [modelViewProjectionTransformT, inputImageT]);
       return result;
     });

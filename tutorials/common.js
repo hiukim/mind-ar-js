@@ -28,6 +28,35 @@ const utils = {
     ctx.stroke();
   },
 
+  pixel2DToImageData: (pixels) => {
+    const height = pixels.length;
+    const width = pixels[0].length;
+    const data = new Uint8ClampedArray(height * width * 4);
+    for (let j = 0; j < height; j++) {
+      for (let i = 0; i < width; i++) {
+	const pos = j * width + i;
+	data[pos*4 + 0] = pixels[j][i];
+	data[pos*4 + 1] = pixels[j][i];
+	data[pos*4 + 2] = pixels[j][i];
+	data[pos*4 + 3] = 255; 
+      }
+    }
+    const imageData = new ImageData(data, width, height);
+    return imageData;
+  },
+
+  pixel1DToImageData: (pixels, width, height) => {
+    const data = new Uint8ClampedArray(pixels.length * 4);
+    for (let j = 0; j < pixels.length; j++) {
+      data[j*4 + 0] = pixels[j];
+      data[j*4 + 1] = pixels[j];
+      data[j*4 + 2] = pixels[j];
+      data[j*4 + 3] = 255; 
+    }
+    const imageData = new ImageData(data, width, height);
+    return imageData;
+  },
+
   matrixInverse33: (A, threshold) => {
     const det = utils.determinant(A);
     if (Math.abs(det) <= threshold) return null;

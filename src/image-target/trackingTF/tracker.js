@@ -83,6 +83,8 @@ class Tracker {
     templatesT.dispose();
     similaritiesT.dispose();
 
+    //console.log("track1 sims", similaritiesArr);
+
     // tracking features set if similarity exceed certain threshold
     const featureSet = this.trackingDataList[targetIndex][keyframeIndex];
     const selectedFeatures = [];
