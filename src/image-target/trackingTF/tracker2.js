@@ -5,7 +5,8 @@ const {multiplyPointHomographyInhomogenous, matrixInverse33} = require('../utils
 
 const AR2_DEFAULT_TS = 6;
 //const AR2_DEFAULT_TS = 22;
-const AR2_SEARCH_SIZE = 6;
+const AR2_SEARCH_SIZE = 30;
+//const AR2_SEARCH_SIZE = 6;
 const AR2_SEARCH_GAP = 1;
 const AR2_SIM_THRESH = 0.8;
 
@@ -16,6 +17,7 @@ const INLIER_THRESHOLD = 3;
 // Empirical results shows that modelViewProjectTransform can go up beyond that, resulting in error
 // We get around this by dividing the transform matrix by 1000, and then multiply back inside webgl program
 const PRECISION_ADJUST = 1000;
+//const PRECISION_ADJUST = 1;
 
 class Tracker {
   constructor(trackingDataList, imageListList, projectionTransform, inputWidth, inputHeight, controller) {
@@ -104,8 +106,10 @@ class Tracker {
     const modelViewProjectionTransform = modelViewProjectionTransforms[0];
     const modelViewProjectionTransformT = modelViewProjectionTransformsT[0];
 
+
     // expected keyframe, if not provided in input, compute the expected.
     const keyframeIndex = inputKeyframeIndex !== -1? inputKeyframeIndex: this._computeExpectedKeyframe(modelViewProjectionTransform, targetIndex);
+    console.log("keyframe", keyframeIndex);
 
     // read input image as tensor
     const inputImageT = this._loadInput(input);
@@ -163,10 +167,13 @@ class Tracker {
         });
       }
     }
+  
+    //const filtered = this.filter(selectedFeatures, keyframeIndex);
+    const filtered = selectedFeatures;
     //console.log('n tensorss: ', tf.memory().numTensors);
     //console.log("track2 selectedFeatures", selectedFeatures, mappedTrackedPoints);
 
-    return {projectedImage, searchPoints, matchingPoints, trackedPoints, sim, selectedFeatures};
+    return {projectedImage, searchPoints, matchingPoints, trackedPoints, sim, selectedFeatures: filtered};
   }
 
   _combine(trackedPointsT, similaritiesT) {
@@ -495,8 +502,26 @@ class Tracker {
 	    }
 	`
       };
+
       this.kernelCaches.computeProjection[keyframeIndex] = kernel;
     }
+
+    /*
+    const testKernel = {
+	variableNames: ['M', 'pixel'],
+	outputShape: [3, 4],
+	userCode: `
+	  void main() {
+	      ivec2 coords = getOutputCoords();
+	      float r = getM(coords[0], coords[1]) * ${PRECISION_ADJUST}. * 600.;
+	      setOutput(r);
+	  }
+	`
+    }
+    console.log("compute project", modelViewProjectionTransformT.arraySync()); 
+    const t = tf.backend().compileAndRun(testKernel, [modelViewProjectionTransformT, inputImageT]);
+    console.log("test precision", t.arraySync());
+    */
 
     return tf.tidy(() => {
       const program = this.kernelCaches.computeProjection[keyframeIndex];

@@ -47,6 +47,36 @@ class Controller {
       far: far,
     });
 
+    /*
+    const near = 10;
+    const far = 1000;
+    const fovy = 45.0 * Math.PI / 180; // 45 in radian. field of view vertical
+    //const vWidth = 1.0;
+    //const vHeight = vWidth * this.inputHeight / this.inputWidth;
+    //const vHeight = 100;
+    const vHeight = this.inputHeight; // 1920
+    //const vHeight = 1; // 1920
+    const vWidth = vHeight * this.inputHeight / this.inputWidth;
+    const f = (vHeight/2) / Math.tan(fovy/2);
+    //     [fx  s cx]
+    // K = [ 0 fx cy]
+    //     [ 0  0  1]
+    this.projectionTransform = [
+      [f, 0, vWidth / 2],
+      [0, f, vHeight / 2],
+      [0, 0, 1]
+    ];
+    console.log("project transform", this.projectionTransform);
+
+    this.projectionMatrix = _glProjectionMatrix({
+      projectionTransform: this.projectionTransform,
+      width: vWidth,
+      height: vHeight,
+      near: near,
+      far: far,
+    });
+    */
+
     this.worker = new Worker();
 
     this.workerMatchDone = null;
@@ -145,7 +175,8 @@ class Controller {
         for (let i = 0; i < this.imageTargetStates.length; i++) {
           if (this.imageTargetStates[i].isTracking) {
             //trackingFeatures[i] = this.tracker.track(input, this.imageTargetStates[i].lastModelViewTransform, i);
-            trackingFeatures[i] = this.tracker2.track(input, this.imageTargetStates[i].lastModelViewTransform, i);
+	    const {selectedFeatures} = this.tracker2.track(input, this.imageTargetStates[i].lastModelViewTransforms, i);
+	    trackingFeatures[i] = selectedFeatures;
 
             trackingCount += 1;
           }
@@ -184,6 +215,7 @@ class Controller {
             this.imageTargetStates[targetIndex].isTracking = true;
             this.imageTargetStates[targetIndex].missCount = 0;
             this.imageTargetStates[targetIndex].lastModelViewTransform = modelViewTransform;
+            this.imageTargetStates[targetIndex].lastModelViewTransforms = [modelViewTransform, modelViewTransform, modelViewTransform];
             this.imageTargetStates[targetIndex].trackingMatrix = null;
           }
         }
@@ -201,12 +233,16 @@ class Controller {
               this.imageTargetStates[i].missCount += 1;
               if (this.imageTargetStates[i].missCount > MISS_COUNT_TOLERANCE) {
                 this.imageTargetStates[i].isTracking = false;
+		this.imageTargetStates[i].lastModelViewTransforms = null;
                 trackingFeatures[i] = null;
                 this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
               }
             } else {
               this.imageTargetStates[i].missCount = 0;
               this.imageTargetStates[i].lastModelViewTransform = modelViewTransform;
+
+              this.imageTargetStates[i].lastModelViewTransforms.unshift(modelViewTransform);
+              this.imageTargetStates[i].lastModelViewTransforms.pop();
 
               const worldMatrix = _glModelViewMatrix(modelViewTransform);
 
@@ -277,6 +313,7 @@ class Controller {
     return trackResults;
   }
   async trackUpdate(modelViewTransform, trackFeatures) {
+    if (trackFeatures.length < 4 ) return null;
     const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
     return modelViewTransform2;
   }

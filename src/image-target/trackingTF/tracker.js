@@ -65,8 +65,6 @@ class Tracker {
     // find the expected position of the feature points (using the previously modelViewProjection transform
     const searchPointsT = this._computeSearchPoints(featurePointsT, modelViewProjectionTransformT);
 
-    this.controller.setInterim('searchPoints', searchPointsT.arraySync());
-
     // compute templates (i.e. surrounding pixels) of each search points (inverse project marker pixels)
     const templatesT = this._buildTemplates(imagePixelsT, searchPointsT, imagePropertiesT, modelViewProjectionTransformT);
 

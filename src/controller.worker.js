@@ -2,6 +2,7 @@ const {Matcher} = require('./image-target/matching/matcher.js');
 const {refineHomography} = require('./image-target/icp/refine_homography.js');
 const {estimateHomography} = require('./image-target/icp/estimate_homography.js');
 
+//const AR2_TRACKING_THRESH = 5.0; // default
 const AR2_TRACKING_THRESH = 5.0; // default
 
 
@@ -47,6 +48,29 @@ onmessage = (msg) => {
   }
   else if (data.type === 'track') {
     const {modelViewTransform, selectedFeatures} = data;
+
+    /*
+    if (selectedFeatures.length < 4) {
+      postMessage({
+	type: 'trackDone',
+	modelViewTransform: null,
+      });
+      return;
+    }
+    const screenCoords = [];
+    const worldCoords = [];
+    for (let i = 0; i < selectedFeatures.length; i++) {
+      const f = selectedFeatures[i];
+      screenCoords.push({x: f.pos2D.x, y: f.pos2D.y});
+      worldCoords.push({x: f.pos3D.x, y: f.pos3D.y});
+    }
+    const m = estimateHomography({screenCoords, worldCoords, projectionTransform});
+    postMessage({
+      type: 'trackDone',
+      modelViewTransform: m,
+    });
+    return;
+    */
 
     const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
     let err = null;
