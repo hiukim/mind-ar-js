@@ -135,7 +135,7 @@ const Main = () => {
 
   useEffect(() => {
     const process = async () => {
-      const queryImage = await utils.loadImage('../tests/video/out1.png');
+      const queryImage = await utils.loadImage('../tests/video2/out11.png');
 
       const inputWidth = queryImage.width;
       const inputHeight = queryImage.height;
@@ -159,7 +159,7 @@ const Main = () => {
     process();
   }, []);
 
-  console.log("result", result);
+  //console.log("result", result);
 
   return (
     <div className="matching">

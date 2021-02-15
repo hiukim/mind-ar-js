@@ -1,8 +1,10 @@
+const tf = require('@tensorflow/tfjs');
 const Worker = require("./controller.worker.js");
 const {Tracker} = require('./image-target/trackingTF/tracker.js');
 const {Tracker: Tracker2} = require('./image-target/trackingTF/tracker2.js');
 const {Detector} = require('./image-target/detectorTF/detector.js');
 const {Compiler} = require('./compiler.js');
+const {InputLoader} = require('./image-target/inputLoader.js');
 
 const INTERPOLATION_FACTOR = 10;
 const MISS_COUNT_TOLERANCE = 10;
@@ -14,6 +16,7 @@ class Controller {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.detector = new Detector(this.inputWidth, this.inputHeight);
+    this.inputLoader = new InputLoader(this.inputWidth, this.inputHeight);
     this.imageTargets = [];
     this.trackingIndex = -1;
     this.trackingMatrix = null;
@@ -94,6 +97,11 @@ class Controller {
     }
   }
 
+  showTFStats() {
+    console.log(tf.memory().numTensors);
+    console.table(tf.memory());
+  }
+
   setInterim(key, value) {
     interim[key] = value;
   }
@@ -138,8 +146,11 @@ class Controller {
 
   // warm up gpu - build kernels is slow
   dummyRun(input) {
-    this.detector.detect(input);
+    const inputT = this.inputLoader.loadInput(input);
+    this.detector.detect(inputT);
     this.tracker.dummyRun(input);
+    this.tracker2.dummyRun(input);
+    inputT.dispose();
   }
 
   /**
@@ -182,7 +193,9 @@ class Controller {
           }
         }
         if (trackingCount < this.maxTrack) { // only run detector when matching is required
-          featurePoints = this.detector.detect(input);
+	  const inputT = this.inputLoader.loadInput(input);
+          featurePoints = this.detector.detect(inputT);
+	  inputT.dispose();
         }
 
         this.onUpdate({type: 'processDone'});
@@ -227,7 +240,7 @@ class Controller {
               modelViewTransform = await this.workerTrack(this.imageTargetStates[i].lastModelViewTransform, trackingFeatures[i]);
             }
             // remove this
-            modelViewTransform = this.imageTargetStates[i].lastModelViewTransform;
+            //modelViewTransform = this.imageTargetStates[i].lastModelViewTransform;
 
             if (modelViewTransform === null) {
               this.imageTargetStates[i].missCount += 1;
@@ -294,14 +307,21 @@ class Controller {
   }
 
   async detect(input) {
-    const featurePoints = await this.detector.detect(input);
+    const inputT = this.inputLoader.loadInput(input);
+    //const featurePoints = await this.detector.detect(input);
+    const featurePoints = await this.detector.detect(inputT);
+    inputT.dispose();
     return featurePoints;
   }
   async match(featurePoints) {
     const {targetIndex, modelViewTransform} = await this.workerMatch(featurePoints, []);
     return {modelViewTransform, allMatchResults: interim['allMatchResults']};
   }
-  async track(input, modelViewTransforms, targetIndex, nKeyframes) {
+  async track(input, modelViewTransforms, targetIndex) {
+    const result = this.tracker2.track(input, modelViewTransforms, targetIndex);
+    return result;
+  }
+  async trackAllFrames(input, modelViewTransforms, targetIndex, nKeyframes) {
     const trackResults = [];
 
     for (let i = 0; i < nKeyframes; i++) {

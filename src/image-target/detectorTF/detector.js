@@ -23,7 +23,6 @@ const ORIENTATION_GAUSSIAN_EXPANSION_FACTOR = 3.0;
 const ORIENTATION_REGION_EXPANSION_FACTOR = 1.5;
 const FREAK_EXPANSION_FACTOR = 7.0;
 
-
 const FREAK_CONPARISON_COUNT = (FREAKPOINTS.length-1) * (FREAKPOINTS.length) / 2; // 666
 
 class Detector {
@@ -57,10 +56,7 @@ class Detector {
     return this.detect(img);
   }
 
-  detect(input) {
-    // load input video/image frame into tensor
-    const inputImageT = this._loadInput(input);
-
+  detect(inputImageT) {
     // Build gaussian pyramid images
     const pyramidImagesT = [];
     for (let i = 0; i < this.numOctaves; i++) {
@@ -91,7 +87,7 @@ class Detector {
     }
 
     const dogIndexes = [];
-    const extremasResults = [];
+    const extremasResultsT = [];
     // Find feature points (i.e. extremas in dog images)
     for (let k = 1; k < dogPyramidImagesT.length - 1; k++) {
       // Experimental result shows that no extrema is possible for odd number of k
@@ -105,46 +101,46 @@ class Detector {
       const image2 = dogPyramidImagesT[k+1];
 
       // find all extrema for image1
-      const extremasResult = this._buildExtremas(k, image0, image1, image2);
+      const extremasResultT = this._buildExtremas(k, image0, image1, image2);
 
-      extremasResults.push(extremasResult);
+      extremasResultsT.push(extremasResultT);
     }
+
+    //console.log("ex", tf.gatherND(extremasResults[extremasResults.length-1], [0, 0]).arraySync());
+    //return [];
 
     // divide the input into N by N buckets, and for each bucket,
     // collect the top 5 most significant extrema across extremas in all scale level
     // result would be NUM_BUCKETS x NUM_FEATURES_PER_BUCKET extremas
-    const prunedExtremas = this._applyPrune(extremasResults, dogIndexes);
+    const prunedExtremasT = this._applyPrune(extremasResultsT, dogIndexes);
+
+    //console.log("prunedExtremas", prunedExtremas.arraySync());
 
     // compute the orientation angle for each pruned extremas
-    const extremaHistograms = this._computeOrientationHistograms(prunedExtremas, pyramidImagesT, dogIndexes);
-    const smoothedHistograms = this._smoothHistograms(extremaHistograms);
-    const extremaAngles = this._computeExtremaAngles(smoothedHistograms);
+    const extremaHistogramsT = this._computeOrientationHistograms(prunedExtremasT, pyramidImagesT, dogIndexes);
+    const smoothedHistogramsT = this._smoothHistograms(extremaHistogramsT);
+    const extremaAnglesT = this._computeExtremaAngles(smoothedHistogramsT);
 
     // to compute freak descriptors, we first the pixel value of 37 freak points for each extrema 
-    const extremaFreaks = this._computeExtremaFreak(pyramidImagesT, this.numOctaves, prunedExtremas, extremaAngles);
+    const extremaFreaksT = this._computeExtremaFreak(pyramidImagesT, this.numOctaves, prunedExtremasT, extremaAnglesT);
  
     // compute the bindary descriptors
-    const freakDescriptors = this._computeFreakDescriptors(extremaFreaks);
+    const freakDescriptorsT = this._computeFreakDescriptors(extremaFreaksT);
 
     // combine extrema data and return to cpu
-    const combinedExtremas = this._combine(prunedExtremas, extremaAngles, freakDescriptors);
-    const combinedExtremasArr = combinedExtremas.arraySync();
+    const combinedExtremasT = this._combine(prunedExtremasT, extremaAnglesT, freakDescriptorsT);
+    const combinedExtremasArr = combinedExtremasT.arraySync();
 
-    inputImageT.dispose();
     pyramidImagesT.forEach((t) => t.dispose());
     dogPyramidImagesT.forEach((t) => t && t.dispose());
-    extremasResults.forEach((t) => t.dispose());
-    prunedExtremas.dispose();
-    extremaHistograms.dispose();
-
-    smoothedHistograms.dispose();
-    extremaAngles.dispose();
-    extremaFreaks.dispose();
-    freakDescriptors.dispose();
-    combinedExtremas.dispose();
-
-    //console.log(tf.memory().numTensors);
-    //console.table(tf.memory());
+    extremasResultsT.forEach((t) => t.dispose());
+    prunedExtremasT.dispose();
+    extremaHistogramsT.dispose();
+    smoothedHistogramsT.dispose();
+    extremaAnglesT.dispose();
+    extremaFreaksT.dispose();
+    freakDescriptorsT.dispose();
+    combinedExtremasT.dispose();
 
     const featurePoints = [];
 
@@ -185,14 +181,6 @@ class Detector {
       }
     }
     return featurePoints;
-  }
-
-  _loadInput(input) {
-    return tf.tidy(() => {
-      let inputImage = tf.browser.fromPixels(input);
-      inputImage = inputImage.mean(2);
-      return inputImage;
-    });
   }
 
   _combine(prunedExtremas, extremaAngles, freakDescriptors) {
@@ -779,146 +767,67 @@ class Detector {
     });
   }
 
-  _applyPrune(extremasResults, dogIndexes) {
+  // faster to do it in CPU
+  // if we do in gpu, we probably need to use tf.topk(), which seems to be run in CPU anyway (no gpu operation for that)
+  _applyPrune(extremasResultsT, dogIndexes) {
     const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
+    const nFeatures = MAX_FEATURES_PER_BUCKET;
 
-    tf.tidy(() => {
-      if (!this.tensorCaches.applyPrune) {
-	const allPositions = []; // 100 x total points in bucket. each element is [dogIndex, y, x]
-	for (let i = 0; i < nBuckets; i++) {
-	  allPositions.push([]);
-	}
-
-        for (let i = 0; i < extremasResults.length; i++) {
-          const extremaScores = extremasResults[i];
-          const height = extremaScores.shape[0];
-          const width = extremaScores.shape[1];
-          const bucketWidth = Math.ceil(width / NUM_BUCKETS_PER_DIMENSION);
-          const bucketHeight = Math.ceil(height / NUM_BUCKETS_PER_DIMENSION);
-          const bucketWidthF = width / NUM_BUCKETS_PER_DIMENSION;
-          const bucketHeightF = height / NUM_BUCKETS_PER_DIMENSION;
-
-          let positionsByDog = [];
-          for (let bucketY = 0; bucketY < NUM_BUCKETS_PER_DIMENSION; bucketY++) {
-            const startY = Math.floor(bucketY * bucketHeightF);
-            const endY = Math.floor((1+bucketY) * bucketHeightF);
-            for (let bucketX = 0; bucketX < NUM_BUCKETS_PER_DIMENSION; bucketX++) {
-              const bucketIndex = bucketY * NUM_BUCKETS_PER_DIMENSION + bucketX;
-
-              const startX = Math.floor(bucketX * bucketWidthF);
-              const endX = Math.floor((1+bucketX) * bucketWidthF);
-
-              for (let ii = 0; ii < bucketWidth; ii++) {
-                for (let jj = 0; jj < bucketHeight; jj++) {
-                  if (startY + jj < endY && startX + ii < endX) {
-                    allPositions[bucketIndex].push([i, startY + jj, startX + ii]);
-                  } else {
-                    allPositions[bucketIndex].push([i, -1, -1]);
-                  }
-                }
-              }
-            }
-          }
-        }
-	this.tensorCaches.applyPrune = {
-	  allPositionsT: tf.keep( tf.tensor(allPositions, [allPositions.length, allPositions[0].length, 3], 'int32'))
-	}
+    // combine results into a tensor of:
+    //   nBuckets x nFeatures x [score, extremaIndex, y, x]
+    const curAbsScores = [];
+    const result = [];
+    for (let i = 0; i < nBuckets; i++) {
+      result.push([]);
+      curAbsScores.push([]);
+      for (let j = 0; j < nFeatures; j++) {
+	result[i].push([0,0,0,0]);
+	curAbsScores[i].push(0);
       }
-    });
-
-    const {allPositionsT} = this.tensorCaches.applyPrune;
-
-    if (!this.kernelCaches.applyPrune) {
-      const extremaVariableNames = [];
-      for (let i = 0; i < extremasResults.length; i++) {
-	extremaVariableNames.push('extrema' + i);
-      }
-
-      let kernel1SubCodes = '';
-      for (let i = 0; i < extremasResults.length; i++) {
-	kernel1SubCodes += `
-	  if (extremaIndex == ${i}) {
-	    setOutput(abs(getExtrema${i}(y, x)));
-	    return;
-	  }
-	`
-      }
-
-      const kernel1 = {
-	variableNames: [...extremaVariableNames, 'position'],
-	outputShape: [allPositionsT.shape[0], allPositionsT.shape[1]],
-	userCode: `
-	  void main() {
-	    ivec2 coords = getOutputCoords();
-	    int bucketIndex = coords[0];
-	    int pixelIndex = coords[1];
-
-	    int extremaIndex = int(getPosition(bucketIndex, pixelIndex, 0));
-	    int y = int(getPosition(bucketIndex, pixelIndex, 1));
-	    int x = int(getPosition(bucketIndex, pixelIndex, 2));
-
-	    ${kernel1SubCodes}
-	  }
-	`
-      }
-
-
-      let kernel2SubCodes = '';
-      for (let i = 0; i < extremasResults.length; i++) {
-	kernel2SubCodes += `
-	  if (extremaIndex == ${i}) {
-	    setOutput(getExtrema${i}(y, x));
-	    return;
-	  }
-	`
-      }
-
-      const kernel2 = {
-	variableNames: [...extremaVariableNames, 'position', 'top'],
-	outputShape: [nBuckets, MAX_FEATURES_PER_BUCKET, 4], // last dimension: [score, extremaIndex, y, x]
-
-	userCode: `
-	  void main() {
-	    ivec3 coords = getOutputCoords();
-	    int bucketIndex = coords[0];
-	    int featureIndex = coords[1];
-	    int propertyIndex = coords[2];
-
-	    int pixelIndex = int(getTop(bucketIndex, featureIndex));
-
-	    int extremaIndex = int(getPosition(bucketIndex, pixelIndex, 0));
-	    int y = int(getPosition(bucketIndex, pixelIndex, 1));
-	    int x = int(getPosition(bucketIndex, pixelIndex, 2));
-
-	    if (propertyIndex == 0) {
-	      ${kernel2SubCodes}
-	    }
-
-	    setOutput(getPosition(bucketIndex, pixelIndex, propertyIndex-1));
-	  }
-	`
-      }
-
-      this.kernelCaches.applyPrune = [kernel1, kernel2];
     }
 
-    return tf.tidy(() => {
-      const [program1, program2] = this.kernelCaches.applyPrune;
+    for (let k = 0; k < extremasResultsT.length; k++) {
+      const extremaScoresT = extremasResultsT[k];
+      const extremaScores = extremaScoresT.arraySync();
 
-      // combine all extrema scores into one big tensors
-      let allAbsScores = tf.backend().compileAndRun(program1, [...extremasResults, allPositionsT]);
-      if (allAbsScores.shape[1] < MAX_FEATURES_PER_BUCKET) { // normally won't happen
-        allAbsScores = tf.pad(allAbsScores, [[0,0],[0,MAX_FEATURES_PER_BUCKET-allAbsScores.shape[1]]], -1000);
+      const height = extremaScoresT.shape[0];
+      const width = extremaScoresT.shape[1];
+
+      const bucketWidth = width / NUM_BUCKETS_PER_DIMENSION;
+      const bucketHeight = height / NUM_BUCKETS_PER_DIMENSION;
+
+      for (let j = 0; j < height; j++) {
+	for (let i = 0; i < width; i++) {
+	  const bucketX = Math.floor(i / bucketWidth);
+	  const bucketY = Math.floor(j / bucketHeight);
+	  const bucket = bucketY * NUM_BUCKETS_PER_DIMENSION + bucketX;
+
+	  const score = extremaScores[j][i];
+	  const absScore = Math.abs(score);
+
+	  let tIndex = nFeatures;
+	  while (tIndex >= 1 && absScore > curAbsScores[bucket][tIndex-1]) {
+	    tIndex -= 1;
+	  }
+
+	  if (tIndex < nFeatures) {
+	    for (let t = nFeatures - 1; t >= tIndex+1; t--) {
+	      curAbsScores[bucket][t] = curAbsScores[bucket][t-1];
+	      result[bucket][t][0] = result[bucket][t-1][0];
+	      result[bucket][t][1] = result[bucket][t-1][1];
+	      result[bucket][t][2] = result[bucket][t-1][2];
+	      result[bucket][t][3] = result[bucket][t-1][3];
+	    }
+	    curAbsScores[bucket][tIndex] = absScore;
+	    result[bucket][tIndex][0] = score;
+	    result[bucket][tIndex][1] = k; 
+	    result[bucket][tIndex][2] = j; 
+	    result[bucket][tIndex][3] = i; 
+	  }
+	}
       }
-
-      // get top K 
-      let {values: topValues, indices: topIndices} = tf.topk(allAbsScores, MAX_FEATURES_PER_BUCKET);
-
-      // combine results into a tensor of:
-      //   nBuckets x nFeatures x [score, extremaIndex, y, x]
-      const result = tf.backend().compileAndRun(program2, [...extremasResults, allPositionsT, topIndices]);
-      return result;
-    });
+    }
+    return tf.tensor(result, [result.length, result[0].length, result[0][0].length]);
   }
 
   _buildExtremas(dogIndex, image0, image1, image2) {
@@ -1154,6 +1063,7 @@ class Detector {
 
     return tf.tidy(() => {
       const [program1, program2] = this.kernelCaches.applyFilter[kernelKey];
+
       const result1 = tf.backend().compileAndRun(program1, [image]);
       const result2 = tf.backend().compileAndRun(program2, [result1]);
       return result2;
