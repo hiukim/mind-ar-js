@@ -149,7 +149,7 @@ class Controller {
     const inputT = this.inputLoader.loadInput(input);
     this.detector.detect(inputT);
     this.tracker.dummyRun(input);
-    this.tracker2.dummyRun(input);
+    this.tracker2.dummyRun(inputT);
     inputT.dispose();
   }
 
@@ -182,21 +182,23 @@ class Controller {
       if (!processing) {
         processing = true;
 
+	const inputT = this.inputLoader.loadInput(input);
+
         let trackingCount = 0;
         for (let i = 0; i < this.imageTargetStates.length; i++) {
           if (this.imageTargetStates[i].isTracking) {
             //trackingFeatures[i] = this.tracker.track(input, this.imageTargetStates[i].lastModelViewTransform, i);
-	    const {selectedFeatures} = this.tracker2.track(input, this.imageTargetStates[i].lastModelViewTransforms, i);
+	    const {selectedFeatures} = this.tracker2.track(inputT, this.imageTargetStates[i].lastModelViewTransforms, i);
 	    trackingFeatures[i] = selectedFeatures;
 
             trackingCount += 1;
           }
         }
         if (trackingCount < this.maxTrack) { // only run detector when matching is required
-	  const inputT = this.inputLoader.loadInput(input);
           featurePoints = this.detector.detect(inputT);
-	  inputT.dispose();
         }
+
+	inputT.dispose();
 
         this.onUpdate({type: 'processDone'});
         processing = false;
@@ -318,18 +320,22 @@ class Controller {
     return {modelViewTransform, allMatchResults: interim['allMatchResults']};
   }
   async track(input, modelViewTransforms, targetIndex) {
-    const result = this.tracker2.track(input, modelViewTransforms, targetIndex);
+    const inputT = this.inputLoader.loadInput(input);
+    const result = this.tracker2.track(inputT, modelViewTransforms, targetIndex);
+    inputT.dispose();
     return result;
   }
   async trackAllFrames(input, modelViewTransforms, targetIndex, nKeyframes) {
+    const inputT = this.inputLoader.loadInput(input);
     const trackResults = [];
 
     for (let i = 0; i < nKeyframes; i++) {
     //for (let i = 0; i < 3; i++) {
       //const trackedPoints = this.tracker.track(input, modelViewTransform, targetIndex, i);
-      const result = this.tracker2.track(input, modelViewTransforms, targetIndex, i);
+      const result = this.tracker2.track(inputT, modelViewTransforms, targetIndex, i);
       trackResults.push(result);
     }
+    inputT.dispose();
     return trackResults;
   }
   async trackUpdate(modelViewTransform, trackFeatures) {

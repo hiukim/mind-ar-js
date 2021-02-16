@@ -5,7 +5,7 @@ const COLORS = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4'
 const THREE = AFRAME.THREE;
 
 const TEMPLATE_RADIUS = 6;
-const AR2_SEARCH_SIZE = 6;
+const AR2_SEARCH_SIZE = 10;
 
 const Display = ({result}) => {
   const {queryImages, target, allPickedKeyframes, allTrackResults, dimensions, allWorldMatrices, allBeforeProjected, allAfterProjected, projectionMatrix} = result; 
@@ -138,7 +138,7 @@ const Display = ({result}) => {
     for (let i = 0; i < targetTrackingPoints.length; i++) {
       const color = COLORS[i % COLORS.length];
       const targetPoint = targetTrackingPoints[i];
-      utils.drawPoint(ctx, color, Math.round(targetPoint.mx * keyScale) + targetOffsetX, Math.round(targetImage.height - targetPoint.my * keyScale) + targetOffsetYMarker, trackType === 'goodTrack'? TEMPLATE_RADIUS: TEMPLATE_RADIUS);
+      utils.drawRect(ctx, color, Math.round(targetPoint.mx * keyScale) + targetOffsetX, Math.round(targetImage.height - targetPoint.my * keyScale) + targetOffsetYMarker, TEMPLATE_RADIUS * 2);
     }
 
     if (trackType === 'none') {
@@ -149,7 +149,7 @@ const Display = ({result}) => {
 	const searchPoints = [trackResult.searchPoints[0][i], trackResult.searchPoints[1][i], trackResult.searchPoints[2][i]];
 
 	searchPoints.forEach((searchPoint) => {
-	  utils.drawPoint(ctx, color, Math.round(searchPoint[0] * keyScale) + targetOffsetX, Math.round(targetImage.height - searchPoint[1] * keyScale) + targetOffsetYBeforeProjection, AR2_SEARCH_SIZE);
+	  utils.drawRect(ctx, color, Math.round(searchPoint[0] * keyScale) + targetOffsetX, Math.round(targetImage.height - searchPoint[1] * keyScale) + targetOffsetYBeforeProjection, AR2_SEARCH_SIZE * 2);
 	});
       }
     } else if (trackType === 'track' || trackType === 'goodTrack') {
@@ -167,11 +167,11 @@ const Display = ({result}) => {
 	  show = !!found;
 	}
 	if (show) {
-	  utils.drawPoint(ctx, color, Math.round(matchingPoint[0] * keyScale) + targetOffsetX, Math.round(targetImage.height - matchingPoint[1] * keyScale) + targetOffsetYBeforeProjection, trackType === 'goodTrack'? TEMPLATE_RADIUS: TEMPLATE_RADIUS);
+	  utils.drawRect(ctx, color, Math.round(matchingPoint[0] * keyScale) + targetOffsetX, Math.round(targetImage.height - matchingPoint[1] * keyScale) + targetOffsetYBeforeProjection, TEMPLATE_RADIUS * 2);
 	}
 
 	if (show && trackType === 'goodTrack') {
-	  utils.drawPoint(ctx, color, Math.round(trackedPoint[0]), Math.round(trackedPoint[1]), TEMPLATE_RADIUS);
+	  utils.drawRect(ctx, color, Math.round(trackedPoint[0]), Math.round(trackedPoint[1]), TEMPLATE_RADIUS * 2);
 	}
       }
     }
@@ -226,7 +226,7 @@ const Main = () => {
       //for (let i = 11; i <= 61; i+=2) {
 //	queryImages.push(await utils.loadImage('../tests/video2/out' + i + '.png'));
  //     }
-      for (let i = 107; i <= 207; i+=3) {
+      for (let i = 107; i <= 307; i+=3) {
 	queryImages.push(await utils.loadImage('../tests/video3/out' + i + '.png'));
       }
       /*
@@ -267,7 +267,7 @@ const Main = () => {
 	const trackResults = await controller.trackAllFrames(queryImages[i], lastModelViewTransforms, 0, nKeyframes);
 	allTrackResults.push(trackResults);
 
-	const defaultTrackResult = await controller.track(queryImages[i], lastModelViewTransforms, 0, nKeyframes);
+	const defaultTrackResult = await controller.track(queryImages[i], lastModelViewTransforms, 0);
 
 	/*
 	let bestKeyframe = 0;
@@ -281,6 +281,7 @@ const Main = () => {
 	*/
 	allPickedKeyframes.push(defaultTrackResult.keyframeIndex);
 	const bestSelectedFeatures = defaultTrackResult.selectedFeatures;
+	//const bestSelectedFeatures = trackResults[Math.min(7, defaultTrackResult.keyframeIndex)].selectedFeatures; 
 
 	const projectedBefore = [];
 	const projectedAfter = [];

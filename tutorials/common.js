@@ -13,8 +13,15 @@ const utils = {
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
     ctx.fillStyle = color;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 1;
     ctx.strokeStyle = color;
+    ctx.stroke();
+  },
+
+  drawRect: (ctx, color, centerX, centerY, width) => {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.rect(centerX - width/2, centerY - width /2 , width, width);
     ctx.stroke();
   },
 

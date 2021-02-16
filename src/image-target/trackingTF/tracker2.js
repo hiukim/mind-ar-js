@@ -55,47 +55,7 @@ class Tracker {
     }
   }
 
-  filter(selectedFeatures, keyframeIndex) {
-    const keyWidth = this.imageListList[0][keyframeIndex].width;
-    const keyHeight = this.imageListList[0][keyframeIndex].height;
-    const srcPoints = [];
-    const dstPoints = [];
-    const querypoints = [];
-    const keypoints = [];
-    selectedFeatures.forEach((f) => {
-      srcPoints.push([f.pos3D.x, keyHeight - f.pos3D.y]);
-      dstPoints.push([f.pos2D.x, f.pos2D.y]);
-
-      keypoints.push({x: f.pos3D.x, y: keyHeight - f.pos3D.y});
-      querypoints.push(f.pos2D);
-    });
-    const keyframe = {width: keyWidth, height: keyHeight};
-
-    const H = computeHomography({
-      srcPoints,
-      dstPoints,
-      keyframe,
-    });
-
-    if (!H) return [];
-
-    const inlierMatches = _findInlierMatches({
-      querypoints,
-      keypoints,
-      H,
-      threshold: INLIER_THRESHOLD
-    });
-
-    const filtered = [];
-    inlierMatches.forEach((index) => {
-      filtered.push(selectedFeatures[index]); 
-    });
-    //console.log("filtered", filtered);
-    return filtered;
-  }
-  
-
-  track(input, lastModelViewTransforms, targetIndex, inputKeyframeIndex=-1) {
+  track(inputImageT, lastModelViewTransforms, targetIndex, inputKeyframeIndex=-1) {
     const lastModelViewTransform = lastModelViewTransforms[0];
 
     const modelViewProjectionTransforms = [];
@@ -109,9 +69,6 @@ class Tracker {
 
     // expected keyframe, if not provided in input, compute the expected.
     const keyframeIndex = inputKeyframeIndex !== -1? inputKeyframeIndex: this._computeExpectedKeyframe(modelViewProjectionTransform, targetIndex);
-
-    // read input image as tensor
-    const inputImageT = this._loadInput(input);
 
     // prebuilt tensors for current keyframe
     const featurePointsT = this.featurePointsListT[targetIndex][keyframeIndex];
@@ -132,25 +89,25 @@ class Tracker {
     //   normalized cross-correlation (similarity should be in range [-1, 1]
     const {matchingPointsT, simT} = this._computeMatching(featurePointsT, searchPointsT, imagePixelsT, imagePropertiesT, projectedImageT);
 
-
     // re-project matching positions back to input positions 
     const trackedPointsT = this.__markerPointToScreen(matchingPointsT, modelViewProjectionTransformT); 
 
     const combinedT = this._combine(trackedPointsT, simT);
 
     // download data for further CPU computatio
-    const matchingPoints = matchingPointsT.arraySync();
-    const trackedPoints = trackedPointsT.arraySync();
-    const searchPoints = searchPointsT.arraySync();
-    const projectedImage = projectedImageT.arraySync();
-    const sim = simT.arraySync();
+    const matchingPoints = false && matchingPointsT.arraySync();
+    const trackedPoints = false && trackedPointsT.arraySync();
+    const searchPoints = false && searchPointsT.arraySync();
+    const projectedImage = false && projectedImageT.arraySync();
+    const sim = false && simT.arraySync();
+
     const combinedArr = combinedT.arraySync();
 
     // tensors cleanup
     modelViewProjectionTransformsT.forEach((modelViewProjectionTransformT) => {
       modelViewProjectionTransformT.dispose();
     });
-    inputImageT.dispose();
+    //inputImageT.dispose();
     searchPointsT.dispose();
     projectedImageT.dispose();
     modelViewProjectionTransformT.dispose();
@@ -173,13 +130,8 @@ class Tracker {
         });
       }
     }
-  
-    //const filtered = this.filter(selectedFeatures, keyframeIndex);
-    const filtered = selectedFeatures;
-    //console.log('n tensorss: ', tf.memory().numTensors);
-    //console.log("track2 selectedFeatures", selectedFeatures, mappedTrackedPoints);
 
-    return {keyframeIndex, projectedImage, searchPoints, matchingPoints, trackedPoints, sim, selectedFeatures: filtered};
+    return {keyframeIndex, projectedImage, searchPoints, matchingPoints, trackedPoints, sim, selectedFeatures: selectedFeatures};
   }
 
   _combine(trackedPointsT, similaritiesT) {
@@ -188,7 +140,6 @@ class Tracker {
       return combinedT;
     });
   }
-
 
   _computeSearchPoints(featurePointsT, modelViewProjectionTransformsT) {
     const featureCount = featurePointsT.shape[0];
@@ -428,11 +379,13 @@ class Tracker {
       };
 
       const kernel2 = {
-	variableNames: ['searchPoints', 'maxIndex'],
+	variableNames: ['searchPoints', 'markerProperties', 'maxIndex'],
 	outputShape: [featureCount, 2], // [x, y]
 	userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
+
+	    float markerScale = getMarkerProperties(2);
 
 	    int featureIndex = coords[0];
 	    int maxIndex = int(getMaxIndex(featureIndex));
@@ -441,11 +394,13 @@ class Tracker {
 
 	    if (coords[1] == 0) {
 	      int searchOffsetX = imod(searchOffsetIndex, ${searchSize}) * ${searchGap};
-	      setOutput(getSearchPoints(searchLocationIndex, featureIndex, 0) + float(searchOffsetX) - ${searchOneSize}.);
+	      //setOutput(getSearchPoints(searchLocationIndex, featureIndex, 0) + float(searchOffsetX) - ${searchOneSize}.);
+	      setOutput(getSearchPoints(searchLocationIndex, featureIndex, 0) + float(searchOffsetX - ${searchOneSize}) / markerScale);
 	    }
 	    else if (coords[1] == 1) {
 	      int searchOffsetY = searchOffsetIndex / ${searchSize} * ${searchGap};
-	      setOutput(getSearchPoints(searchLocationIndex, featureIndex, 1) + float(searchOffsetY) - ${searchOneSize}.);
+	      //setOutput(getSearchPoints(searchLocationIndex, featureIndex, 1) + float(searchOffsetY) - ${searchOneSize}.);
+	      setOutput(getSearchPoints(searchLocationIndex, featureIndex, 1) + float(searchOffsetY - ${searchOneSize}) / markerScale);
 	    }
 	  }
 	`
@@ -471,7 +426,7 @@ class Tracker {
       const programs = this.kernelCaches.computeMatching;
       const allSims = tf.backend().compileAndRun(programs[0], [featurePointsT, searchPointsT, imagePixelsT, imagePropertiesT, projectedImageT]);
       const maxIndex = allSims.argMax(1);
-      const matchingPointsT = tf.backend().compileAndRun(programs[1], [searchPointsT, maxIndex]);
+      const matchingPointsT = tf.backend().compileAndRun(programs[1], [searchPointsT, imagePropertiesT, maxIndex]);
       const simT = tf.backend().compileAndRun(programs[2], [allSims, maxIndex]);
       return {matchingPointsT, simT};
     });
@@ -611,26 +566,6 @@ class Tracker {
     const u1 = computeScreenCoordiate(modelViewProjectionTransform, 10+10, 10, 0);
     const u2 = computeScreenCoordiate(modelViewProjectionTransform, 10, 10+10, 0);
 
-    /*
-    {
-      const u0 = computeScreenCoordiate(modelViewProjectionTransform, 0, 0, 0);
-      for (let i = 0; i <= 100; i+= 10) {
-	const uu = computeScreenCoordiate(modelViewProjectionTransform, i, 0, 0);
-	const d = Math.sqrt((uu.x - u0.x) * (uu.x - u0.x) + (uu.y - u0.y) * (uu.y - u0.y));
-	console.log("test: ", i, uu, d, d/i);
-      }
-
-      const u1 = computeScreenCoordiate(modelViewProjectionTransform, this.markerWidth, 0, 0);
-      const u2 = computeScreenCoordiate(modelViewProjectionTransform, 0, this.markerHeight, 0);
-      const markerScreenWidth = Math.sqrt(u1.x * u1.x + u1.y * u1.y);
-      const markerScreenHeight = Math.sqrt(u2.x * u2.x + u2.y * u2.y);
-      console.log("scale", markerScreenWidth / this.markerWidth, markerScreenHeight / this.markerHeight); 
-
-      //const targetScale = Math.min(markerScreenWidth / this.markerWidth, markerScreenHeight / this.markerHeight);
-      //const targetScale = minD / 10.0; // screen to marker ratio
-    }
-    */
-
     if (u && u1 && u2) {
       const d1 = (u1.x - u.x) * (u1.x - u.x) + (u1.y - u.y) * (u1.y - u.y);
       const d2 = (u2.x - u.x) * (u2.x - u.x) + (u2.y - u.y) * (u2.y - u.y);
@@ -644,32 +579,14 @@ class Tracker {
 	const rd2 = Math.abs(targetScale - imageList[i].scale);
 	if (rd2 < rd1) keyframeIndex = i;
       }
-      //if (keyframeIndex >= 5) return 5;
+
+      if (keyframeIndex >= 5) return 5;
       return keyframeIndex;
     }
     return 0;
   }
 }
 
-const _findInlierMatches = (options) => {
-  const {keypoints, querypoints, H, threshold} = options;
-
-  const threshold2 = threshold * threshold;
-
-  const goodMatches = [];
-  for (let i = 0; i < keypoints.length; i++) {
-    const querypoint = querypoints[i];
-    const keypoint = keypoints[i];
-    const mp = multiplyPointHomographyInhomogenous([keypoint.x, keypoint.y], H);
-    const d2 = (mp[0] - querypoint.x) * (mp[0] - querypoint.x) + (mp[1] - querypoint.y) * (mp[1] - querypoint.y);
-    if (d2 <= threshold2) {
-      goodMatches.push(i);
-    }
-  }
-  return goodMatches;
-}
-
 module.exports = {
   Tracker
 };
-
