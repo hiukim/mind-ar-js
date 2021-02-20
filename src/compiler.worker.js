@@ -2,6 +2,7 @@ const {extract} = require('./image-target/tracking/extractor.js');
 const {Detector} = require('./image-target/detectorTF/detector.js');
 const {build: hierarchicalClusteringBuild} = require('./image-target/matching/hierarchical-clustering.js');
 const {buildImageList} = require('./image-target/image-list.js');
+const tf = require('@tensorflow/tfjs');
 
 onmessage = (msg) => {
   const {data} = msg;
@@ -36,9 +37,14 @@ const _extractMatchingFeatures = (imageList) => {
     const image = imageList[i];
     // TODO: can improve performance greatly if reuse the same detector. just need to handle resizing the kernel outputs
     const detector = new Detector(image.width, image.height);
-    const ps = detector.detectImageData(image.data);
-    const pointsCluster = hierarchicalClusteringBuild({points: ps});
-    keyframes.push({points: ps, pointsCluster, width: image.width, height: image.height, scale: image.scale});
+
+    tf.tidy(() => {
+      const inputT = tf.tensor(image.data, [image.data.length]).reshape([image.height, image.width]);
+      //const ps = detector.detectImageData(image.data);
+      const ps = detector.detect(inputT);
+      const pointsCluster = hierarchicalClusteringBuild({points: ps});
+      keyframes.push({points: ps, pointsCluster, width: image.width, height: image.height, scale: image.scale});
+    });
   }
   return keyframes;
 }
