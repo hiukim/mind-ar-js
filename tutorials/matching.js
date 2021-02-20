@@ -85,9 +85,7 @@ const Display = ({result}) => {
   }, [matchType, keyframeIndex, pointScale]);
   
   const targetScaleList = useMemo(() => {
-    return Object.keys(matchResults).map((index) => {
-      const matchResult = matchResults[index];
-
+    return matchResults.map((matchResult, index) => {
       let count = [];
       for (let i = 0; i < MATCH_TYPES.length; i++) {
 	const type = MATCH_TYPES[i];
@@ -139,11 +137,11 @@ const Main = () => {
 
       const inputWidth = queryImage.width;
       const inputHeight = queryImage.height;
-      const controller = new MINDAR.Controller(inputWidth, inputHeight);
+      const controller = new MINDAR.Controller(inputWidth, inputHeight, null, true);
       const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
 
       const featurePoints = await controller.detect(queryImage);
-      const {modelViewTransform, allMatchResults: matchResults} = await controller.match(featurePoints);
+      const {modelViewTransform, debugExtras} = await controller.match(featurePoints);
 
       const result = {
 	queryImage: queryImage,
@@ -152,14 +150,14 @@ const Main = () => {
 	  images: imageListList[0],
 	  matchingData: matchingDataList[0]
 	},
-	matchResults: matchResults,
+	matchResults: debugExtras[0],
       }
       setResult(result);
     }
     process();
   }, []);
 
-  //console.log("result", result);
+  console.log("result", result);
 
   return (
     <div className="matching">

@@ -146,7 +146,7 @@ const Display = ({result}) => {
     } else if (trackType === 'search') {
       for (let i = 0; i < targetTrackingPoints.length; i++) {
 	const color = COLORS[i % COLORS.length];
-	const searchPoints = [trackResult.searchPoints[0][i], trackResult.searchPoints[1][i], trackResult.searchPoints[2][i]];
+	const searchPoints = [trackResult.debugExtra.searchPoints[0][i], trackResult.debugExtra.searchPoints[1][i], trackResult.debugExtra.searchPoints[2][i]];
 
 	searchPoints.forEach((searchPoint) => {
 	  utils.drawRect(ctx, color, Math.round(searchPoint[0] * keyScale) + targetOffsetX, Math.round(targetImage.height - searchPoint[1] * keyScale) + targetOffsetYBeforeProjection, AR2_SEARCH_SIZE * 2);
@@ -155,9 +155,9 @@ const Display = ({result}) => {
     } else if (trackType === 'track' || trackType === 'goodTrack') {
       for (let i = 0; i < targetTrackingPoints.length; i++) {
 	const color = COLORS[i % COLORS.length];
-	const matchingPoint = trackResult.matchingPoints[i]; 
-	const trackedPoint = trackResult.trackedPoints[i]; 
-	const sim = trackResult.sim[i]; 
+	const matchingPoint = trackResult.debugExtra.matchingPoints[i]; 
+	const trackedPoint = trackResult.debugExtra.trackedPoints[i]; 
+	const sim = trackResult.debugExtra.sim[i]; 
 
 	let show = true;
 	if (trackType === 'goodTrack') {
@@ -226,7 +226,8 @@ const Main = () => {
       //for (let i = 11; i <= 61; i+=2) {
 //	queryImages.push(await utils.loadImage('../tests/video2/out' + i + '.png'));
  //     }
-      for (let i = 107; i <= 307; i+=3) {
+      //for (let i = 107; i <= 307; i+=3) {
+      for (let i = 107; i <= 114; i+=3) {
 	queryImages.push(await utils.loadImage('../tests/video3/out' + i + '.png'));
       }
       /*
@@ -239,7 +240,7 @@ const Main = () => {
 
       const inputWidth = queryImage0.width;
       const inputHeight = queryImage0.height;
-      const controller = new MINDAR.Controller(inputWidth, inputHeight);
+      const controller = new MINDAR.Controller(inputWidth, inputHeight, null, true);
       const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
 
       const allTrackResults = [];
@@ -279,14 +280,14 @@ const Main = () => {
 	bestKeyframe = 0;
 	const bestSelectedFeatures = trackResults[bestKeyframe].selectedFeatures; 
 	*/
-	allPickedKeyframes.push(defaultTrackResult.keyframeIndex);
+	allPickedKeyframes.push(defaultTrackResult.debugExtra.keyframeIndex);
 	const bestSelectedFeatures = defaultTrackResult.selectedFeatures;
 	//const bestSelectedFeatures = trackResults[Math.min(7, defaultTrackResult.keyframeIndex)].selectedFeatures; 
 
 	const projectedBefore = [];
 	const projectedAfter = [];
 	for (let j = 0; j < trackResults.length; j++) {
-	  projectedBefore.push(trackResults[j].projectedImage);
+	  projectedBefore.push(trackResults[j].debugExtra.projectedImage);
 	}
 	const newModelViewTransform = await controller.trackUpdate(lastModelViewTransforms[0], bestSelectedFeatures);
 
@@ -295,7 +296,7 @@ const Main = () => {
 
 	const trackAgainResults = newModelViewTransform && await controller.trackAllFrames(queryImages[i], lastModelViewTransforms, 0, nKeyframes);
 	for (let j = 0; j < trackResults.length; j++) {
-	  projectedAfter.push(trackAgainResults && trackAgainResults[j].projectedImage);
+	  projectedAfter.push(trackAgainResults && trackAgainResults[j].debugExtra.projectedImage);
 	}
 
 	allBeforeProjected.push(projectedBefore);

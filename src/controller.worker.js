@@ -8,6 +8,7 @@ const AR2_TRACKING_THRESH = 5.0; // default
 
 let projectionTransform = null;
 let matchingDataList = null;
+let debugMode = false;
 let matcher = null;
 
 onmessage = (msg) => {
@@ -16,7 +17,8 @@ onmessage = (msg) => {
   if (data.type === 'setup') {
     projectionTransform = data.projectionTransform;
     matchingDataList = data.matchingDataList;
-    matcher = new Matcher(data.inputWidth, data.inputHeight);
+    debugMode = data.debugMode;
+    matcher = new Matcher(data.inputWidth, data.inputHeight, debugMode);
   }
 
   else if (data.type === 'match') {
@@ -24,14 +26,23 @@ onmessage = (msg) => {
 
     let matchedTargetIndex = -1;
     let matchedModelViewTransform = null;
+    let debugExtras = null;
+
+    if (debugMode) {
+      debugExtras = [];
+    }
 
     for (let i = 0; i < matchingDataList.length; i++) {
       if (skipTargetIndexes.includes(i)) continue;
 
-      const matchResult = matcher.matchDetection(matchingDataList[i], data.featurePoints);
-      if (matchResult === null) continue;
+      const {keyframeIndex, screenCoords, worldCoords, debugExtra} = matcher.matchDetection(matchingDataList[i], data.featurePoints);
 
-      const {screenCoords, worldCoords} = matchResult;
+      if (debugMode) {
+	debugExtras.push(debugExtra);
+      }
+
+      if (keyframeIndex === -1) continue;
+
       const modelViewTransform = estimateHomography({screenCoords, worldCoords, projectionTransform});
       if (modelViewTransform === null) continue;
 
@@ -44,34 +55,11 @@ onmessage = (msg) => {
       type: 'matchDone',
       targetIndex: matchedTargetIndex,
       modelViewTransform: matchedModelViewTransform,
+      debugExtras
     });
   }
   else if (data.type === 'track') {
     const {modelViewTransform, selectedFeatures} = data;
-
-    /*
-    if (selectedFeatures.length < 4) {
-      postMessage({
-	type: 'trackDone',
-	modelViewTransform: null,
-      });
-      return;
-    }
-    const screenCoords = [];
-    const worldCoords = [];
-    for (let i = 0; i < selectedFeatures.length; i++) {
-      const f = selectedFeatures[i];
-      screenCoords.push({x: f.pos2D.x, y: f.pos2D.y});
-      worldCoords.push({x: f.pos3D.x, y: f.pos3D.y});
-    }
-    const m = estimateHomography({screenCoords, worldCoords, projectionTransform});
-    postMessage({
-      type: 'trackDone',
-      modelViewTransform: m,
-    });
-    return;
-    */
-
     const inlierProbs = [1.0, 0.8, 0.6, 0.4, 0.0];
     let err = null;
     let newModelViewTransform = modelViewTransform;

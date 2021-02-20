@@ -11,15 +11,18 @@ const CLUSTER_MAX_POP = 8;
 const HAMMING_THRESHOLD = 0.7;
 
 // match list of querpoints against pre-built list of keyframes
-const match = ({keyframes, querypoints, querywidth, queryheight}) => {
-  let allMatchResults = [];
-  let result = null;
+const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => {
+  let debugExtra = null;
+  if (debugMode) debugExtra = [];
 
+  let result = null;
   for (let i = 0; i < keyframes.length; i++) {
     const keyframe = keyframes[i];
     const keypoints = keyframe.points;
 
-    allMatchResults[i] = {};
+    if (debugMode) {
+      debugExtra[i] = {};
+    }
 
     const matches = [];
     for (let j = 0; j < querypoints.length; j++) {
@@ -52,7 +55,9 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
 
-    allMatchResults[i].matches = matches;
+    if (debugMode) {
+      debugExtra[i].matches = matches;
+    }
 
     if (matches.length < MIN_NUM_INLIERS) {
       continue;
@@ -68,7 +73,9 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       matches,
     });
 
-    allMatchResults[i].houghMatches = houghMatches;
+    if (debugMode) {
+      debugExtra[i].houghMatches = houghMatches;
+    }
 
     const srcPoints = [];
     const dstPoints = [];
@@ -85,7 +92,6 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       keyframe,
     });
 
-
     if (H === null) continue;
 
     const inlierMatches = _findInlierMatches({
@@ -96,7 +102,9 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       threshold: INLIER_THRESHOLD
     });
 
-    allMatchResults[i].inlierMatches = inlierMatches;
+    if (debugMode) {
+      debugExtra[i].inlierMatches = inlierMatches;
+    }
 
     if (inlierMatches.length < MIN_NUM_INLIERS) {
       continue;
@@ -139,7 +147,9 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       }
     }
 
-    allMatchResults[i].matches2 = matches2;
+    if (debugMode) {
+      debugExtra[i].matches2 = matches2;
+    }
 
     const houghMatches2 = computeHoughMatches({
       keypoints: keyframe.points,
@@ -151,7 +161,9 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       matches: matches2,
     });
 
-    allMatchResults[i].houghMatches2 = houghMatches2;
+    if (debugMode) {
+      debugExtra[i].houghMatches2 = houghMatches2;
+    }
 
     const srcPoints2 = [];
     const dstPoints2 = [];
@@ -182,8 +194,10 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
       continue;
     }
 
-    allMatchResults[i].inlierMatches2 = inlierMatches2;
-    allMatchResults[i].H2 = H2;
+    if (debugMode) {
+      debugExtra[i].inlierMatches2 = inlierMatches2;
+      debugExtra[i].H2 = H2;
+    }
 
     if (result === null || result.matches.length < inlierMatches2.length) {
       result = {
@@ -194,13 +208,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight}) => {
     }
   }
 
-  postMessage({
-    type: 'setInterim',
-    key: 'allMatchResults',
-    data: allMatchResults
-  });
-
-  return result;
+  return {result, debugExtra};
 };
 
 const _query = ({node, keypoints, querypoint, queue, keypointIndexes, numPop}) => {
