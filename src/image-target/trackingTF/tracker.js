@@ -24,11 +24,17 @@ class Tracker {
     this.debugMode = debugMode;
 
     // prebuild feature and marker pixel tensors
+    let maxCount = 0;
+    for (let i = 0; i < trackingDataList.length; i++) {
+      for (let j = 0; j < trackingDataList[i].length; j++) {
+	maxCount = Math.max(maxCount, trackingDataList[i][j].coords.length);
+      }
+    }
     this.featurePointsListT = [];
     this.imagePixelsListT = [];
     this.imagePropertiesListT = [];
     for (let i = 0; i < trackingDataList.length; i++) {
-      const {featureList, imagePixelsList, imagePropertiesList} = this._prebuild(trackingDataList[i], imageListList[i]);
+      const {featureList, imagePixelsList, imagePropertiesList} = this._prebuild(trackingDataList[i], imageListList[i], maxCount);
       this.featurePointsListT[i] = featureList;
       this.imagePixelsListT[i] = imagePixelsList;
       this.imagePropertiesListT[i] = imagePropertiesList;
@@ -485,7 +491,7 @@ class Tracker {
     });
   }
 
-  _prebuild(featureSets, imageList) {
+  _prebuild(featureSets, imageList, maxCount) {
     return tf.tidy(() => {
       const imagePixelsList = [];
       const imagePropertiesList = [];
@@ -495,10 +501,6 @@ class Tracker {
       }
 
       const featureList = [];
-      let maxCount = 0;
-      for (let j = 0; j < featureSets.length; j++) {
-        maxCount = Math.max(maxCount, featureSets[j].coords.length);
-      }
       for (let j = 0; j < featureSets.length; j++) {
 	let p = [];
         for (let k = 0; k < maxCount; k++) {
