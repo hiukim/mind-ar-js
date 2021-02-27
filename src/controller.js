@@ -150,8 +150,8 @@ class Controller {
         let trackingCount = 0;
         for (let i = 0; i < this.imageTargetStates.length; i++) {
           if (this.imageTargetStates[i].isTracking) {
-	    const {selectedFeatures} = this.tracker.track(inputT, this.imageTargetStates[i].lastModelViewTransforms, i);
-	    trackingFeatures[i] = selectedFeatures;
+	    const {worldCoords, screenCoords} = this.tracker.track(inputT, this.imageTargetStates[i].lastModelViewTransforms, i);
+	    trackingFeatures[i] = {worldCoords, screenCoords};
 
             trackingCount += 1;
           }
@@ -200,9 +200,9 @@ class Controller {
         for (let i = 0; i < this.imageTargetStates.length; i++) {
           if (this.imageTargetStates[i].isTracking && trackingFeatures[i] !== null) {
             let modelViewTransform = null;
-            if (trackingFeatures[i].length >= 4) {
+            if (trackingFeatures[i].worldCoords.length >= 4) {
               modelViewTransform = await this.workerTrack(this.imageTargetStates[i].lastModelViewTransform, trackingFeatures[i]);
-            }
+	    }
             // remove this
             //modelViewTransform = this.imageTargetStates[i].lastModelViewTransform;
 
@@ -261,12 +261,13 @@ class Controller {
     });
   }
 
-  workerTrack(modelViewTransform, selectedFeatures) {
+  workerTrack(modelViewTransform, trackingFeatures) {
     return new Promise(async (resolve, reject) => {
       this.workerTrackDone = (data) => {
         resolve(data.modelViewTransform);
       }
-      this.worker.postMessage({type: 'track', modelViewTransform, selectedFeatures: selectedFeatures});
+      const {worldCoords, screenCoords} = trackingFeatures;
+      this.worker.postMessage({type: 'track', modelViewTransform, worldCoords, screenCoords});
     });
   }
 
@@ -291,11 +292,12 @@ class Controller {
 
     if (targetIndex !== -1) {
       _start = new Date();
-      const {selectedFeatures: trackFeatures} = this.tracker.track(inputT, [modelViewTransform, modelViewTransform, modelViewTransform], targetIndex);
+      const {worldCoords, screenCoords} = this.tracker.track(inputT, [modelViewTransform, modelViewTransform, modelViewTransform], targetIndex);
+      const trackFeatures = {worldCoords, screenCoords};
 
       let modelViewTransform2 = null; 
       console.log("track features", trackFeatures);
-      if (trackFeatures.length >= 4) {
+      if (trackFeatures.worldCoords.length >= 4) {
 	modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
 	console.log("track", modelViewTransform2);
       }
@@ -339,7 +341,7 @@ class Controller {
     return trackResults;
   }
   async trackUpdate(modelViewTransform, trackFeatures) {
-    if (trackFeatures.length < 4 ) return null;
+    if (trackFeatures.worldCoords.length < 4 ) return null;
     const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
     return modelViewTransform2;
   }

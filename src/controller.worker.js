@@ -56,14 +56,16 @@ onmessage = (msg) => {
     });
   }
   else if (data.type === 'track') {
-    const {modelViewTransform, selectedFeatures} = data;
+    const {modelViewTransform, worldCoords, screenCoords} = data;
 
+    /*
     const worldCoords = [];
     const screenCoords = [];
     for (let i = 0; i < selectedFeatures.length; i++) {
       screenCoords.push({x: selectedFeatures[i].pos2D.x, y: selectedFeatures[i].pos2D.y});
       worldCoords.push({x: selectedFeatures[i].pos3D.x, y: selectedFeatures[i].pos3D.y, z: selectedFeatures[i].pos3D.z});
     }
+    */
     const finalModelViewTransform = estimator.refineEstimate({initialModelViewTransform: modelViewTransform, worldCoords, screenCoords});
     postMessage({
       type: 'trackDone',

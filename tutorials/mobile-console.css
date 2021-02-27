@@ -7,7 +7,7 @@
 
 #jsmc-log{
 	border-top: 1px solid #808080;
-	max-height: 500px;
+	max-height: 100px;
 	overflow-y: auto;
 	margin-right: 10px;
 	font-size: 1em;

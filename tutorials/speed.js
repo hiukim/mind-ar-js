@@ -56,13 +56,14 @@ const Main = () => {
       }
 
       _start = new Date();
-      const nKeyframes = 1;
-      const trackResults = await controller.trackAllFrames(queryImages[1], [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform], 0, nKeyframes);
+      //const nKeyframes = 1;
+      //const trackResults = await controller.trackAllFrames(queryImages[1], [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform], 0, nKeyframes);
+      const trackResults = await controller.track(queryImages[1], [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform], 0);
       timeSpent['track'].push(new Date() - _start);
       //console.log("trackResultsf", trackResults);
 
       _start = new Date();
-      const bestSelectedFeatures = trackResults[0].selectedFeatures;
+      const bestSelectedFeatures = {worldCoords: trackResults.worldCoords, screenCoords: trackResults.screenCoords};
       const newModelViewTransform = await controller.trackUpdate(firstModelViewTransform, bestSelectedFeatures);
       timeSpent['trackUpdate'].push(new Date() - _start);
 

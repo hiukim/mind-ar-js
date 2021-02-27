@@ -161,8 +161,8 @@ const Display = ({result}) => {
 
 	let show = true;
 	if (trackType === 'goodTrack') {
-	  const found = trackResult.selectedFeatures.find((f) => {
-	    return f.pos3D.x === targetTrackingPoints[i].mx && f.pos3D.y === targetTrackingPoints[i].my; 
+	  const found = trackResult.worldCoords.find((f) => {
+	    return f.x === targetTrackingPoints[i].mx && f.y === targetTrackingPoints[i].my; 
 	  });
 	  show = !!found;
 	}
@@ -181,7 +181,7 @@ const Display = ({result}) => {
     return Object.keys(trackResults).map((index) => {
       const selected = allPickedKeyframes[queryIndex] == index;
       const trackResult = trackResults[index];
-      return 'T' + index + ' [' + targetTrackingData[index].coords.length + '-' + trackResult.selectedFeatures.length + ']' + (selected? " *": "");
+      return 'T' + index + ' [' + targetTrackingData[index].coords.length + '-' + trackResult.worldCoords.length + ']' + (selected? " *": "");
     });
   }, [trackResults, queryIndex]);
 
@@ -226,8 +226,8 @@ const Main = () => {
       //for (let i = 11; i <= 61; i+=2) {
 //	queryImages.push(await utils.loadImage('../tests/video2/out' + i + '.png'));
  //     }
-      //for (let i = 107; i <= 307; i+=3) {
-      for (let i = 107; i <= 114; i+=3) {
+      for (let i = 107; i <= 307; i+=3) {
+      //for (let i = 107; i <= 114; i+=3) {
 	queryImages.push(await utils.loadImage('../tests/video3/out' + i + '.png'));
       }
       /*
@@ -281,7 +281,7 @@ const Main = () => {
 	const bestSelectedFeatures = trackResults[bestKeyframe].selectedFeatures; 
 	*/
 	allPickedKeyframes.push(defaultTrackResult.debugExtra.keyframeIndex);
-	const bestSelectedFeatures = defaultTrackResult.selectedFeatures;
+	const bestSelectedFeatures = {worldCoords: defaultTrackResult.worldCoords, screenCoords: defaultTrackResult.screenCoords};
 	//const bestSelectedFeatures = trackResults[Math.min(7, defaultTrackResult.keyframeIndex)].selectedFeatures; 
 
 	const projectedBefore = [];

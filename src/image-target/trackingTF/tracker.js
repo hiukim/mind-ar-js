@@ -115,18 +115,17 @@ class Tracker {
 
     // tracking features set if similarity exceed certain threshold
     const featureSet = this.trackingDataList[targetIndex][keyframeIndex];
-    const selectedFeatures = [];
+
+    const screenCoords = [];
+    const worldCoords = [];
     for (let i = 0; i < featureSet.coords.length; i++) {
       if (combinedArr[i][2] > AR2_SIM_THRESH) {
-        selectedFeatures.push({
-          pos2D: {x: combinedArr[i][0], y: combinedArr[i][1]},
-          pos3D: {x: featureSet.coords[i].mx, y: featureSet.coords[i].my, z: 0},
-          sim: combinedArr[i][2]
-        });
+	screenCoords.push({x: combinedArr[i][0], y: combinedArr[i][1]});
+	worldCoords.push({x: featureSet.coords[i].mx, y: featureSet.coords[i].my, z: 0});
       }
     }
 
-    return {selectedFeatures, debugExtra};
+    return {worldCoords, screenCoords, debugExtra};
   }
 
   _combine(trackedPointsT, similaritiesT) {
