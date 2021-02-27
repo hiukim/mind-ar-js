@@ -89,6 +89,7 @@ class Tracker {
 
     if (this.debugMode) {
       debugExtra = {
+        keyframeIndex,
 	matchingPoints: matchingPointsT.arraySync(),
 	trackedPoints: trackedPointsT.arraySync(),
 	searchPoints: searchPointsT.arraySync(),
