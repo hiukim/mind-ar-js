@@ -75,6 +75,18 @@ class Compiler {
         matchingData: dataList[i].matchingData
       });
     }
+
+    for (let i = 0; i < this.data.length; i++) {
+      for (let j = 0; j < this.data[i].trackingData.length; j++) {
+	const scale = this.data[i].imageList[j].scale;
+	const height = this.data[i].imageList[j].height;
+	this.data[i].trackingData[j].coords.forEach((c) => {
+	  c.my = (height - c.my * scale) / scale;
+	});
+      }
+    }
+    console.log("fixed import", this.data);
+
     return this.data;
   }
 }

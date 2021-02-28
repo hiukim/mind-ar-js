@@ -138,7 +138,7 @@ const Display = ({result}) => {
     for (let i = 0; i < targetTrackingPoints.length; i++) {
       const color = COLORS[i % COLORS.length];
       const targetPoint = targetTrackingPoints[i];
-      utils.drawRect(ctx, color, Math.round(targetPoint.mx * keyScale) + targetOffsetX, Math.round(targetImage.height - targetPoint.my * keyScale) + targetOffsetYMarker, TEMPLATE_RADIUS * 2);
+      utils.drawRect(ctx, color, Math.round(targetPoint.mx * keyScale) + targetOffsetX, Math.round(targetPoint.my * keyScale) + targetOffsetYMarker, TEMPLATE_RADIUS * 2);
     }
 
     if (trackType === 'none') {
@@ -149,7 +149,7 @@ const Display = ({result}) => {
 	const searchPoints = [trackResult.debugExtra.searchPoints[0][i], trackResult.debugExtra.searchPoints[1][i], trackResult.debugExtra.searchPoints[2][i]];
 
 	searchPoints.forEach((searchPoint) => {
-	  utils.drawRect(ctx, color, Math.round(searchPoint[0] * keyScale) + targetOffsetX, Math.round(targetImage.height - searchPoint[1] * keyScale) + targetOffsetYBeforeProjection, AR2_SEARCH_SIZE * 2);
+	  utils.drawRect(ctx, color, Math.round(searchPoint[0] * keyScale) + targetOffsetX, Math.round(searchPoint[1] * keyScale) + targetOffsetYBeforeProjection, AR2_SEARCH_SIZE * 2);
 	});
       }
     } else if (trackType === 'track' || trackType === 'goodTrack') {
@@ -167,7 +167,7 @@ const Display = ({result}) => {
 	  show = !!found;
 	}
 	if (show) {
-	  utils.drawRect(ctx, color, Math.round(matchingPoint[0] * keyScale) + targetOffsetX, Math.round(targetImage.height - matchingPoint[1] * keyScale) + targetOffsetYBeforeProjection, TEMPLATE_RADIUS * 2);
+	  utils.drawRect(ctx, color, Math.round(matchingPoint[0] * keyScale) + targetOffsetX, Math.round(matchingPoint[1] * keyScale) + targetOffsetYBeforeProjection, TEMPLATE_RADIUS * 2);
 	}
 
 	if (show && trackType === 'goodTrack') {
@@ -263,7 +263,7 @@ const Main = () => {
       const lastModelViewTransforms = [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform];
       for (let i = 0; i < queryImages.length; i++) {
 	console.log("compute query", i);
-	allWorldMatrices.push(controller.getWorldMatrix(lastModelViewTransforms[0]));
+	allWorldMatrices.push(controller.getWorldMatrix(lastModelViewTransforms[0], 0));
 
 	const trackResults = await controller.trackAllFrames(queryImages[i], lastModelViewTransforms, 0, nKeyframes);
 	allTrackResults.push(trackResults);

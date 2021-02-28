@@ -305,15 +305,15 @@ class Tracker {
 
 	    int fCenterX = int(getFeatures(featureIndex, 0) * markerScale);
 	    int fCenterY = int(getFeatures(featureIndex, 1) * markerScale);
-	    fCenterY = markerHeight - 1 - fCenterY;
+	    //fCenterY = markerHeight - 1 - fCenterY;
 
 	    int sCenterX = int(getSearch(searchLocationIndex, featureIndex, 0) * markerScale);
 	    int sCenterY = int(getSearch(searchLocationIndex, featureIndex, 1) * markerScale);
-	    sCenterY = markerHeight - 1 - sCenterY; // upside down
+	    //sCenterY = markerHeight - 1 - sCenterY; // upside down
 
 	    int sx = sCenterX + searchOffsetX - ${searchOneSize};
-	    //int sy = sCenterY + searchOffsetY - ${searchOneSize};
-	    int sy = sCenterY - searchOffsetY + ${searchOneSize}; // upside down
+	    int sy = sCenterY + searchOffsetY - ${searchOneSize};
+	    //int sy = sCenterY - searchOffsetY + ${searchOneSize}; // upside down
 
 	    //setOutput( float(1000 * sy2 + sx2));
 	    //return;
@@ -451,7 +451,8 @@ class Tracker {
 	      float m21 = getM(2, 1) * ${PRECISION_ADJUST}.;
 	      float m23 = getM(2, 3) * ${PRECISION_ADJUST}.;
 
-	      float y = float( ${markerHeight} - coords[0]) / float(${markerScale});
+	      //float y = float( ${markerHeight} - coords[0]) / float(${markerScale});
+	      float y = float(coords[0]) / float(${markerScale});
 	      float x = float(coords[1]) / float(${markerScale});
 	      float uz = (x * m20) + (y * m21) + m23;
 	      float oneOverUz = 1. / uz;

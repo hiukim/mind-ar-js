@@ -26,7 +26,8 @@ class Matcher {
       })
       worldCoords.push({
         x: (keyframe.points[keypointIndex].x + 0.5) / keyframe.scale,
-        y: ((keyframe.height-0.5) -keyframe.points[keypointIndex].y) / keyframe.scale,
+        //y: ((keyframe.height-0.5) -keyframe.points[keypointIndex].y) / keyframe.scale,
+        y: (keyframe.points[keypointIndex].y + 0.5) / keyframe.scale,
         z: 0,
       })
     }

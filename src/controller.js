@@ -14,7 +14,7 @@ class Controller {
     this.inputHeight = inputHeight;
     this.detector = new Detector(this.inputWidth, this.inputHeight);
     this.inputLoader = new InputLoader(this.inputWidth, this.inputHeight);
-    this.imageTargets = [];
+    this.markerDimensions = null;
     this.trackingIndex = -1;
     this.trackingMatrix = null;
     this.trackingMissCount = 0;
@@ -100,6 +100,9 @@ class Controller {
         matchingDataList,
       });
 
+      console.log("add target", dimensions);
+      this.markerDimensions = dimensions;
+
       resolve({dimensions: dimensions, matchingDataList, trackingDataList, imageListList});
     });
   }
@@ -112,8 +115,8 @@ class Controller {
     inputT.dispose();
   }
 
-  getWorldMatrix(modelViewTransform) {
-    return _glModelViewMatrix(modelViewTransform);
+  getWorldMatrix(modelViewTransform, targetIndex) {
+    return this._glModelViewMatrix(modelViewTransform, targetIndex);
   }
 
   /**
@@ -221,7 +224,7 @@ class Controller {
               this.imageTargetStates[i].lastModelViewTransforms.unshift(modelViewTransform);
               this.imageTargetStates[i].lastModelViewTransforms.pop();
 
-              const worldMatrix = _glModelViewMatrix(modelViewTransform);
+              const worldMatrix = this._glModelViewMatrix(modelViewTransform, i);
 
               if (this.imageTargetStates[i].trackingMatrix === null) {
                 this.imageTargetStates[i].trackingMatrix = worldMatrix;
@@ -287,7 +290,7 @@ class Controller {
     const {targetIndex, modelViewTransform, debugExtras} = await this.workerMatch(featurePoints, []);
     console.log("match", targetIndex, modelViewTransform);
     if (targetIndex !== -1) {
-      detectedWorldMatrix = _glModelViewMatrix(modelViewTransform);
+      detectedWorldMatrix = this._glModelViewMatrix(modelViewTransform, targetIndex);
     }
 
     if (targetIndex !== -1) {
@@ -345,26 +348,86 @@ class Controller {
     const modelViewTransform2 = await this.workerTrack(modelViewTransform, trackFeatures);
     return modelViewTransform2;
   }
-}
 
-// build openGL modelView matrix
-const _glModelViewMatrix = (modelViewTransform) => {
-  const openGLWorldMatrix = [
-    modelViewTransform[0][0], -modelViewTransform[1][0], -modelViewTransform[2][0], 0,
-    modelViewTransform[0][1], -modelViewTransform[1][1], -modelViewTransform[2][1], 0,
-    modelViewTransform[0][2], -modelViewTransform[1][2], -modelViewTransform[2][2], 0,
-    modelViewTransform[0][3], -modelViewTransform[1][3], -modelViewTransform[2][3], 1
-  ];
-  return openGLWorldMatrix;
+  _glModelViewMatrix(modelViewTransform, targetIndex) {
+    const height = this.markerDimensions[targetIndex][1];
+
+    // Question: can someone verify this interpreation is correct? 
+    // I'm not very convinced, but more like trial and error and works......
+    //
+    // First, opengl has y coordinate system go from bottom to top, while the marker corrdinate goes from top to bottom,
+    //    since the modelViewTransform is estimated in marker coordinate, we need to apply this transform before modelViewTransform
+    //    I can see why y = h - y*, but why z = z* ? should we intepret it as rotate 90 deg along x-axis and then translate y by h?
+    //
+    //    [1  0  0  0]
+    //    [0 -1  0  h]
+    //    [0  0 -1  0]
+    //    [0  0  0  1]
+    //    
+    //    This is tested that if we reverse marker coordinate from bottom to top and estimate the modelViewTransform,
+    //    then the above matrix is not necessary.
+    //
+    // Second, in opengl, positive z is away from camera, so we rotate 90 deg along x-axis after transform to fix the axis mismatch
+    //    [1  1  0  0]
+    //    [0 -1  0  0]
+    //    [0  0 -1  0]
+    //    [0  0  0  1]
+    //
+    // all together, the combined matrix is
+    //
+    //    [1  1  0  0]   [m00, m01, m02, m03]   [1  0  0  0]
+    //    [0 -1  0  0]   [m10, m11, m12, m13]   [0 -1  0  h]
+    //    [0  0 -1  0]   [m20, m21, m22, m23]   [0  0 -1  0]
+    //    [0  0  0  1]   [  0    0    0    1]   [0  0  0  1]
+    //
+    //    [ m00,  -m01,  -m02,  (m01 * h + m03) ]
+    //    [-m10,   m11,   m12, -(m11 * h + m13) ]
+    //  = [-m20,   m21,   m22, -(m21 * h + m23) ]
+    //    [   0,     0,     0,                1 ]
+    //
+    //
+    // Finally, in threejs, matrix is represented in col by row, so we transpose it, and get below:
+    const openGLWorldMatrix = [
+      modelViewTransform[0][0], -modelViewTransform[1][0], -modelViewTransform[2][0], 0,
+      -modelViewTransform[0][1], modelViewTransform[1][1], modelViewTransform[2][1], 0,
+      -modelViewTransform[0][2], modelViewTransform[1][2], modelViewTransform[2][2], 0,
+      modelViewTransform[0][1] * height + modelViewTransform[0][3], -(modelViewTransform[1][1] * height + modelViewTransform[1][3]), -(modelViewTransform[2][1] * height + modelViewTransform[2][3]), 1
+    ];
+    return openGLWorldMatrix;
+  }
 }
 
 // build openGL projection matrix
+// ref: https://strawlab.org/2011/11/05/augmented-reality-with-OpenGL/
 const _glProjectionMatrix = ({projectionTransform, width, height, near, far}) => {
+  //const proj = [
+  //  [2 * projectionTransform[0][0] / width, 0, -(2 * projectionTransform[0][2] / width - 1), 0],
+  //  [0, 2 * projectionTransform[1][1] / height, -(2 * projectionTransform[1][2] / height - 1), 0],
+  //  [0, 0, -(far + near) / (far - near), -2 * far * near / (far - near)],
+  //  [0, 0, -1, 0]
+  //];
   const proj = [
-    [2 * projectionTransform[0][0] / width, 0, -(2 * projectionTransform[0][2] / width - 1), 0],
-    [0, 2 * projectionTransform[1][1] / height, -(2 * projectionTransform[1][2] / height - 1), 0],
-    [0, 0, -(far + near) / (far - near), -2 * far * near / (far - near)],
-    [0, 0, -1, 0]
+    [
+      2 * projectionTransform[0][0] / width,
+      0,
+      -(2 * projectionTransform[0][2] / width - 1),
+      0
+    ],
+    [
+      0,
+      2 * projectionTransform[1][1] / height,
+      -(2 * projectionTransform[1][2] / height - 1),
+      0
+    ],
+    [
+      0,
+      0,
+      -(far + near) / (far - near),
+      -2 * far * near / (far - near)
+    ],
+    [
+      0, 0, -1, 0
+    ]
   ];
 
   const projMatrix = [];
