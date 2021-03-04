@@ -1,5 +1,5 @@
 const tf = require('@tensorflow/tfjs');
-const {buildModelViewProjectionTransform, computeScreenCoordiate} = require('../icp/utils.js');
+const {buildModelViewProjectionTransform, computeScreenCoordiate} = require('../estimation/utils.js');
 
 const AR2_DEFAULT_TS = 6;
 const AR2_DEFAULT_TS_GAP = 1;
