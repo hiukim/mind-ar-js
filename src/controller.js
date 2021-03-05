@@ -7,6 +7,7 @@ const {InputLoader} = require('./image-target/input-loader.js');
 
 const INTERPOLATION_FACTOR = 10;
 const MISS_COUNT_TOLERANCE = 10;
+const MIN_KEYFRAME_SIZE = 80;
 
 class Controller {
   constructor(inputWidth, inputHeight, onUpdate, debugMode=false) {
@@ -77,18 +78,26 @@ class Controller {
       const buffer = await content.arrayBuffer();
       const dataList = compiler.importData(buffer);
 
-      console.log("dataList", dataList);
-
       const trackingDataList = [];
       const matchingDataList = [];
       const imageListList = [];
       const dimensions = [];
       for (let i = 0; i < dataList.length; i++) {
-        matchingDataList.push(dataList[i].matchingData);
-        trackingDataList.push(dataList[i].trackingData);
-        imageListList.push(dataList[i].imageList);
-        dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
+	const imageList = [];
+	const matchingList = [];
+	const trackingList = [];
+	for (let j = 0; j < dataList[i].imageList.length; j++) {
+	  // keyframe too small to be useful
+	  if (dataList[i].imageList[j].width < MIN_KEYFRAME_SIZE || dataList[i].imageList[j].height < MIN_KEYFRAME_SIZE) break;
 
+	  imageList.push(dataList[i].imageList[j]);
+	  matchingList.push(dataList[i].matchingData[j]);
+	  trackingList.push(dataList[i].trackingData[j]);
+	}
+        matchingDataList.push(matchingList);
+        trackingDataList.push(trackingList);
+        imageListList.push(imageList);
+        dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
         this.imageTargetStates[i] = {isTracking: false};
       }
 
