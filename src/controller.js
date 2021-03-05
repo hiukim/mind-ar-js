@@ -100,7 +100,6 @@ class Controller {
         matchingDataList,
       });
 
-      console.log("add target", dimensions);
       this.markerDimensions = dimensions;
 
       resolve({dimensions: dimensions, matchingDataList, trackingDataList, imageListList});

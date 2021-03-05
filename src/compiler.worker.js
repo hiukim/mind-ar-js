@@ -1,4 +1,4 @@
-const {extract} = require('./image-target/tracking/extractor.js');
+const {extract} = require('./image-target/trackingTF/extract.js');
 const {Detector} = require('./image-target/detectorTF/detector.js');
 const {build: hierarchicalClusteringBuild} = require('./image-target/matching/hierarchical-clustering.js');
 const {buildImageList} = require('./image-target/image-list.js');
@@ -8,15 +8,29 @@ onmessage = (msg) => {
   const {data} = msg;
   if (data.type === 'compile') {
     console.log("worker compile...");
+
     const {targetImages} = data;
+    const percentPerImage = 100.0 / targetImages.length;
+    let percent = 0.0;
     const list = [];
     for (let i = 0; i < targetImages.length; i++) {
       const targetImage = targetImages[i];
       const imageList = buildImageList(targetImage);
+      const percentPerAction = percentPerImage / imageList.length / 2;
+
       console.log("compiling tracking...", i);
-      const trackingData = _extractTrackingFeatures(imageList);
+      const trackingData = _extractTrackingFeatures(imageList, (index) => {
+	console.log("done tracking", i, index);
+	percent += percentPerAction;
+	postMessage({type: 'progress', percent: percent});
+      });
+
       console.log("compiling matching...", i);
-      const matchingData = _extractMatchingFeatures(imageList);
+      const matchingData = _extractMatchingFeatures(imageList, (index) => {
+	console.log("done matching", i, index);
+	percent += percentPerAction;
+	postMessage({type: 'progress', percent: percent});
+      });
       list.push({
         targetImage,
         imageList,
@@ -31,7 +45,7 @@ onmessage = (msg) => {
   }
 };
 
-const _extractMatchingFeatures = (imageList) => {
+const _extractMatchingFeatures = (imageList, doneCallback) => {
   const keyframes = [];
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
@@ -43,28 +57,35 @@ const _extractMatchingFeatures = (imageList) => {
       //const ps = detector.detectImageData(image.data);
       const ps = detector.detect(inputT);
       const pointsCluster = hierarchicalClusteringBuild({points: ps});
-      keyframes.push({points: ps, pointsCluster, width: image.width, height: image.height, scale: image.scale});
+      keyframes.push({
+	points: ps,
+	pointsCluster,
+	width: image.width,
+	height: image.height,
+	scale: image.scale
+      });
+
+      doneCallback(i);
     });
   }
   return keyframes;
 }
 
-const _extractTrackingFeatures = (imageList) => {
+const _extractTrackingFeatures = (imageList, doneCallback) => {
   const featureSets = [];
   for (let i = 0; i < imageList.length; i++) {
     const image = imageList[i];
-    const coords = extract(image);
+    const points = extract(image);
 
-    const featureSet = {};
-    featureSet.scale = i;
-    featureSet.coords = [];
-    for (let j = 0; j < coords.length; j++) {
-      featureSet.coords.push({
-        mx: coords[j].mx,
-        my: coords[j].my,
-      });
-    }
+    const featureSet = {
+      scale: image.scale,
+      width: image.width,
+      height: image.height,
+      points,
+    };
     featureSets.push(featureSet);
+
+    doneCallback(i);
   }
   return featureSets;
 }

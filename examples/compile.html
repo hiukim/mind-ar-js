@@ -22,11 +22,9 @@
         console.log("data", data);
         for (let i = 0; i < data.imageList.length; i++) {
           const image = data.imageList[i];
-          const coords = data.trackingData[i].coords;
-          const points = [];
-          for (let j = 0; j < coords.length; j++) {
-            points.push({x: coords[j].mx * image.scale, y: image.height - coords[j].my * image.scale});
-          }
+	  const points = data.trackingData[i].points.map((p) => {
+	    return {x: Math.round(p.x), y: Math.round(p.y)};
+	  });
           showImage(image, points);
         }
 
@@ -95,7 +93,9 @@
           images.push(await loadImage(files[i]));
         }
         let _start = new Date().getTime();
-        const dataList = await compiler.compileImageTargets(images);
+	const dataList = await compiler.compileImageTargets(images, (progress) => {
+	  document.getElementById("progress").innerHTML = 'progress: ' + progress.toFixed(2) + "%";
+	});
         console.log('exec time compile: ', new Date().getTime() - _start);
         for (let i = 0; i < dataList.length; i++) {
           showData(dataList[i]);
@@ -153,6 +153,7 @@
     </div>
     <button id="startButton">Start</button>
     <button id="downloadButton">Download</button>
+    <span id="progress"></span>
     <div id="dropzone" class="dropzone"></div>
 
     <!-- Change /upload-target to your upload address -->

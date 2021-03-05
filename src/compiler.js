@@ -3,13 +3,15 @@ const {buildImageList} = require('./image-target/image-list.js');
 const msgpack = require('@msgpack/msgpack');
 // TODO: better compression method. now grey image saved in pixels, which could be largere than original image
 
+const CURRENT_VERSION = 1;
+
 class Compiler {
   constructor() {
     this.data = null;
   }
 
   // input html Images
-  compileImageTargets(images) {
+  compileImageTargets(images, progressCallback) {
     return new Promise((resolve, reject) => {
       const targetImages = [];
       for (let i = 0; i < images.length; i++) {
@@ -33,17 +35,21 @@ class Compiler {
 
       const worker = new Worker();
       worker.onmessage = (e) => {
-        const {list} = e.data;
-        this.data = [];
-        for (let i = 0; i < list.length; i++) {
-          this.data.push({
-            targetImage: list[i].targetImage,
-            imageList: list[i].imageList,
-            trackingData: list[i].trackingData,
-            matchingData: list[i].matchingData
-          });
-        }
-        resolve(this.data);
+	if (e.data.type === 'progress') {
+	  progressCallback(e.data.percent);
+	} else if (e.data.type === 'compileDone') {
+	  const {list} = e.data;
+	  this.data = [];
+	  for (let i = 0; i < list.length; i++) {
+	    this.data.push({
+	      targetImage: list[i].targetImage,
+	      imageList: list[i].imageList,
+	      trackingData: list[i].trackingData,
+	      matchingData: list[i].matchingData
+	    });
+	  }
+	  resolve(this.data);
+	}
       };
       worker.postMessage({type: 'compile', targetImages});
     });
@@ -59,12 +65,22 @@ class Compiler {
         matchingData: this.data[i].matchingData
       });
     }
-    const buffer = msgpack.encode(dataList);
+    const buffer = msgpack.encode({
+      v: CURRENT_VERSION,
+      dataList
+    });
     return buffer;
   }
 
   importData(buffer) {
-    const dataList = msgpack.decode(new Uint8Array(buffer));
+    const content = msgpack.decode(new Uint8Array(buffer));
+    //console.log("import", content);
+
+    if (!content.v || content.v !== CURRENT_VERSION) {
+      console.error("Your compiled .mind might be outdated. Please recompile");
+      return [];
+    }
+    const {dataList} = content;
     this.data = [];
     for (let i = 0; i < dataList.length; i++) {
       const imageList = buildImageList(dataList[i].targetImage);
@@ -75,18 +91,6 @@ class Compiler {
         matchingData: dataList[i].matchingData
       });
     }
-
-    for (let i = 0; i < this.data.length; i++) {
-      for (let j = 0; j < this.data[i].trackingData.length; j++) {
-	const scale = this.data[i].imageList[j].scale;
-	const height = this.data[i].imageList[j].height;
-	this.data[i].trackingData[j].coords.forEach((c) => {
-	  c.my = (height - c.my * scale) / scale;
-	});
-      }
-    }
-    console.log("fixed import", this.data);
-
     return this.data;
   }
 }

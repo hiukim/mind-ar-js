@@ -133,7 +133,8 @@ const Main = () => {
 
   useEffect(() => {
     const process = async () => {
-      const queryImage = await utils.loadImage('../tests/video2/out11.png');
+      //const queryImage = await utils.loadImage('../tests/video2/out11.png');
+      const queryImage = await utils.loadImage('../tests/video3/out107.png');
 
       const inputWidth = queryImage.width;
       const inputHeight = queryImage.height;

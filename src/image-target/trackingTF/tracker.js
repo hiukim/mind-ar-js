@@ -27,7 +27,7 @@ class Tracker {
     let maxCount = 0;
     for (let i = 0; i < trackingDataList.length; i++) {
       for (let j = 0; j < trackingDataList[i].length; j++) {
-	maxCount = Math.max(maxCount, trackingDataList[i][j].coords.length);
+	maxCount = Math.max(maxCount, trackingDataList[i][j].points.length);
       }
     }
     this.featurePointsListT = [];
@@ -118,10 +118,10 @@ class Tracker {
 
     const screenCoords = [];
     const worldCoords = [];
-    for (let i = 0; i < featureSet.coords.length; i++) {
+    for (let i = 0; i < featureSet.points.length; i++) {
       if (combinedArr[i][2] > AR2_SIM_THRESH) {
 	screenCoords.push({x: combinedArr[i][0], y: combinedArr[i][1]});
-	worldCoords.push({x: featureSet.coords[i].mx, y: featureSet.coords[i].my, z: 0});
+	worldCoords.push({x: featureSet.points[i].x / featureSet.scale, y: featureSet.points[i].y / featureSet.scale, z: 0});
       }
     }
 
@@ -503,10 +503,11 @@ class Tracker {
 
       const featureList = [];
       for (let j = 0; j < featureSets.length; j++) {
+	const scale = imageList[j].scale;
 	let p = [];
         for (let k = 0; k < maxCount; k++) {
-          if (k < featureSets[j].coords.length) {
-	    p.push([featureSets[j].coords[k].mx, featureSets[j].coords[k].my]);
+          if (k < featureSets[j].points.length) {
+	    p.push([featureSets[j].points[k].x / scale, featureSets[j].points[k].y / scale]);
           } else {
 	    p.push([-1, -1]);
           }

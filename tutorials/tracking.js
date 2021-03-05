@@ -131,14 +131,14 @@ const Display = ({result}) => {
       ctx.putImageData(imageData, targetOffsetX, targetOffsetYAfterProjection, 0, 0, afterProjectedImage[0].length, afterProjectedImage.length);
     }
 
-    const targetTrackingPoints = targetTrackingData[keyframeIndex].coords;
+    const targetTrackingPoints = targetTrackingData[keyframeIndex].points;
     const keyScale = targetImage.scale;
     const trackResult = trackResults[keyframeIndex];
 
     for (let i = 0; i < targetTrackingPoints.length; i++) {
       const color = COLORS[i % COLORS.length];
       const targetPoint = targetTrackingPoints[i];
-      utils.drawRect(ctx, color, Math.round(targetPoint.mx * keyScale) + targetOffsetX, Math.round(targetPoint.my * keyScale) + targetOffsetYMarker, TEMPLATE_RADIUS * 2);
+      utils.drawRect(ctx, color, Math.round(targetPoint.x) + targetOffsetX, Math.round(targetPoint.y) + targetOffsetYMarker, TEMPLATE_RADIUS * 2);
     }
 
     if (trackType === 'none') {
@@ -162,7 +162,7 @@ const Display = ({result}) => {
 	let show = true;
 	if (trackType === 'goodTrack') {
 	  const found = trackResult.worldCoords.find((f) => {
-	    return f.x === targetTrackingPoints[i].mx && f.y === targetTrackingPoints[i].my; 
+	    return (Math.abs(f.x * keyScale - targetTrackingPoints[i].x) < 0.0001) && (Math.abs(f.y * keyScale -targetTrackingPoints[i].y) < 0.0001);
 	  });
 	  show = !!found;
 	}
@@ -181,7 +181,7 @@ const Display = ({result}) => {
     return Object.keys(trackResults).map((index) => {
       const selected = allPickedKeyframes[queryIndex] == index;
       const trackResult = trackResults[index];
-      return 'T' + index + ' [' + targetTrackingData[index].coords.length + '-' + trackResult.worldCoords.length + ']' + (selected? " *": "");
+      return 'T' + index + ' [' + targetTrackingData[index].points.length + '-' + trackResult.worldCoords.length + ']' + (selected? " *": "");
     });
   }, [trackResults, queryIndex]);
 
