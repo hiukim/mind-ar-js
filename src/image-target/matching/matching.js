@@ -1,7 +1,7 @@
 const TinyQueue = require('tinyqueue').default;
 const {compute: hammingCompute} = require('./hamming-distance.js');
 const {computeHoughMatches} = require('./hough.js');
-const {computeHomography} = require('./homography.js');
+const {computeHomography} = require('./ransacHomography.js');
 const {multiplyPointHomographyInhomogenous, matrixInverse33} = require('../utils/geometry.js');
 
 const INLIER_THRESHOLD = 3;

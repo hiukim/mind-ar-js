@@ -77,6 +77,8 @@ class Controller {
       const buffer = await content.arrayBuffer();
       const dataList = compiler.importData(buffer);
 
+      console.log("dataList", dataList);
+
       const trackingDataList = [];
       const matchingDataList = [];
       const imageListList = [];
@@ -89,6 +91,7 @@ class Controller {
 
         this.imageTargetStates[i] = {isTracking: false};
       }
+
       this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight, this.debugMode);
 
       this.worker.postMessage({
