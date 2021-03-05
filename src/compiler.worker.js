@@ -1,5 +1,5 @@
-const {extract} = require('./image-target/trackingTF/extract.js');
-const {Detector} = require('./image-target/detectorTF/detector.js');
+const {extract} = require('./image-target/tracker/extract.js');
+const {Detector} = require('./image-target/detector/detector.js');
 const {build: hierarchicalClusteringBuild} = require('./image-target/matching/hierarchical-clustering.js');
 const {buildImageList} = require('./image-target/image-list.js');
 const tf = require('@tensorflow/tfjs');
