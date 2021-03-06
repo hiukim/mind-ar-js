@@ -17,7 +17,6 @@ onmessage = (msg) => {
     matcher = new Matcher(data.inputWidth, data.inputHeight, debugMode);
     estimator = new Estimator(data.projectionTransform);
   }
-
   else if (data.type === 'match') {
     const skipTargetIndexes = data.skipTargetIndexes;
 
@@ -55,20 +54,11 @@ onmessage = (msg) => {
       debugExtras
     });
   }
-  else if (data.type === 'track') {
+  else if (data.type === 'trackUpdate') {
     const {modelViewTransform, worldCoords, screenCoords} = data;
-
-    /*
-    const worldCoords = [];
-    const screenCoords = [];
-    for (let i = 0; i < selectedFeatures.length; i++) {
-      screenCoords.push({x: selectedFeatures[i].pos2D.x, y: selectedFeatures[i].pos2D.y});
-      worldCoords.push({x: selectedFeatures[i].pos3D.x, y: selectedFeatures[i].pos3D.y, z: selectedFeatures[i].pos3D.z});
-    }
-    */
     const finalModelViewTransform = estimator.refineEstimate({initialModelViewTransform: modelViewTransform, worldCoords, screenCoords});
     postMessage({
-      type: 'trackDone',
+      type: 'trackUpdateDone',
       modelViewTransform: finalModelViewTransform,
     });
   }
