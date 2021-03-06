@@ -6,7 +6,7 @@ module.exports = {
   devtool: 'inline-source-map',
   output: {
     filename: 'mindar.js',
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname, 'dist-dev'),
   },
   module: {
     rules: [
@@ -16,10 +16,21 @@ module.exports = {
           loader: 'worker-loader',
           options: {
             inline: true,
-            name: 'worker.js'
+            name: '[name].js'
           },
         },
-        //options: { name: 'WorkerName.[hash].js' },
+      },
+      {
+	test: /\.s[ac]ss$/i,
+        use: [
+          'style-loader',
+          'css-loader',
+	  'sass-loader'
+        ]
+      },
+      {
+	test: /\.html$/i,
+        use: 'html-loader',
       },
     ],
   }

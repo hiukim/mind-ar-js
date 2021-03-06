@@ -12,24 +12,28 @@
   "engines": {
     "node": ">=12.0.0"
   },
-  "type": "module",
+  "type": "commonjs",
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@msgpack/msgpack": "^1.12.2",
-    "@tensorflow/tfjs": "^2.7.0",
-    "aframe": "^1.0.4",
-    "aframe-extras": "^6.1.0",
-    "gpu.js": "git://github.com/hiukim/gpu.js.git#fix-safari",
+    "@tensorflow/tfjs": "^2.8.6",
+    "aframe": "^1.2.0",
+    "aframe-extras": "^6.1.1",
     "image-js": "^0.28.0",
-    "ml-matrix": "^6.5.0",
+    "ml-matrix": "^6.6.0",
     "stats-js": "^1.0.1",
-    "terser-webpack-plugin": "^4.1.0",
+    "terser-webpack-plugin": "^4.2.3",
     "tinyqueue": "^2.0.3"
   },
   "devDependencies": {
-    "webpack": "^4.43.0",
-    "webpack-cli": "^3.3.11",
+    "css-loader": "^5.1.1",
+    "html-loader": "^2.1.1",
+    "node-sass": "^5.0.0",
+    "sass-loader": "^11.0.1",
+    "style-loader": "^2.0.0",
+    "webpack": "^5.24.3",
+    "webpack-cli": "^4.5.0",
     "worker-loader": "^2.0.0"
   }
 }
