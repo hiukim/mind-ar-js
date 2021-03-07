@@ -10,7 +10,7 @@ const MISS_COUNT_TOLERANCE = 10;
 const MIN_KEYFRAME_SIZE = 80;
 
 class Controller {
-  constructor(inputWidth, inputHeight, onUpdate, debugMode=false) {
+  constructor({inputWidth, inputHeight, onUpdate=null, maxTrack=1, debugMode=false}) {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.detector = new Detector(this.inputWidth, this.inputHeight);
@@ -19,8 +19,7 @@ class Controller {
     this.onUpdate = onUpdate;
     this.debugMode = debugMode;
     this.processingVideo = false;
-
-    this.maxTrack = 1; // technically can tracking multiple. but too slow in practice
+    this.maxTrack = maxTrack; // technically can tracking multiple. but too slow in practice
     this.imageTargetStates = [];
 
     const near = 10;
@@ -173,7 +172,7 @@ class Controller {
               if (this.imageTargetStates[i].missCount > MISS_COUNT_TOLERANCE) {
                 this.imageTargetStates[i].isTracking = false;
 		this.imageTargetStates[i].lastModelViewTransforms = null;
-                this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
+                this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
               }
             } else {
               this.imageTargetStates[i].missCount = 0;
@@ -194,12 +193,12 @@ class Controller {
               for (let j = 0; j < worldMatrix.length; j++) {
                 clone[j] = this.imageTargetStates[i].trackingMatrix[j];
               }
-              this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
+              this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
             }
           }
 	}
 	inputT.dispose();
-        this.onUpdate({type: 'processDone'});
+        this.onUpdate && this.onUpdate({type: 'processDone'});
 	await tf.nextFrame();
       }
     }

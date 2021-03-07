@@ -2,26 +2,7 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="../dist-dev/mindar.js"></script>
-
-    <script>
-      document.addEventListener("DOMContentLoaded", function() {
-	const sceneEl = document.querySelector('a-scene');
-	const arSystem = sceneEl.systems["mindar-system"];
-	const compatibilityOverlay = document.querySelector("#example-compatibility-overlay");
-	const loadingOverlay = document.querySelector("#example-loading-overlay");
-
-	loadingOverlay.style.display = "block";
-        sceneEl.addEventListener("arReady", (event) => {
-	  loadingOverlay.style.display = "none";
-        });
-
-        sceneEl.addEventListener("arError", (event) => {
-	  loadingOverlay.style.display = "none";
-	  compatibilityOverlay.style.display = "block";
-	});
-      });
-    </script>
-
+   
     <style>
       body {
         margin: 0;
@@ -32,48 +13,12 @@
         width: 100%;
         height: 100%;
       }
-      .example-container .overlay {
-	display: none;
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        background: white;
-        opacity: 0.5;
-        z-index: 2;
-      }
-      .example-container .overlay .content {
-        font-size: 15px;
-        position: absolute;
-	width: 80%;
-        top: 50%;
-        transform: translate(10%, -50%);
-	text-align: center;
-      }
-      .example-container .overlay .content .large-text{
-	font-size: 40px;
-      }
     </style>
   </head>
+
   <body>
     <div class="example-container">
-      <div id="example-loading-overlay" class="overlay">
-        <div class="content">
-	  <p class="large-text">Loading...</p>
-	</div>
-      </div>
-      <div id="example-compatibility-overlay" class="overlay">
-        <div class="content">
-	  <p>Your device/browser is not compatible</p>
-	  <p>
-	    - For Android device, please use Chrome browser</br>
-	    - For iOS device, please use Safari browser
-	  </p>
-	</div>
-      </div>
-
-      <a-scene mindar="imageTargetSrc: ./assets/card-example/card.mind; showStats: true; autoStart: true" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      <a-scene mindar="imageTargetSrc: ./assets/card-example/card.mind; showStats: true;" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
           <img id="card" src="./assets/card-example/card.png" />
           <a-asset-item id="avatarModel" src="./assets/card-example/softmind/scene.gltf"></a-asset-item>
@@ -82,8 +27,7 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
-          <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0">
-          </a-plane>
+          <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
 
           <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#avatarModel"
             animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate"

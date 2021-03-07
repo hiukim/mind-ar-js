@@ -1,4 +1,5 @@
 const {Controller} = require('./controller');
+const {UI} = require('./ui/ui.js');
 require("aframe");
 require("aframe-extras");
 const Stats = require("stats-js");
@@ -15,9 +16,11 @@ AFRAME.registerSystem('mindar-system', {
   tick: function() {
   },
 
-  setup: function({imageTargetSrc, showStats}) {
+  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError}) {
     this.imageTargetSrc = imageTargetSrc;
+    this.maxTrack = maxTrack;
     this.showStats = showStats;
+    this.ui = new UI({uiLoading, uiScanning, uiError});
   },
 
   registerAnchor: function(el, targetIndex) {
@@ -31,13 +34,10 @@ AFRAME.registerSystem('mindar-system', {
       this.mainStats = new Stats();
       this.mainStats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
       this.mainStats.domElement.style.cssText = 'position:absolute;top:0px;left:0px;z-index:999';
-      this.workerStats = new Stats();
-      this.workerStats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
-      this.workerStats.domElement.style.cssText = 'position:absolute;top:0px;left:80px;z-index:999';
       this.container.appendChild(this.mainStats.domElement);
-      this.container.appendChild(this.workerStats.domElement);
     }
 
+    this.ui.showLoading();
     this._startVideo();
   },
 
@@ -65,6 +65,7 @@ AFRAME.registerSystem('mindar-system', {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       // TODO: show unsupported error
       this.el.emit("arError", {error: 'VIDEO_FAIL'});
+      this.ui.showCompatibility();
       return;
     }
 
@@ -99,21 +100,27 @@ AFRAME.registerSystem('mindar-system', {
       vh = vw / videoRatio;
     }
 
-    this.controller = new Controller(video.videoWidth, video.videoHeight, (data) => {
-      if (data.type === 'processDone') {
-        if (this.mainStats) this.mainStats.update();
-      }
-      else if (data.type === 'workerDone') {
-        if (this.workerStats) this.workerStats.update();
-      }
-      else if (data.type === 'updateMatrix') {
-        const {targetIndex, worldMatrix} = data;
+    this.controller = new Controller({
+      inputWidth: video.videoWidth,
+      inputHeight: video.videoHeight,
+      maxTrack: this.maxTrack, 
+      onUpdate: (data) => {
+	if (data.type === 'processDone') {
+	  if (this.mainStats) this.mainStats.update();
+	}
+	else if (data.type === 'updateMatrix') {
+	  const {targetIndex, worldMatrix} = data;
 
-        for (let i = 0; i < this.anchorEntities.length; i++) {
-          if (this.anchorEntities[i].targetIndex === targetIndex) {
-            this.anchorEntities[i].el.updateWorldMatrix(worldMatrix);
-          }
-        }
+	  for (let i = 0; i < this.anchorEntities.length; i++) {
+	    if (this.anchorEntities[i].targetIndex === targetIndex) {
+	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix);
+
+	      if (worldMatrix) {
+		this.ui.hideScanning();
+	      }
+	    }
+	  }
+	}
       }
     });
 
@@ -150,6 +157,8 @@ AFRAME.registerSystem('mindar-system', {
 
     await this.controller.dummyRun(this.video);
     this.el.emit("arReady");
+    this.ui.hideLoading();
+    this.ui.showScanning();
 
     this.controller.processVideo(this.video);
   },
@@ -160,13 +169,25 @@ AFRAME.registerComponent('mindar', {
 
   schema: {
     imageTargetSrc: {type: 'string'},
+    maxTrack: {type: 'int', default: 1},
     showStats: {type: 'boolean', default: false},
-    autoStart: {type: 'boolean', default: true}
+    autoStart: {type: 'boolean', default: true},
+    uiLoading: {type: 'string', default: 'yes'},
+    uiScanning: {type: 'string', default: 'yes'},
+    uiError: {type: 'string', default: 'yes'},
   },
 
   init: function() {
     const arSystem = this.el.sceneEl.systems['mindar-system'];
-    arSystem.setup({imageTargetSrc: this.data.imageTargetSrc, showStats: this.data.showStats});
+
+    arSystem.setup({
+      imageTargetSrc: this.data.imageTargetSrc, 
+      maxTrack: this.data.maxTrack,
+      showStats: this.data.showStats,
+      uiLoading: this.data.uiLoading,
+      uiScanning: this.data.uiScanning,
+      uiError: this.data.uiError,
+    });
     if (this.data.autoStart) {
       this.el.sceneEl.addEventListener('renderstart', () => {
         arSystem.start();

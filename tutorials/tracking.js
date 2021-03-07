@@ -221,15 +221,17 @@ const Main = () => {
   useEffect(() => {
     const process = async () => {
       const queryImages = [];
-      //for (let i = 11; i <= 32; i+=2) {
-      //for (let i = 1; i <= 3; i+=1) {
-      //for (let i = 11; i <= 61; i+=2) {
-//	queryImages.push(await utils.loadImage('../tests/video2/out' + i + '.png'));
- //     }
       for (let i = 107; i <= 307; i+=3) {
       //for (let i = 107; i <= 114; i+=3) {
 	queryImages.push(await utils.loadImage('../tests/video3/out' + i + '.png'));
       }
+
+      /*
+      const queryImages = [];
+      queryImages.push(await utils.loadImage('../tests/video2/out01.png'));
+      queryImages.push(await utils.loadImage('../tests/video2/out02.png'));
+      */
+
       /*
       queryImages.push(await utils.loadImage('../tests/video2/out01.png'));
       queryImages.push(await utils.loadImage('../tests/video2/out11.png'));
@@ -240,7 +242,7 @@ const Main = () => {
 
       const inputWidth = queryImage0.width;
       const inputHeight = queryImage0.height;
-      const controller = new MINDAR.Controller(inputWidth, inputHeight, null, true);
+      const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: true});
       const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
 
       const allTrackResults = [];

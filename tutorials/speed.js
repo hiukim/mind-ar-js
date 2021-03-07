@@ -15,13 +15,13 @@ const Main = () => {
       //}
       //queryImages.push(await utils.loadImage('../tests/video2/out01_540.png'));
       //queryImages.push(await utils.loadImage('../tests/video2/out01_540.png'));
-      queryImages.push(await utils.loadImage('../tests/video2/out01.png'));
-      queryImages.push(await utils.loadImage('../tests/video2/out02.png'));
+      queryImages.push(await utils.loadImage('../tests/video3/out107.png'));
+      queryImages.push(await utils.loadImage('../tests/video3/out108.png'));
       const queryImage0 = queryImages[0];
 
       const inputWidth = queryImage0.width;
       const inputHeight = queryImage0.height;
-      controller = new MINDAR.Controller(inputWidth, inputHeight);
+      controller = new MINDAR.Controller({inputWidth, inputHeight});
       const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
       controller.dummyRun(queryImage0);
       setReady(true);
@@ -58,9 +58,8 @@ const Main = () => {
       _start = new Date();
       //const nKeyframes = 1;
       //const trackResults = await controller.trackAllFrames(queryImages[1], [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform], 0, nKeyframes);
-      const trackResults = await controller.track(queryImages[1], [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform], 0);
+      const trackResults = await controller.track(queryImages[0], [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform], 0);
       timeSpent['track'].push(new Date() - _start);
-      //console.log("trackResultsf", trackResults);
 
       _start = new Date();
       const bestSelectedFeatures = {worldCoords: trackResults.worldCoords, screenCoords: trackResults.screenCoords};

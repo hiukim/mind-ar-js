@@ -138,7 +138,7 @@ const Main = () => {
 
       const inputWidth = queryImage.width;
       const inputHeight = queryImage.height;
-      const controller = new MINDAR.Controller(inputWidth, inputHeight, null, true);
+      const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: true});
       const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
 
       const featurePoints = await controller.detect(queryImage);
