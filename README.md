@@ -1,4 +1,4 @@
-# mind-ar-js (beta)
+# MindAR (beta)
 
 <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/basic-demo-fde07aa7567bf213e61b37dbaa192fec.gif" height="250"> <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" height="250"> <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" height="250">
 
@@ -17,7 +17,7 @@ Official Documentation: https://hiukim.github.io/mind-ar-js-doc
 # Demo - Try it yourself
 
 ### Basic Example
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/basic-demo-fde07aa7567bf213e61b37dbaa192fec.gif" width="250">
+<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/basic-demo-fde07aa7567bf213e61b37dbaa192fec.gif" width="300">
 
 watch the video: https://youtu.be/hgVB9HpQpqY, or try it yourself:
 
@@ -26,14 +26,14 @@ Open this url with your phone: https://hiukim.github.io/mind-ar-js-doc/samples/b
 <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/card-06cb9111a8e32627db6bfafc7aa22a4d.png" width="240" border="10" />
 
 ### Multiple Targets Example
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" height="250">
+<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" width="300">
 
 Open this url with your phone: https://hiukim.github.io/mind-ar-js-doc/samples/multi-targets.html. Allow camera access and look at the below images (one at a time) to trigger the AR effects.
 
 <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/bear-3c737546fb0bde7a9c45b45ee999d132.png" width="240" border="10" /> <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/raccoon-2ef571baece2ee4724d0d19edf3de791.pngg" width="240" border="10" />
 
 ### Interactive Example
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif"
+<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" width="300"/>
 
 watch the video: https://youtu.be/gm57gL1NGoQ, or try it yourself:
 
