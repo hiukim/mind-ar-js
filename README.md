@@ -12,6 +12,8 @@ MindAR is a lightweight library for web augmented reality. Highlighted features 
 
 :star: Developer friendly. Easy to setup. With AFRAME extension, you can get your app starts with only 10 lines of codes
 
+# Documentation
+
 Official Documentation: https://hiukim.github.io/mind-ar-js-doc
 
 # Demo - Try it yourself
@@ -46,7 +48,7 @@ More examples can be found here: https://hiukim.github.io/mind-ar-js-doc/example
 # Quick Start
 Learn how to build the Basic example above in 5 minutes with a plain text editor! 
 
-https://hiukim.github.io/mind-ar-js-doc/quick-start/overview
+Quick Start Guide: https://hiukim.github.io/mind-ar-js-doc/quick-start/overview
 
 To give you a quick idea, this is the complete source code for the Basic example. It's static HTML page, you can host it anywhere.
 
