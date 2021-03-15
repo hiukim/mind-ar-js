@@ -18,6 +18,8 @@
 	const controlOverlay = document.querySelector("#example-control-overlay");
 
 	const startButton = document.querySelector("#example-start-button");
+	const pauseButton = document.querySelector("#example-pause-button");
+	const unpauseButton = document.querySelector("#example-unpause-button");
 	const stopButton = document.querySelector("#example-stop-button");
 	const stopARButton = document.querySelector("#example-stop-ar-button");
 
@@ -55,12 +57,14 @@
 	  arSystem.start(); // start AR 
         });
 	stopButton.addEventListener('click', () => {
-	  arSystem.stop(); // stop AR and video
+	  arSystem.stop(); // stop
 	});
-	stopARButton.addEventListener('click', () => {
-	  arSystem.stopAR(); // stop AR only, but keep video
+	pauseButton.addEventListener('click', () => {
+	  arSystem.pause(true); // pause AR engine, but keep video feed
 	});
-
+	unpauseButton.addEventListener('click', () => {
+	  arSystem.unpause();
+	});
       });
     </script>
 
@@ -125,8 +129,9 @@
       <div id="example-control-overlay" class="overlay">
 	<div>
 	  <button id="example-start-button">Start</button>
+	  <button id="example-pause-button">Pause</button>
+	  <button id="example-unpause-button">Unpause</button>
 	  <button id="example-stop-button">Stop</button>
-	  <button id="example-stop-ar-button">Stop AR</button>
 	</div>
       </div>
 

@@ -42,12 +42,24 @@ AFRAME.registerSystem('mindar-system', {
   },
 
   stop: function() {
-    this.stopAR();
-    this.video.pause();
+    this.pause();
+    const tracks = this.video.srcObject.getTracks();
+    tracks.forEach(function(track) {
+      track.stop();
+    });
+    this.video.remove();
   },
 
-  stopAR: function() {
+  pause: function(keepVideo=false) {
+    if (!keepVideo) {
+      this.video.pause();
+    }
     this.controller.stopProcessVideo();
+  },
+
+  unpause: function() {
+    this.video.play();
+    this.controller.processVideo(this.video);
   },
 
   _startVideo: function() {
