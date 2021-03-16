@@ -1,11 +1,9 @@
 {
   "name": "mind-ar",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.3.2",
+  "description": "web augmented reality framework",
+  "main": "dist/mindar.prod.js",
   "scripts": {
-    "test": "node ./tests/index.js",
-    "test-match": "node ./tests/matching.js",
     "watch": "webpack --watch --config webpack.config.dev.cjs",
     "build": "webpack --config webpack.config.prod.cjs"
   },
@@ -13,14 +11,23 @@
     "node": ">=12.0.0"
   },
   "type": "commonjs",
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hiukim/mind-ar-js"
+  },
+  "keywords": [
+    "web AR",
+    "aframe",
+    "web augmented reality",
+    "image tracking"
+  ],
+  "author": "hiukim",
   "license": "MIT",
   "dependencies": {
     "@msgpack/msgpack": "^1.12.2",
     "@tensorflow/tfjs": "^2.8.6",
     "aframe": "^1.2.0",
     "aframe-extras": "^6.1.1",
-    "image-js": "^0.28.0",
     "ml-matrix": "^6.6.0",
     "stats-js": "^1.0.1",
     "terser-webpack-plugin": "^4.2.3",

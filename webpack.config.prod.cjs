@@ -6,6 +6,7 @@ module.exports = {
   output: {
     filename: 'mindar.prod.js',
     path: path.resolve(__dirname, 'dist'),
+    publicPath: ''
   },
   module: {
     rules: [
@@ -34,4 +35,3 @@ module.exports = {
     ],
   }
 };
-

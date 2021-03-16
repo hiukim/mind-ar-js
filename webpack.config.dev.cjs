@@ -7,6 +7,7 @@ module.exports = {
   output: {
     filename: 'mindar.js',
     path: path.resolve(__dirname, 'dist-dev'),
+    publicPath: ''
   },
   module: {
     rules: [
