@@ -1,0 +1,38 @@
+<html>
+  <head>
+    <script src="../dist-dev/mindar.js"></script>
+    <script>
+      const loadImage = async (src) => {
+	return new Promise((resolve, reject) => {
+	  let img = new Image()
+	  img.onload = () => resolve(img);
+	  img.src = src; 
+	})
+      };
+    </script>
+
+    <script>
+      const process = async() => {
+	const queryImage = await loadImage('./assets/card-example/card.png');
+	
+	const controller = new MINDAR.Controller({inputWidth: queryImage.width, inputHeight: queryImage.height});
+	const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
+
+	const featurePoints = await controller.detect(queryImage);
+	console.log("feature", featurePoints);
+
+	const {modelViewTransform} = await controller.match(featurePoints);
+	console.log("transform", modelViewTransform);
+
+	const trackResult = await controller.track(queryImage, [modelViewTransform, modelViewTransform, modelViewTransform], 0);
+	console.log("track", trackResult);
+
+	const newModelViewTransform = await controller.trackUpdate(modelViewTransform, trackResult);
+	console.log("track transform", newModelViewTransform);
+      }
+      process();
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
