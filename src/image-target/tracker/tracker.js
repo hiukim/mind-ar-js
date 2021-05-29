@@ -217,8 +217,8 @@ class Tracker {
       const p0 = this._markerPointToScreen(featurePointsT, modelViewProjectionTransformsT[0]);
       const p1 = this._markerPointToScreen(featurePointsT, modelViewProjectionTransformsT[1]);
       const p2 = this._markerPointToScreen(featurePointsT, modelViewProjectionTransformsT[2]);
-      const s = tf.backend().compileAndRun(programs[0], [p0, p1, p2]);
-      const m = tf.backend().compileAndRun(programs[1], [s, modelViewProjectionTransformsT[0]]);
+      const s = this._compileAndRun(programs[0], [p0, p1, p2]);
+      const m = this._compileAndRun(programs[1], [s, modelViewProjectionTransformsT[0]]);
       return m;
     });
   }
@@ -266,7 +266,7 @@ class Tracker {
 
     return tf.tidy(() => {
       const program = this.kernelCaches.markerPointToScreen;
-      const result = tf.backend().compileAndRun(program, [pointsT, modelViewProjectionTransformT]);
+      const result = this._compileAndRun(program, [pointsT, modelViewProjectionTransformT]);
       return result;
     });
   }
@@ -416,10 +416,10 @@ class Tracker {
 
     return tf.tidy(() => {
       const programs = this.kernelCaches.computeMatching;
-      const allSims = tf.backend().compileAndRun(programs[0], [featurePointsT, searchPointsT, imagePixelsT, imagePropertiesT, projectedImageT]);
+      const allSims = this._compileAndRun(programs[0], [featurePointsT, searchPointsT, imagePixelsT, imagePropertiesT, projectedImageT]);
       const maxIndex = allSims.argMax(1);
-      const matchingPointsT = tf.backend().compileAndRun(programs[1], [searchPointsT, imagePropertiesT, maxIndex]);
-      const simT = tf.backend().compileAndRun(programs[2], [allSims, maxIndex]);
+      const matchingPointsT = this._compileAndRun(programs[1], [searchPointsT, imagePropertiesT, maxIndex]);
+      const simT = this._compileAndRun(programs[2], [allSims, maxIndex]);
       return {matchingPointsT, simT};
     });
   }
@@ -473,7 +473,7 @@ class Tracker {
 
     return tf.tidy(() => {
       const program = this.kernelCaches.computeProjection[keyframeIndex];
-      const result = tf.backend().compileAndRun(program, [modelViewProjectionTransformT, inputImageT]);
+      const result = this._compileAndRun(program, [modelViewProjectionTransformT, inputImageT]);
       return result;
     });
   }
@@ -549,6 +549,11 @@ class Tracker {
       return keyframeIndex;
     }
     return 0;
+  }
+
+  _compileAndRun(program, inputs) {
+    const outInfo = tf.backend().compileAndRun(program, inputs);
+    return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
   }
 }
 

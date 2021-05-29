@@ -42,7 +42,8 @@ class InputLoader {
     const backend = tf.backend();
     backend.gpgpu.uploadPixelDataToTexture(backend.getTexture(this.tempPixelHandle.dataId), this.context.canvas);
 
-    const res = backend.compileAndRun(this.program, [this.tempPixelHandle], 'float32');
+    //const res = backend.compileAndRun(this.program, [this.tempPixelHandle], 'float32');
+    const res = this._compileAndRun(this.program, [this.tempPixelHandle], 'float32');
     //backend.disposeData(tempPixelHandle.dataId);
     return res;
   }
@@ -65,6 +66,11 @@ class InputLoader {
       `
     }
     return program;
+  }
+
+  _compileAndRun(program, inputs) {
+    const outInfo = tf.backend().compileAndRun(program, inputs);
+    return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
   }
 }
 

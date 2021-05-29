@@ -238,8 +238,7 @@ class Detector {
 
     return tf.tidy(() => {
       const [program] = this.kernelCaches.combine;
-      const result = tf.backend().compileAndRun(program, [prunedExtremas, extremaAngles, freakDescriptors]);
-      return result;
+      return this._compileAndRun(program, [prunedExtremas, extremaAngles, freakDescriptors]);
     });
   }
 
@@ -296,8 +295,7 @@ class Detector {
 
     return tf.tidy(() => {
       const [program] = this.kernelCaches.computeFreakDescriptors;
-      const result = tf.backend().compileAndRun(program, [extremaFreaks, positionT]);
-      return result;
+      return this._compileAndRun(program, [extremaFreaks, positionT]);
     });
   }
 
@@ -481,11 +479,12 @@ class Detector {
     return tf.tidy(() => {
       const [program1, program2] = this.kernelCaches._computeExtremaFreak;
       
-      const positionT = tf.backend().compileAndRun(program1, [prunedExtremas, prunedExtremasAngles, freakPointsT]);
+      const positionT = this._compileAndRun(program1, [prunedExtremas, prunedExtremasAngles, freakPointsT]);
+
       let combined = tf.zeros([nBuckets, MAX_FEATURES_PER_BUCKET, FREAKPOINTS.length]);
       for (let i = 0; i < interestedGaussianIndexes.length; i++) {
 	const gaussianIndex = interestedGaussianIndexes[i];
-	combined = tf.backend().compileAndRun(program2[i], [pyramidImagesT[gaussianIndex], positionT, combined]);
+	combined = this._compileAndRun(program2[i], [pyramidImagesT[gaussianIndex], positionT, combined]);
       }
       return combined;
     });
@@ -562,8 +561,7 @@ class Detector {
     }
     return tf.tidy(() => {
       const program = this.kernelCaches.computeExtremaAngles; 
-      const result = tf.backend().compileAndRun(program, [histograms]);
-      return result;
+      return this._compileAndRun(program, [histograms]);
     });
   }
 
@@ -725,8 +723,8 @@ class Detector {
 
     return tf.tidy(() => {
       const [program1, program2] = this.kernelCaches.computeOrientationHistograms;
-      const result1 = tf.backend().compileAndRun(program1, [...gaussianImagesT, imageSizesT, prunedExtremas, radialPropertiesT]);
-      const result2 = tf.backend().compileAndRun(program2, [result1]);
+      const result1 = this._compileAndRun(program1, [...gaussianImagesT, imageSizesT, prunedExtremas, radialPropertiesT]);
+      const result2 = this._compileAndRun(program2, [result1]);
       return result2;
     });
   }
@@ -761,7 +759,7 @@ class Detector {
     return tf.tidy(() => {
       const program = this.kernelCaches.smoothHistograms; 
       for (let i = 0; i < ORIENTATION_SMOOTHING_ITERATIONS; i++) {
-	histograms = tf.backend().compileAndRun(program, [histograms]);
+	histograms = this._compileAndRun(program, [histograms]);
       }
       return histograms;
     });
@@ -989,8 +987,7 @@ class Detector {
       if (Math.floor(image0.shape[1]/2) === image1.shape[1]) {
         image0 = this._downsampleBilinear(image0);
       }
-      const result = tf.backend().compileAndRun(program, [image0, image1, image2]);
-      return result;
+      return this._compileAndRun(program, [image0, image1, image2]);
     });
   }
 
@@ -1064,8 +1061,8 @@ class Detector {
     return tf.tidy(() => {
       const [program1, program2] = this.kernelCaches.applyFilter[kernelKey];
 
-      const result1 = tf.backend().compileAndRun(program1, [image]);
-      const result2 = tf.backend().compileAndRun(program2, [result1]);
+      const result1 = this._compileAndRun(program1, [image]);
+      const result2 = this._compileAndRun(program2, [result1]);
       return result2;
     });
   }
@@ -1099,9 +1096,13 @@ class Detector {
 
     return tf.tidy(() => {
       const program = this.kernelCaches.downsampleBilinear[kernelKey];
-      const result = tf.backend().compileAndRun(program, [image]);
-      return result;
+      return this._compileAndRun(program, [image]);
     });
+  }
+
+  _compileAndRun(program, inputs) {
+    const outInfo = tf.backend().compileAndRun(program, inputs);
+    return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
   }
 }
 
