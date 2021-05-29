@@ -19,6 +19,7 @@ class Controller {
     this.onUpdate = onUpdate;
     this.debugMode = debugMode;
     this.processingVideo = false;
+    this.interestedTargetIndex = null;
     this.maxTrack = maxTrack; // technically can tracking multiple. but too slow in practice
     this.imageTargetStates = [];
 
@@ -63,49 +64,54 @@ class Controller {
 
   addImageTargets(fileURL) {
     return new Promise(async (resolve, reject) => {
-      const compiler = new Compiler();
       const content = await fetch(fileURL);
       const buffer = await content.arrayBuffer();
-      const dataList = compiler.importData(buffer);
-
-      const trackingDataList = [];
-      const matchingDataList = [];
-      const imageListList = [];
-      const dimensions = [];
-      for (let i = 0; i < dataList.length; i++) {
-	const imageList = [];
-	const matchingList = [];
-	const trackingList = [];
-	for (let j = 0; j < dataList[i].imageList.length; j++) {
-	  // keyframe too small to be useful
-	  if (dataList[i].imageList[j].width < MIN_KEYFRAME_SIZE || dataList[i].imageList[j].height < MIN_KEYFRAME_SIZE) break;
-
-	  imageList.push(dataList[i].imageList[j]);
-	  matchingList.push(dataList[i].matchingData[j]);
-	  trackingList.push(dataList[i].trackingData[j]);
-	}
-        matchingDataList.push(matchingList);
-        trackingDataList.push(trackingList);
-        imageListList.push(imageList);
-        dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
-        this.imageTargetStates[i] = {isTracking: false};
-      }
-
-      this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight, this.debugMode);
-
-      this.worker.postMessage({
-        type: 'setup',
-        inputWidth: this.inputWidth,
-        inputHeight: this.inputHeight,
-        projectionTransform: this.projectionTransform,
-	debugMode: this.debugMode,
-        matchingDataList,
-      });
-
-      this.markerDimensions = dimensions;
-
-      resolve({dimensions: dimensions, matchingDataList, trackingDataList, imageListList});
+      const result = this.addImageTargetsFromBuffer(buffer);
+      resolve(result);
     });
+  }
+
+  addImageTargetsFromBuffer(buffer) {
+    const compiler = new Compiler();
+    const dataList = compiler.importData(buffer);
+
+    const trackingDataList = [];
+    const matchingDataList = [];
+    const imageListList = [];
+    const dimensions = [];
+    for (let i = 0; i < dataList.length; i++) {
+      const imageList = [];
+      const matchingList = [];
+      const trackingList = [];
+      for (let j = 0; j < dataList[i].imageList.length; j++) {
+	// keyframe too small to be useful
+	if (dataList[i].imageList[j].width < MIN_KEYFRAME_SIZE || dataList[i].imageList[j].height < MIN_KEYFRAME_SIZE) break;
+
+	imageList.push(dataList[i].imageList[j]);
+	matchingList.push(dataList[i].matchingData[j]);
+	trackingList.push(dataList[i].trackingData[j]);
+      }
+      matchingDataList.push(matchingList);
+      trackingDataList.push(trackingList);
+      imageListList.push(imageList);
+      dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
+      this.imageTargetStates[i] = {isTracking: false};
+    }
+
+    this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight, this.debugMode);
+
+    this.worker.postMessage({
+      type: 'setup',
+      inputWidth: this.inputWidth,
+      inputHeight: this.inputHeight,
+      projectionTransform: this.projectionTransform,
+      debugMode: this.debugMode,
+      matchingDataList,
+    });
+
+    this.markerDimensions = dimensions;
+
+    return {dimensions: dimensions, matchingDataList, trackingDataList, imageListList};
   }
 
   // warm up gpu - build kernels is slow
@@ -144,7 +150,18 @@ class Controller {
 
         if (trackingIndexes.length < this.maxTrack) { // only run detector when matching is required
           const featurePoints = this.detector.detect(inputT);
-	  const {targetIndex, modelViewTransform} = await this._workerMatch(featurePoints, trackingIndexes);
+
+	  let skipIndexes = trackingIndexes;
+	  if (this.interestedTargetIndex) { // only detect interested target
+	    skipIndexes = [];
+	    for (let t = 0; t < this.imageTargetStates.length; t++) {
+	      if (this.interestedTargetIndex !== t) {
+		skipIndexes.push(t);
+	      }
+	    }
+	  }
+
+	  const {targetIndex, modelViewTransform} = await this._workerMatch(featurePoints, skipIndexes);
 
           if (targetIndex !== -1) {
 	    trackingIndexes.push(targetIndex);
