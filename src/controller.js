@@ -152,7 +152,7 @@ class Controller {
           const featurePoints = this.detector.detect(inputT);
 
 	  let skipIndexes = trackingIndexes;
-	  if (this.interestedTargetIndex) { // only detect interested target
+	  if (this.interestedTargetIndex !== null) { // only detect interested target
 	    skipIndexes = [];
 	    for (let t = 0; t < this.imageTargetStates.length; t++) {
 	      if (this.interestedTargetIndex !== t) {
