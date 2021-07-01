@@ -52,6 +52,7 @@ const Display = ({result}) => {
     if (matchType === 'none') {
       for (let i = 0; i < queryFeaturePoints.length; i++) {
 	if (pointScale === '' || pointScale == queryFeaturePoints[i].scale) {
+	  //console.log("draw queryFeaturePoints", queryFeaturePoints[i]);
 	  utils.drawPoint(ctx, '#ff0000', Math.round(queryFeaturePoints[i].x), Math.round(queryFeaturePoints[i].y), queryFeaturePoints[i].scale);
 	}
       }
@@ -134,11 +135,13 @@ const Main = () => {
   useEffect(() => {
     const process = async () => {
       const queryImage = await utils.loadImage('../tests/video2/out11.png');
+      //const queryImage = await utils.loadImage('../tests/videos/c1/out011.png');
 
       const inputWidth = queryImage.width;
       const inputHeight = queryImage.height;
       const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: true});
-      const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
+      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
+      const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-localized.mind');
 
       const featurePoints = await controller.detect(queryImage);
       const {modelViewTransform, debugExtras} = await controller.match(featurePoints);

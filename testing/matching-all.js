@@ -16,9 +16,76 @@ const Display = ({result}) => {
   const [queryIndex, setQueryIndex] = useState(0);
   const [planeParams, setPlaneParams] = useState(null);
   const canvasContainerRef = useRef(null);
-  const canvasRef = useRef(null);
+  const resultContainerRef = useRef(null);
   const canvas2Ref = useRef(null);
 
+  useEffect(() => {
+    const firstQueryImage = result.queryImages[0];
+    const {dimensions, projectionMatrix, allWorldMatrices} = result;
+    const [markerWidth, markerHeight] = dimensions[0];
+    const inputHeight = firstQueryImage.height;
+    const inputWidth = firstQueryImage.width;
+
+    const proj = projectionMatrix;
+    const fov = 2 * Math.atan(1/proj[5] /inputHeight * inputHeight ) * 180 / Math.PI; // vertical fov
+    const near = proj[14] / (proj[10] - 1.0);
+    const far = proj[14] / (proj[10] + 1.0);
+    const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
+    const newAspect = inputWidth / inputHeight;
+
+    const camera = new THREE.PerspectiveCamera();
+    camera.fov = fov;
+    camera.aspect = newAspect;
+    camera.near = near;
+    camera.far = far;
+    camera.updateProjectionMatrix();
+
+    const scene = new THREE.Scene();
+    const position = new AFRAME.THREE.Vector3();
+    const quaternion = new AFRAME.THREE.Quaternion();
+    const scale = new AFRAME.THREE.Vector3();
+    position.x = markerWidth / 2;
+    position.y = markerWidth / 2 + (markerHeight - markerWidth) / 2;
+    scale.x = markerWidth;
+    scale.y = markerWidth;
+    scale.z = markerWidth;
+    let postMatrix = new AFRAME.THREE.Matrix4();
+    postMatrix.compose(position, quaternion, scale);
+
+
+    const geometry = new THREE.PlaneGeometry(1, markerHeight / markerWidth);
+    const material = new THREE.MeshBasicMaterial( { color: 0xff0000, transparent: true,  opacity: 0.6 } );
+    const plane = new THREE.Mesh( geometry, material );
+    scene.add( plane );
+    plane.matrixAutoUpdate = false;
+
+    const canvas2 = document.createElement("canvas");
+    canvas2.width = inputWidth;
+    canvas2.height = inputHeight;
+    const renderer = new THREE.WebGLRenderer({ alpha: true, canvas: canvas2 } );
+
+    console.log("qu", result.queryImages);
+    for (let queryIndex = 0; queryIndex < result.queryImages.length; queryIndex++) {
+      const queryImage = result.queryImages[queryIndex];
+
+      const worldMatrix = Object.assign({}, allWorldMatrices[queryIndex]);
+      var m = new AFRAME.THREE.Matrix4();
+      m.elements = worldMatrix;
+      m.multiply(postMatrix);
+      plane.matrix = m;
+      renderer.render(scene, camera);
+
+      const canvasImage = document.createElement("img");
+      canvasImage.src = canvas2.toDataURL();
+
+      const container = document.createElement("div");
+      container.appendChild(queryImage);
+      container.appendChild(canvasImage);
+      resultContainerRef.current.appendChild(container);
+    }
+  }, []);
+
+  /*
   const queryImage = queryImages[queryIndex];
   const trackResults = allTrackResults[queryIndex];
 
@@ -32,6 +99,7 @@ const Display = ({result}) => {
   const displayWidth = inputWidth * 2;
   //const displayHeight = parseInt(displayWidth * inputHeight / inputWidth);
   const displayHeight = parseInt(displayWidth * canvasHeight / canvasWidth);
+
 
   useEffect(() => {
     const canvasContainer = canvasContainerRef.current;
@@ -184,32 +252,11 @@ const Display = ({result}) => {
       return 'T' + index + ' [' + targetTrackingData[index].points.length + '-' + trackResult.worldCoords.length + ']' + (selected? " *": "");
     });
   }, [trackResults, queryIndex]);
+  */
 
   return (
     <div>
-      <div className="control">
-	<div className="section">
-    	  {queryImages.map((queryImage, index) => (
-	    <button className={index===queryIndex? 'selected': ''}  key={index} onClick={() => {setQueryIndex(index)}}>I{index}</button>
-	  ))}
-	</div>
-
-	<div className="section">
-	  <button className={trackType==='none'? 'selected': ''} onClick={() => {setTrackType('none')}}>none</button>
-	  <button className={trackType==='search'? 'selected': ''} onClick={() => {setTrackType('search')}}>search</button>
-	  <button className={trackType==='track'? 'selected': ''} onClick={() => {setTrackType('track')}}>track</button>
-	  <button className={trackType==='goodTrack'? 'selected': ''} onClick={() => {setTrackType('goodTrack')}}>good track</button>
-	</div>
-
-	<div className="section">
-    	  {targetScaleList.map((scale, index) => (
-	    <button className={index===keyframeIndex? 'selected': ''}  key={index} onClick={() => {setKeyframeIndex(index)}}>{scale}</button>
-	  ))}
-	</div>
-      </div>
-      <div className="canvas-container" ref={canvasContainerRef}>
-	<canvas ref={canvasRef}></canvas>
-	<canvas ref={canvas2Ref}></canvas>
+      <div className="result-container" ref={resultContainerRef}>
       </div>
     </div>
   )
@@ -221,110 +268,50 @@ const Main = () => {
   useEffect(() => {
     const process = async () => {
       const queryImages = [];
-      //for (let i = 11; i <= 32; i+=2) {
-      //for (let i = 1; i <= 3; i+=1) {
-      //for (let i = 11; i <= 61; i+=2) {
-//	queryImages.push(await utils.loadImage('../tests/video2/out' + i + '.png'));
- //     }
-      for (let i = 107; i <= 307; i+=3) {
+      for (let i = 1; i <= 200; i+=3) {
       //for (let i = 107; i <= 114; i+=3) {
-	queryImages.push(await utils.loadImage('../tests/video4/out' + i + '.png'));
+	try {
+	  queryImages.push(await utils.loadImage('../tests/videos/c3/out' + String(i).padStart(3, '0') + '.png'));
+	} catch (e) {
+	}
       }
-      /*
-      queryImages.push(await utils.loadImage('../tests/video2/out01.png'));
-      queryImages.push(await utils.loadImage('../tests/video2/out11.png'));
-      queryImages.push(await utils.loadImage('../tests/video2/out21.png'));
-      */
 
       const queryImage0 = queryImages[0];
 
       const inputWidth = queryImage0.width;
       const inputHeight = queryImage0.height;
       const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: true});
-      const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
+      //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
+      //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/band-example/raccoon-localized.mind');
+      const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-localized.mind');
 
       const allTrackResults = [];
-      const allWorldMatrices = [];
       const allBeforeProjected = [];
       const allAfterProjected = [];
       const allPickedKeyframes = [];
 
-      const featurePoints = await controller.detect(queryImage0);
-      const {modelViewTransform: firstModelViewTransform, allMatchResults} = await controller.match(featurePoints);
-
-      if (!firstModelViewTransform) {
-	console.log("no match...");
-	return;
-      }
-
-      const nKeyframes = trackingDataList[0].length;
-      //const nKeyframes = 1;
-
-      const lastModelViewTransforms = [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform];
+      const allWorldMatrices = [];
       for (let i = 0; i < queryImages.length; i++) {
-	console.log("compute query", i);
-
-	if (i === 0) {
-	  allWorldMatrices.push(controller.getWorldMatrix(firstModelViewTransform, 0));
+	const queryImage = queryImages[i];
+	const featurePoints = await controller.detect(queryImage);
+	const {modelViewTransform, allMatchResults} = await controller.match(featurePoints);
+	if (modelViewTransform) {
+	  allWorldMatrices.push(controller.getWorldMatrix(modelViewTransform, 0));
 	} else {
-	  allWorldMatrices.push(controller.getWorldMatrix(lastModelViewTransforms[0], 0));
+	  allWorldMatrices.push(null);
 	}
-
-	const trackResults = await controller.trackAllFrames(queryImages[i], lastModelViewTransforms, 0, nKeyframes);
-	allTrackResults.push(trackResults);
-
-	const defaultTrackResult = await controller.track(queryImages[i], lastModelViewTransforms, 0);
-
-	/*
-	let bestKeyframe = 0;
-	for (let j = 1; j < trackResults.length; j++) {
-	  if (trackResults[j].selectedFeatures.length > trackResults[bestKeyframe].selectedFeatures.length) {
-	    bestKeyframe = j;
-	  }
-	}
-	bestKeyframe = 0;
-	const bestSelectedFeatures = trackResults[bestKeyframe].selectedFeatures; 
-	*/
-	allPickedKeyframes.push(defaultTrackResult.debugExtra.keyframeIndex);
-	const bestSelectedFeatures = {worldCoords: defaultTrackResult.worldCoords, screenCoords: defaultTrackResult.screenCoords};
-	//const bestSelectedFeatures = trackResults[Math.min(7, defaultTrackResult.keyframeIndex)].selectedFeatures; 
-
-	const projectedBefore = [];
-	const projectedAfter = [];
-	for (let j = 0; j < trackResults.length; j++) {
-	  projectedBefore.push(trackResults[j].debugExtra.projectedImage);
-	}
-	const newModelViewTransform = await controller.trackUpdate(lastModelViewTransforms[0], bestSelectedFeatures);
-
-	lastModelViewTransforms.unshift(newModelViewTransform);
-	lastModelViewTransforms.pop();
-
-	const trackAgainResults = newModelViewTransform && await controller.trackAllFrames(queryImages[i], lastModelViewTransforms, 0, nKeyframes);
-	for (let j = 0; j < trackResults.length; j++) {
-	  projectedAfter.push(trackAgainResults && trackAgainResults[j].debugExtra.projectedImage);
-	}
-
-	allBeforeProjected.push(projectedBefore);
-	allAfterProjected.push(projectedAfter);
-
-	if (!newModelViewTransform) break;
       }
-
+     
       const projectionMatrix = controller.getProjectionMatrix();
 
       const result = {
-	queryImages: queryImages.slice(0, allTrackResults.length),
+	queryImages,
 	dimensions,
 	allWorldMatrices,
 	projectionMatrix,
 	target: {
-	  images: imageListList[0],
-	  trackingData: trackingDataList[0]
+	  images: imageListList[0]
 	},
-	allTrackResults,
-	allBeforeProjected,
-	allAfterProjected,
-	allPickedKeyframes
       }
       setResult(result);
     }
@@ -346,3 +333,4 @@ ReactDOM.render(
   <Main/>,
   document.getElementById('root')
 );
+

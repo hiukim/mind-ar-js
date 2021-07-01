@@ -7,9 +7,8 @@
   <script src="../dist-dev/mindar.js"></script>
 
   <script src="./common.js"></script>
-  <script type="text/babel" src="./matching.js"></script>
+  <script type="text/babel" src="./matching-all.js"></script>
 
-  <script src="./mobile-console.js"></script>
   <link rel="stylesheet" href="./mobile-console.css">
 
   <style>
@@ -25,12 +24,24 @@
     .control button.selected {
       background: #ddd;
     }
+
+    .result-container {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .result-container > div {
+      position: relative;
+      width: 180px;
+      height: 360px;
+    }
+    .result-container > div canvas,img {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
   </style>
 
   <script>
-    $(document).ready(() => {
-      //mobileConsole.show();
-    });
   </script>
 </head>
 

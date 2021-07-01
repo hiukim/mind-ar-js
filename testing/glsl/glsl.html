@@ -1,0 +1,216 @@
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.7.0/dist/tf.min.js"></script>
+  
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="../common.js"></script>
+  <script src="./packKernel.js"></script>
+  <script src="./applyFilter.js"></script>
+  <script src="./applyFilter2.js"></script>
+  <script src="./loadImageToTensor.js"></script>
+  <script src="./loadImageToTensor2.js"></script>
+  <script src="./randomImage.js"></script>
+
+  <script>
+    const caches = {};
+    const url = new URL(window.location.href);
+    const v = parseInt(url.searchParams.get("v"));
+    console.log("v", v);
+
+    const compileAndRun = (program, inputs) => {
+      const outInfo = tf.backend().compileAndRun(program, inputs);
+      return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
+    }
+    const runWebGLProgram = (program, inputs, outputType) => {
+      const outInfo = tf.backend().runWebGLProgram(program, inputs, outputType);
+      return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
+    }
+
+    const drawImage = (arr) => {
+      const height = arr.length;
+      const width = arr[0].length;
+
+      const tData = new Uint8ClampedArray(height * width * 4);
+      for (let j = 0; j < height; j++) {
+	for (let i = 0; i < width; i++) {
+	  const v = arr[j][i];
+	  const index = j * width + i;
+	  tData[index*4] = v;
+	  tData[index*4+1] = v;
+	  tData[index*4+2] = v;
+	  tData[index*4+3] = 255;
+	}
+      }
+      const imageData = new ImageData(tData, width, height);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.putImageData(imageData, 0, 0);
+      document.body.appendChild(canvas);
+      return;
+
+      let table = "<table>";
+      for (let j = 0; j < height; j++) {
+	table += "<tr>";
+	for (let i = 0; i < width; i++) {
+	  table += "<td>" + arr[j][i] + "</td>";
+	}
+	table += "</tr>";
+      }
+      table += "</table>";
+      const t = document.createElement('div');
+      t.innerHTML = table;
+      document.body.appendChild(t);
+    }
+
+    const runProfile = async (fn) => {
+      const profile = await tf.profile(async () => {
+	const time = await tf.time(() => {
+	  tf.tidy(() => {
+	    fn();
+	  });
+	})
+	console.log("time", time);
+      });
+      console.log("profile", profile);
+      console.log("memory", tf.memory());
+    }
+
+    const runTime = async (fn) => {
+      const time = await tf.time(() => {
+	fn();
+      })
+      return time;
+    }
+
+    const run = async () => {
+      const queryImage = await utils.loadImage('../../tests/video2/out01.png');
+      //const queryImage = await randomImage(10, 10);
+      //console.log("queryImage", queryImage);
+
+      const context = document.createElement('canvas').getContext('2d');
+      context.canvas.width = queryImage.width;
+      context.canvas.height = queryImage.height;
+      context.drawImage(queryImage, 0, 0, queryImage.width, queryImage.height);
+      const canvas = context.canvas;
+
+      let img1 = loadImageToTensor(canvas);
+      let img2 = loadImageToTensor2(canvas);
+      let img = img1;
+
+      packKernel(img);
+
+      let total1 = 0;
+      let total2 = 0;
+
+      const exec = (fn) => {
+	let start = Date.now();
+	fn();
+	let end = Date.now();
+	let diff = end - start;
+	return diff;
+      }
+
+      const times = 500;
+      for (let i = 0; i < times; i++) {
+	if (i % 2 === 0) {
+	  total1 += exec(() => {
+      	    //const res = loadImageToTensor(canvas);
+	    const res = applyFilter(img);
+	    const resSum = tf.slice(res, [0,0], [1,1]);
+	    const resArr = resSum.arraySync();
+	    res.dispose();
+	    resSum.dispose();
+	  });
+	} else {
+	  total2 += exec(() => {
+      	    //const res = loadImageToTensor2(canvas);
+	    const res = applyFilter2(img);
+	    const resSum = tf.slice(res, [0,0], [1,1]);
+	    const resArr = resSum.arraySync();
+	    res.dispose();
+	    resSum.dispose();
+	  });
+	}
+	if (i === times / 2 - 1) {
+	  console.log("clear", i);
+	  total1 = 0;
+	  total2 = 0;
+	}
+      }
+
+      const resultEle = document.createElement("div");
+      resultEle.innerHTML = total1 + "vs" +total2;
+      resultEle.style.fontSize = "100px";
+      document.body.appendChild(resultEle);
+
+      console.log("total", total1, total2);
+      console.log("memory", tf.memory());
+
+      let res = img.clone();
+      let res2 = img.clone();
+      for (let i = 0; i < 100; i++) {
+	let oldRes = res;
+	let oldRes2 = res2;
+	res = applyFilter(oldRes);
+	res2 = applyFilter2(oldRes2);
+	oldRes.dispose();
+	oldRes2.dispose();
+      }
+
+      const imgArr = img.arraySync();
+      drawImage(imgArr);
+      const resArr = res.arraySync();
+      drawImage(resArr);
+      const res2Arr = res2.arraySync();
+      drawImage(res2Arr);
+
+      let correctCount = 0;
+      let correctCount2 = 0;
+      for (let i = 0; i < resArr.length; i++) {
+	for (let j = 0; j < resArr[i].length; j++) {
+	  if (resArr[i][j] - res2Arr[i][j] === 0) {
+	    correctCount += 1;
+	  }
+	  if (imgArr[i][j] - res2Arr[i][j] === 0) {
+	    correctCount2 += 1;
+	  }
+	}
+      }
+      console.log("correct", correctCount, "/", resArr.length * resArr[0].length);
+      console.log("correct2", correctCount2, "/", resArr.length * resArr[0].length);
+
+      console.log("memory", tf.memory());
+      console.log("tf backedn", tf.getBackend());
+      console.log("float precision", tf.backend().floatPrecision());
+    }
+
+    const showShader = () => {
+      const backend = tf.backend();
+      const shader = Object.values(backend.binaryCache);
+      //console.log("s", shader[2].source);
+    }
+
+    $(document).ready(async () => {
+      await run();
+
+      showShader();
+    });
+  </script>
+
+  <style>
+    canvas {
+      width: 300px;
+    }
+    table {
+      border: solid 2px;
+    }
+
+    table td {
+      border: solid 1px;
+    }
+  </style>
+</head>
+<body>
+</body>
+
