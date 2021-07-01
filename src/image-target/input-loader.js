@@ -42,14 +42,16 @@ class InputLoader {
     const backend = tf.backend();
     backend.gpgpu.uploadPixelDataToTexture(backend.getTexture(this.tempPixelHandle.dataId), this.context.canvas);
 
-    //const res = backend.compileAndRun(this.program, [this.tempPixelHandle], 'float32');
-    const res = this._compileAndRun(this.program, [this.tempPixelHandle], 'float32');
+    //const res = backend.compileAndRun(this.program, [this.tempPixelHandle]);
+    const res = this._compileAndRun(this.program, [this.tempPixelHandle]);
+    //const res = this._runWebGLProgram(this.program, [this.tempPixelHandle], 'float32');
     //backend.disposeData(tempPixelHandle.dataId);
     return res;
   }
 
   buildProgram(width, height) {
     const textureMethod = tf.env().getNumber('WEBGL_VERSION') === 2? 'texture': 'texture2D';
+
     const program = {
       variableNames: ['A'],
       outputShape: this.texShape,
@@ -61,7 +63,7 @@ class InputLoader {
 	  vec2 uv = (vec2(texC, texR) + halfCR) / vec2(${width}.0, ${height}.0);
 
 	  vec4 values = ${textureMethod}(A, uv);
-	  setOutput((values.r + values.g + values.b) * 255.0 / 3.0);
+	  setOutput((0.299 * values.r + 0.587 * values.g + 0.114 * values.b) * 255.0);
 	}
       `
     }
@@ -70,6 +72,11 @@ class InputLoader {
 
   _compileAndRun(program, inputs) {
     const outInfo = tf.backend().compileAndRun(program, inputs);
+    return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
+  }
+
+  _runWebGLProgram(program, inputs, outputType) {
+    const outInfo = tf.backend().runWebGLProgram(program, inputs, outputType);
     return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
   }
 }
