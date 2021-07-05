@@ -136,14 +136,19 @@ const Main = () => {
     const process = async () => {
       const queryImage = await utils.loadImage('../tests/video2/out11.png');
       //const queryImage = await utils.loadImage('../tests/videos/c1/out011.png');
+      //const queryImage = await utils.loadImage('../tests/card-transformed.png');
 
       const inputWidth = queryImage.width;
       const inputHeight = queryImage.height;
       const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: true});
       //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
-      const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-localized.mind');
+      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-localized.mind');
+      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-newfreak.mind');
+      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-newfreak.mind');
+      const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-d6.mind');
 
-      const featurePoints = await controller.detect(queryImage);
+      console.log("matching Data", matchingDataList);
+      const {featurePoints} = await controller.detect(queryImage);
       const {modelViewTransform, debugExtras} = await controller.match(featurePoints);
 
       const result = {

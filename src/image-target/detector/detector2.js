@@ -1,3 +1,4 @@
+// localized result
 const tf = require('@tensorflow/tfjs');
 const {FREAKPOINTS} = require('./freak');
 
@@ -57,6 +58,7 @@ class Detector {
   }
 
   detect(inputImageT) {
+    console.log("detector2");
     // Build gaussian pyramid images
     const pyramidImagesT = [];
     for (let i = 0; i < this.numOctaves; i++) {
@@ -116,18 +118,26 @@ class Detector {
 
     const prunedExtremasT = this._computeLocalization(_prunedExtremasT, dogIndexes, dogPyramidImagesT);
 
-    //console.log("prunedExtremas", prunedExtremas.arraySync());
+    //console.log("prunedExtremasT", prunedExtremasT.arraySync());
 
     // compute the orientation angle for each pruned extremas
     const extremaHistogramsT = this._computeOrientationHistograms(prunedExtremasT, pyramidImagesT, dogIndexes);
     const smoothedHistogramsT = this._smoothHistograms(extremaHistogramsT);
     const extremaAnglesT = this._computeExtremaAngles(smoothedHistogramsT);
 
+    //console.log("extremaHistogramsT", extremaHistogramsT.arraySync());
+    //console.log("smoothedHistogramsT", smoothedHistogramsT.arraySync());
+    //console.log("extremaAnglesT", extremaAnglesT.arraySync());
+
     // to compute freak descriptors, we first the pixel value of 37 freak points for each extrema 
     const extremaFreaksT = this._computeExtremaFreak(pyramidImagesT, this.numOctaves, prunedExtremasT, extremaAnglesT);
+
+    //console.log("extremaFreaksT", extremaFreaksT.arraySync());
  
     // compute the bindary descriptors
     const freakDescriptorsT = this._computeFreakDescriptors(extremaFreaksT);
+
+    //console.log("freakDescriptorsT", freakDescriptorsT.arraySync());
 
     // combine extrema data and return to cpu
     const combinedExtremasT = this._combine(prunedExtremasT, extremaAnglesT, freakDescriptorsT);
@@ -182,7 +192,8 @@ class Detector {
         }
       }
     }
-    return featurePoints;
+    //console.log("featurePoints", featurePoints);
+    return {featurePoints};
   }
 
   _combine(prunedExtremas, extremaAngles, freakDescriptors) {

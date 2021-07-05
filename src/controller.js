@@ -1,7 +1,7 @@
 const tf = require('@tensorflow/tfjs');
 const Worker = require("./controller.worker.js");
 const {Tracker} = require('./image-target/tracker/tracker.js');
-const {Detector} = require('./image-target/detector/detector.js');
+const {Detector} = require('./image-target/detector/detector6.js');
 const {Compiler} = require('./compiler.js');
 const {InputLoader} = require('./image-target/input-loader.js');
 
@@ -13,7 +13,7 @@ class Controller {
   constructor({inputWidth, inputHeight, onUpdate=null, maxTrack=1, debugMode=false}) {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
-    this.detector = new Detector(this.inputWidth, this.inputHeight);
+    this.detector = new Detector(this.inputWidth, this.inputHeight, debugMode);
     this.inputLoader = new InputLoader(this.inputWidth, this.inputHeight);
     this.markerDimensions = null;
     this.onUpdate = onUpdate;
@@ -228,9 +228,9 @@ class Controller {
 
   async detect(input) {
     const inputT = this.inputLoader.loadInput(input);
-    const featurePoints = await this.detector.detect(inputT);
+    const {featurePoints, debugExtra} = await this.detector.detect(inputT);
     inputT.dispose();
-    return featurePoints;
+    return {featurePoints, debugExtra};
   }
   async match(featurePoints) {
     const {targetIndex, modelViewTransform, debugExtras} = await this._workerMatch(featurePoints, []);

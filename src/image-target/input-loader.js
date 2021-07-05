@@ -19,7 +19,8 @@ class InputLoader {
     this.program = this.buildProgram(width, height);
 
     const backend = tf.backend();
-    this.tempPixelHandle = backend.makeTensorInfo(this.texShape, 'int32');
+    //this.tempPixelHandle = backend.makeTensorInfo(this.texShape, 'int32');
+    this.tempPixelHandle = backend.makeTensorInfo(this.texShape, 'float32');
     // warning!!!
     // usage type should be TextureUsage.PIXELS, but tfjs didn't export this enum type, so we hard-coded 2 here 
     //   i.e. backend.texData.get(tempPixelHandle.dataId).usage = TextureUsage.PIXELS;

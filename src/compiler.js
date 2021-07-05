@@ -1,5 +1,5 @@
 const Worker = require("./compiler.worker.js");
-const {Detector} = require('./image-target/detector/detector.js');
+const {Detector} = require('./image-target/detector/detector6.js');
 const {buildImageList} = require('./image-target/image-list.js');
 const {build: hierarchicalClusteringBuild} = require('./image-target/matching/hierarchical-clustering.js');
 const msgpack = require('@msgpack/msgpack');
@@ -127,9 +127,10 @@ const _extractMatchingFeatures = async (imageList, doneCallback) => {
 
     await tf.nextFrame();
     tf.tidy(() => {
-      const inputT = tf.tensor(image.data, [image.data.length]).reshape([image.height, image.width]);
+      //const inputT = tf.tensor(image.data, [image.data.length]).reshape([image.height, image.width]);
+      const inputT = tf.tensor(image.data, [image.data.length], 'float32').reshape([image.height, image.width]);
       //const ps = detector.detectImageData(image.data);
-      const ps = detector.detect(inputT);
+      const {featurePoints: ps} = detector.detect(inputT);
       const pointsCluster = hierarchicalClusteringBuild({points: ps});
       keyframes.push({
 	points: ps,

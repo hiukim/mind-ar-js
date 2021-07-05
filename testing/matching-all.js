@@ -271,7 +271,7 @@ const Main = () => {
       for (let i = 1; i <= 200; i+=3) {
       //for (let i = 107; i <= 114; i+=3) {
 	try {
-	  queryImages.push(await utils.loadImage('../tests/videos/c3/out' + String(i).padStart(3, '0') + '.png'));
+	  queryImages.push(await utils.loadImage('../tests/videos/c2/out' + String(i).padStart(3, '0') + '.png'));
 	} catch (e) {
 	}
       }
@@ -280,10 +280,14 @@ const Main = () => {
 
       const inputWidth = queryImage0.width;
       const inputHeight = queryImage0.height;
-      const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: true});
+      const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: false});
       //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
       //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/band-example/raccoon-localized.mind');
-      const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-localized.mind');
+      //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-localized.mind');
+      //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-newfreak.mind');
+      const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-d6.mind');
+      //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-temp.mind');
+      //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/band-example/raccoon-newfreak.mind');
 
       const allTrackResults = [];
       const allBeforeProjected = [];
@@ -293,7 +297,7 @@ const Main = () => {
       const allWorldMatrices = [];
       for (let i = 0; i < queryImages.length; i++) {
 	const queryImage = queryImages[i];
-	const featurePoints = await controller.detect(queryImage);
+	const {featurePoints} = await controller.detect(queryImage);
 	const {modelViewTransform, allMatchResults} = await controller.match(featurePoints);
 	if (modelViewTransform) {
 	  allWorldMatrices.push(controller.getWorldMatrix(modelViewTransform, 0));
