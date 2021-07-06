@@ -42,7 +42,7 @@ const Display = ({result}) => {
   }
 
   useEffect(() => {
-    const {queryImage, pyramidImages, extremaAngles, dogPyramidImages, extremasResults, prunedExtremas, localizedExtremas} = result;
+    const {queryImage, pyramidImages, extremaAngles, dogPyramidImages, extremasResults, localizedExtremas} = result;
 
     const octavePoints = [];
     const octaveLines = [];
@@ -51,10 +51,12 @@ const Display = ({result}) => {
       octaveLines.push([]);
     }
     for (let j = 0; j < localizedExtremas.length; j++) {
-      //const ex = localizedExtremas[j];
-      const ex = prunedExtremas[j];
+      //if (j !== 46) continue;
 
-      const octave = ex[1] + 1;
+      //const ex = localizedExtremas[j];
+      const ex = localizedExtremas[j];
+
+      const octave = Math.round(ex[1]);
       const y = ex[2];
       const x = ex[3];
 
@@ -66,7 +68,7 @@ const Display = ({result}) => {
       let dx = Math.sqrt(r*r / (1 + Math.tan(angle) * Math.tan(angle))); 
       let dy = Math.sqrt(r*r - dx*dx);
       if (angle < 0) dy = -dy;
-      if (Math.abs(angle) < Math.PI/2) dx = -dx;
+      if (Math.abs(angle) > Math.PI/2) dx = -dx;
 
       octaveLines[octave].push({
 	x: x,
@@ -121,8 +123,8 @@ const Display = ({result}) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(queryImage, 0, 0);
 
-    for (let i = 0; i < prunedExtremas.length; i++) {
-      const ex = prunedExtremas[i];
+    for (let i = 0; i < localizedExtremas.length; i++) {
+      const ex = localizedExtremas[i];
       if (ex[0] == 0) continue;
       const octave = ex[1] + 1; 
       const y = ex[2]; 
@@ -136,7 +138,7 @@ const Display = ({result}) => {
     for (let i = 0; i < localizedExtremas.length; i++) {
       const ex = localizedExtremas[i];
       if (ex[0] == 0) continue;
-      const octave = ex[1] + 1; 
+      const octave = ex[1]; 
       const y = ex[2]; 
       const x = ex[3]; 
       let originalY = y * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
@@ -152,10 +154,33 @@ const Display = ({result}) => {
       let dx = Math.sqrt(r*r / (1 + Math.tan(angle) * Math.tan(angle))); 
       let dy = Math.sqrt(r*r - dx*dx);
       if (angle < 0) dy = -dy;
-      if (Math.abs(angle) < Math.PI/2) dx = -dx;
+      if (Math.abs(angle) > Math.PI/2) dx = -dx;
       //console.log("dy", dx, dy);
 
       utils.drawLine(ctx, '#ff0000', originalX, originalY, originalX+dx, originalY+dy);
+    }
+
+    {
+      // quick testing pixels
+      const image = pyramidImages[1][1];
+      const pixels = [];
+      for (let y = 449; y <= 453; y++) {
+	pixels.push([]);
+	for (let x = 344; x <= 348; x++) {
+	  pixels[pixels.length-1].push(image[y][x]);
+	}
+      }
+      console.log("test pixels", pixels);
+      for (let y = 1; y < pixels.length-1; y++) {
+	for (let x = 1; x < pixels[y].length-1; x++) {
+	  const dy = pixels[y+1][x] - pixels[y-1][x];
+	  const dx = pixels[y][x+1] - pixels[y][x-1];
+	  const angle = Math.atan2(dy, dx);
+	  const bin = (angle + Math.PI) * 36 / (2 * Math.PI);
+	  const mag = Math.sqrt(dy * dy + dx * dx);
+	  console.log("y x dy dx angle", y, x, dy, dx, angle, bin, mag);
+	}
+      }
     }
 
     prunedContainerRef.current.appendChild(canvas);

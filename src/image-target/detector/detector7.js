@@ -1,4 +1,4 @@
-// simplify freak calculation compared to detector 4
+// code refactoring, should be same result as detector6
 const tf = require('@tensorflow/tfjs');
 const {FREAKPOINTS} = require('./freak');
 
@@ -7,9 +7,7 @@ const PYRAMID_MIN_SIZE = 8;
 const PYRAMID_MAX_OCTAVE = 5;
 
 const LAPLACIAN_THRESHOLD = 3.0;
-//const LAPLACIAN_THRESHOLD = 0.0001;
 const LAPLACIAN_SQR_THRESHOLD = LAPLACIAN_THRESHOLD * LAPLACIAN_THRESHOLD;
-const MAX_SUBPIXEL_DISTANCE_SQR = 3 * 3;
 const EDGE_THRESHOLD = 4.0;
 const EDGE_HESSIAN_THRESHOLD = ((EDGE_THRESHOLD+1) * (EDGE_THRESHOLD+1) / EDGE_THRESHOLD);
 
@@ -24,7 +22,6 @@ const ORIENTATION_SMOOTHING_ITERATIONS = 5;
 const ORIENTATION_GAUSSIAN_EXPANSION_FACTOR = 3.0;
 const ORIENTATION_REGION_EXPANSION_FACTOR = 1.5;
 const FREAK_EXPANSION_FACTOR = 7.0;
-const ORIENTATION_EXPANSION_FACTOR = 4.5;
 
 const FREAK_CONPARISON_COUNT = (FREAKPOINTS.length-1) * (FREAKPOINTS.length) / 2; // 666
 
@@ -61,7 +58,7 @@ class Detector {
   }
 
   detect(inputImageT) {
-    console.log("detector6");
+    console.log("detector7");
     let debugExtra = null;
 
     // Build gaussian pyramid images
@@ -95,7 +92,7 @@ class Detector {
       const dog0 = this._differenceImageBinomial(pyramidImagesT[i-1][1], pyramidImagesT[i-1][2]);
       const dog1 = this._differenceImageBinomial(pyramidImagesT[i][0], pyramidImagesT[i][1]);
       const dog2 = this._differenceImageBinomial(pyramidImagesT[i][1], pyramidImagesT[i][2]);
-      const extremasResultT = this._buildExtremas(i, dog0, dog1, dog2);
+      const extremasResultT = this._buildExtremas(dog0, dog1, dog2);
       //const extremasResultT = this._buildExtremas(i, dogPyramidImagesT[i-1], dogPyramidImagesT[i], dogPyramidImagesT[i+1]);
       extremasResultsT.push(extremasResultT);
     }
@@ -208,24 +205,21 @@ class Detector {
 	      return;
 	    }
 	    if (propertyIndex == 1) {
-	      int extremaIndex = int(getExtrema(featureIndex, 1));
-	      int octave = extremaIndex + 1; // ref to buildExtrema, it starts at 2nd octave
+	      int octave = int(getExtrema(featureIndex, 1));
 	      float x = getExtrema(featureIndex, 3);
 	      float originalX = x * pow(2.0, float(octave)) + pow(2.0, float(octave-1)) - 0.5;
 	      setOutput(originalX);
 	      return;
 	    }
 	    if (propertyIndex == 2) {
-	      int extremaIndex = int(getExtrema(featureIndex, 1));
-	      int octave = extremaIndex + 1; // ref to buildExtrema, it starts at 2nd octave
+	      int octave = int(getExtrema(featureIndex, 1));
 	      float y = getExtrema(featureIndex, 2);
 	      float originalY = y * pow(2.0, float(octave)) + pow(2.0, float(octave-1)) - 0.5;
 	      setOutput(originalY);
 	      return;
 	    }
 	    if (propertyIndex == 3) {
-	      int extremaIndex = int(getExtrema(featureIndex, 1));
-	      int octave = extremaIndex + 1; // ref to buildExtrema, it starts at 2nd octave
+	      int octave = int(getExtrema(featureIndex, 1));
 	      float inputSigma = pow(2., float(octave));
 	      setOutput(inputSigma);
 	      return;
@@ -318,14 +312,14 @@ class Detector {
 
     if (!this.kernelCaches._computeExtremaFreak) {
       const imageVariableNames = [];
-      for (let i = 0; i < gaussianImagesT.length; i++) {
+      for (let i = 1; i < pyramidImagesT.length; i++) {
 	imageVariableNames.push('image' + i);
       }
 
-      let pixelsSubCodes = `float getPixel(int gaussianIndex, int y, int x) {`;
-      for (let i = 0; i < gaussianImagesT.length; i++) {
+      let pixelsSubCodes = `float getPixel(int octave, int y, int x) {`;
+      for (let i = 1; i < pyramidImagesT.length; i++) {
 	pixelsSubCodes += `
-	  if (gaussianIndex == ${i}) {
+	  if (octave == ${i}) {
 	    return getImage${i}(y, x);
 	  }
 	`
@@ -346,7 +340,7 @@ class Detector {
 	    float freakX = getFreakPoints(freakIndex, 1);
 	    float freakY = getFreakPoints(freakIndex, 2);
 
-	    int gaussianIndex = int(getExtrema(featureIndex, 1));
+	    int octave = int(getExtrema(featureIndex, 1));
 	    float inputY = getExtrema(featureIndex, 2);
 	    float inputX = getExtrema(featureIndex, 3);
 	    float inputAngle = getAngles(featureIndex);
@@ -361,10 +355,10 @@ class Detector {
 	    int y0 = int(floor(yp));
 	    int y1 = y0 + 1;
 
-	    float f1 = getPixel(gaussianIndex, y0, x0);
-	    float f2 = getPixel(gaussianIndex, y0, x1);
-	    float f3 = getPixel(gaussianIndex, y1, x0);
-	    float f4 = getPixel(gaussianIndex, y1, x1);
+	    float f1 = getPixel(octave, y0, x0);
+	    float f2 = getPixel(octave, y0, x1);
+	    float f3 = getPixel(octave, y1, x0);
+	    float f4 = getPixel(octave, y1, x1);
 
 	    float x1f = float(x1);
 	    float y1f = float(y1);
@@ -468,9 +462,6 @@ class Detector {
 
   // TODO: try just using average momentum for orientation, instead of histogram method
   _computeOrientationHistograms(prunedExtremasT, pyramidImagesT) {
-    const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
-    const regionExpansionFactor = ORIENTATION_REGION_EXPANSION_FACTOR;
-    const gaussianExpansionFactor = ORIENTATION_GAUSSIAN_EXPANSION_FACTOR;
     const oneOver2PI = 0.159154943091895;
 
     const gaussianImagesT = [];
@@ -480,54 +471,42 @@ class Detector {
 
     if (!this.tensorCaches.orientationHistograms) {
       tf.tidy(() => {
-        const sigma = 1; // because scale always 0, as dogIndex % 2 === 0. if not true, then it needs to be fixed
-        const gwSigma = Math.max(1.0, gaussianExpansionFactor * sigma);
-        const gwScale = -1.0 / (2 * gwSigma * gwSigma);
-        //const radius = regionExpansionFactor * gwSigma;
-        const radius = ORIENTATION_EXPANSION_FACTOR;
+        const gwScale = -1.0 / (2 * ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * ORIENTATION_GAUSSIAN_EXPANSION_FACTOR);
+        const radius = ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * ORIENTATION_REGION_EXPANSION_FACTOR;
         const radiusCeil = Math.ceil(radius);
-	//const radiusCeil = 1;
 
 	const radialProperties = [];
         for (let y = -radiusCeil; y <= radiusCeil; y++) {
           for (let x = -radiusCeil; x <= radiusCeil; x++) {
 	    const distanceSquare = x * x + y * y;
 
+	    // may just assign w = 1 will do, this could be over complicated.
             if (distanceSquare <= radius * radius) {
 	      const _x = distanceSquare * gwScale; 
 	      // fast expontenial approx
 	      let w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888;
-
-	      //if (distanceSquare > 0) w = 0;
-	      //else w = 1;
-
 	      radialProperties.push([y, x, w]);
             }
           }
         }
-	const imageSizes = [];
-	for (let i = 0; i < gaussianImagesT.length; i++) {
-	  imageSizes.push([gaussianImagesT[i].shape[0], gaussianImagesT[i].shape[1]]);
-	}
 
         this.tensorCaches.orientationHistograms = {
           radialPropertiesT: tf.keep(tf.tensor(radialProperties, [radialProperties.length, 3])),
-	  imageSizesT: tf.keep(tf.tensor(imageSizes, [imageSizes.length, 2]))
         }
       });
     }
-    const {radialPropertiesT, imageSizesT} = this.tensorCaches.orientationHistograms;
+    const {radialPropertiesT} = this.tensorCaches.orientationHistograms;
 
     if (!this.kernelCaches.computeOrientationHistograms) {
       const imageVariableNames = [];
-      for (let i = 0; i < gaussianImagesT.length; i++) {
+      for (let i = 1; i < pyramidImagesT.length; i++) {
 	imageVariableNames.push('image' + i);
       }
 
-      let kernel1SubCodes = `float getPixel(int gaussianIndex, int y, int x) {`;
-      for (let i = 0; i < gaussianImagesT.length; i++) {
+      let kernel1SubCodes = `float getPixel(int octave, int y, int x) {`;
+      for (let i = 1; i < pyramidImagesT.length; i++) {
 	kernel1SubCodes += `
-	  if (gaussianIndex == ${i}) {
+	  if (octave == ${i}) {
 	    return getImage${i}(y, x);
 	  }
 	`
@@ -535,7 +514,7 @@ class Detector {
       kernel1SubCodes += `}`;
 
       const kernel1 = {
-	variableNames: [...imageVariableNames, 'imageSizes', 'extrema', 'radial'],
+	variableNames: [...imageVariableNames, 'extrema', 'radial'],
 	outputShape: [prunedExtremasT.shape[0], radialPropertiesT.shape[0], 2], // last dimension: [fbin, magnitude]
 	userCode: `
 	  ${kernel1SubCodes}
@@ -550,23 +529,15 @@ class Detector {
 	    int radialX = int(getRadial(radialIndex, 1));
 	    float radialW = getRadial(radialIndex, 2);
 
-	    int extremaIndex = int(getExtrema(featureIndex, 1));
+	    int octave = int(getExtrema(featureIndex, 1));
 	    int y = int(getExtrema(featureIndex, 2));
 	    int x = int(getExtrema(featureIndex, 3));
-
-	    int imageHeight = int(getImageSizes(extremaIndex, 0));
-	    int imageWidth = int(getImageSizes(extremaIndex, 1));
 
 	    int xp = x + radialX;
 	    int yp = y + radialY;
 
-	    if (xp < 1 || xp >= imageWidth - 1 || yp < 1 || yp >= imageHeight - 1) {
-	      setOutput(0.);
-	      return;
-	    }
-
-	    float dy = getPixel(extremaIndex, yp+1, xp) - getPixel(extremaIndex, yp-1, xp);
-	    float dx = getPixel(extremaIndex, yp, xp+1) - getPixel(extremaIndex, yp, xp-1);
+	    float dy = getPixel(octave, yp+1, xp) - getPixel(octave, yp-1, xp);
+	    float dx = getPixel(octave, yp, xp+1) - getPixel(octave, yp, xp-1);
 
 	    if (propertyIndex == 0) {
 	      // be careful that atan(0, 0) gives 1.57 instead of 0 (different from js), but doesn't matter here, coz magnitude is 0
@@ -627,7 +598,7 @@ class Detector {
 
     return tf.tidy(() => {
       const [program1, program2] = this.kernelCaches.computeOrientationHistograms;
-      const result1 = this._compileAndRun(program1, [...gaussianImagesT, imageSizesT, prunedExtremasT, radialPropertiesT]);
+      const result1 = this._compileAndRun(program1, [...gaussianImagesT, prunedExtremasT, radialPropertiesT]);
       const result2 = this._compileAndRun(program2, [result1]);
       return result2;
     });
@@ -670,11 +641,11 @@ class Detector {
     if (!this.kernelCaches.computeLocalization) {
       const dogVariableNames = [];
 
-      let dogSubCodes = `float getPixel(int k, int y, int x) {`;
-      for (let i = 1; i < dogPyramidImagesT.length; i++) {
+      let dogSubCodes = `float getPixel(int octave, int y, int x) {`;
+      for (let i = 1; i < dogPyramidImagesT.length; i++) {  // extrema starts from second octave
 	dogVariableNames.push('image' + i);
 	dogSubCodes += `
-	  if (k == ${i}) {
+	  if (octave == ${i}) {
 	    return getImage${i}(y, x);
 	  }
  	`;
@@ -692,10 +663,10 @@ class Detector {
 	    int featureIndex = coords[0];
 	    int dy = coords[1]-1;
 	    int dx = coords[2]-1;
-	    int k = int(getExtrema(featureIndex, 1)) + 1;
+	    int octave = int(getExtrema(featureIndex, 1));
 	    int y = int(getExtrema(featureIndex, 2));
 	    int x = int(getExtrema(featureIndex, 3));
-	    setOutput(getPixel(k, y+dy, x+dx));
+	    setOutput(getPixel(octave, y+dy, x+dx));
 	  }
 	`
       }
@@ -707,7 +678,6 @@ class Detector {
       const program = this.kernelCaches.computeLocalization[0];
       const prunedExtremasT = tf.tensor(prunedExtremasList, [prunedExtremasList.length, prunedExtremasList[0].length], 'int32');
 
-      //const pixelsT = this._compileAndRun(program, [...dogPyramidImagesT.slice(1,-1), prunedExtremasT]);
       const pixelsT = this._compileAndRun(program, [...dogPyramidImagesT.slice(1), prunedExtremasT]);
       const pixels = pixelsT.arraySync();
 
@@ -753,8 +723,6 @@ class Detector {
 
 	localizedExtremas[i][2] = newY;
 	localizedExtremas[i][3] = newX;
-	//localizedExtremas[i][2] = Math.round(newY);
-	//localizedExtremas[i][3] = Math.round(newX);
       }
       return tf.tensor(localizedExtremas, [localizedExtremas.length, localizedExtremas[0].length], 'float32');
     });
@@ -768,7 +736,7 @@ class Detector {
     const nFeatures = MAX_FEATURES_PER_BUCKET;
 
     // combine results into a tensor of:
-    //   nBuckets x nFeatures x [score, extremaIndex, y, x]
+    //   nBuckets x nFeatures x [score, octave, y, x]
     const curAbsScores = [];
     const result = [];
     for (let i = 0; i < nBuckets; i++) {
@@ -781,6 +749,7 @@ class Detector {
     }
 
     for (let k = 0; k < extremasResultsT.length; k++) {
+      const octave = k + 1; // extrema starts from second octave
       const extremaScoresT = extremasResultsT[k];
       const extremaScores = extremaScoresT.arraySync();
 
@@ -792,11 +761,15 @@ class Detector {
 
       for (let j = 0; j < height; j++) {
 	for (let i = 0; i < width; i++) {
+	  const score = extremaScores[j][i];
+	  if (score == 0) {
+	    continue;
+	  }
+
 	  const bucketX = Math.floor(i / bucketWidth);
 	  const bucketY = Math.floor(j / bucketHeight);
 	  const bucket = bucketY * NUM_BUCKETS_PER_DIMENSION + bucketX;
 
-	  const score = extremaScores[j][i];
 	  const absScore = Math.abs(score);
 
 	  let tIndex = nFeatures;
@@ -814,7 +787,7 @@ class Detector {
 	    }
 	    curAbsScores[bucket][tIndex] = absScore;
 	    result[bucket][tIndex][0] = score;
-	    result[bucket][tIndex][1] = k; 
+	    result[bucket][tIndex][1] = octave;
 	    result[bucket][tIndex][2] = j; 
 	    result[bucket][tIndex][3] = i; 
 	  }
@@ -829,14 +802,10 @@ class Detector {
 	list.push(result[i][j]);
       }
     }
-    //console.log("result", result);
-    //console.log("list", list);
     return list;
-
-    return tf.tensor(result, [result.length, result[0].length, result[0][0].length], 'int32');
   }
 
-  _buildExtremas(dogIndex, image0, image1, image2) {
+  _buildExtremas(image0, image1, image2) {
     const imageHeight = image1.shape[0];
     const imageWidth = image1.shape[1];
 
@@ -908,14 +877,11 @@ class Detector {
 	      return;
 	    }
 
-	    // Compute spatial derivatives
-	    float dx = 0.5 * (getImage1(y, x+1) - getImage1(y, x-1));
-	    float dy = 0.5 * (getImage1(y+1, x) - getImage1(y-1, x));
+	    // compute edge score and reject based on threshold
 	    float dxx = getImage1(y, x+1) + getImage1(y, x-1) - 2. * getImage1(y, x);
 	    float dyy = getImage1(y+1, x) + getImage1(y-1, x) - 2. * getImage1(y, x);
 	    float dxy = 0.25 * (getImage1(y-1,x-1) + getImage1(y+1,x+1) - getImage1(y-1,x+1) - getImage1(y+1,x-1));
 
-	    // compute edge score
 	    float det = (dxx * dyy) - (dxy * dxy);
 
 	    if (abs(det) < 0.0001) { // determinant undefined. no solution
@@ -1055,43 +1021,7 @@ class Detector {
       return this._compileAndRun(program, [image]);
     });
   }
-
-  _upsampleBilinear(image) {
-    const imageHeight = image.shape[0];
-    const imageWidth = image.shape[1];
-
-    const kernelKey = 'w' + imageWidth;
-    if (!this.kernelCaches.upsampleBilinear) {
-      this.kernelCaches.upsampleBilinear = {};
-    }
-
-    if (!this.kernelCaches.upsampleBilinear[kernelKey]) {
-      const kernel = {
-	variableNames: ['p'],
-	outputShape: [imageHeight*2, imageWidth*2],
-	userCode: `
-	  void main() {
-	    ivec2 coords = getOutputCoords();
-	    int y = coords[0] / 2;
-	    int x = coords[1] / 2;
-
-	    float sum = getP(y, x) * 0.25;
-	    sum += getP(y+1,x) * 0.25; 
-	    sum += getP(y, x+1) * 0.25; 
-	    sum += getP(y+1,x+1) * 0.25;
-	    setOutput(sum);
-	  }
-	`
-      };
-      this.kernelCaches.upsampleBilinear[kernelKey] = kernel;
-    }
-
-    return tf.tidy(() => {
-      const program = this.kernelCaches.downsampleBilinear[kernelKey];
-      return this._compileAndRun(program, [image]);
-    });
-  }
-
+ 
   _compileAndRun(program, inputs) {
     const outInfo = tf.backend().compileAndRun(program, inputs);
     return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
@@ -1106,9 +1036,3 @@ class Detector {
 module.exports = {
   Detector
 };
-
-
-
-
-
-
