@@ -1,5 +1,4 @@
-// 1) some further optimization, result should be the very similar
-// 2) buildExtrema also check againest higher octave
+// test reduce number of images in each octave
 const tf = require('@tensorflow/tfjs');
 const {FREAKPOINTS} = require('./freak');
 
@@ -58,7 +57,7 @@ class Detector {
   }
 
   detect(inputImageT) {
-    console.log("detector8");
+    console.log("detector9");
     let debugExtra = null;
 
     // Build gaussian pyramid images
@@ -74,28 +73,27 @@ class Detector {
         image1T = this._downsampleBilinear(pyramidImagesT[i-1][pyramidImagesT[i-1].length-1]);
       }
       image2T = this._applyFilter(image1T);
-      image3T = this._applyFilter(image2T);
-      pyramidImagesT.push([image1T, image2T, image3T]);
-      //pyramidImagesT.push([image1T, image2T]);
+      //image3T = this._applyFilter(image2T);
+      //pyramidImagesT.push([image1T, image2T, image3T]);
+      pyramidImagesT.push([image1T, image2T]);
     }
 
     // Build difference-of-gaussian (dog) pyramid
-    const dogPyramidImagesT = [null];
-    /*
+    const dogPyramidImagesT = [];
     for (let i = 0; i < this.numOctaves; i++) {
       let dogImageT = this._differenceImageBinomial(pyramidImagesT[i][0], pyramidImagesT[i][1]);
       dogPyramidImagesT.push(dogImageT);
     }
-    */
 
     const extremasResultsT = [];
-    for (let i = 1; i < this.numOctaves; i++) {
-      const dog0 = this._differenceImageBinomial(pyramidImagesT[i-1][1], pyramidImagesT[i-1][2]);
-      const dog1 = this._differenceImageBinomial(pyramidImagesT[i][0], pyramidImagesT[i][1]);
-      const dog2 = this._differenceImageBinomial(pyramidImagesT[i][1], pyramidImagesT[i][2]);
-      const extremasResultT = this._buildExtremas(dog0, dog1, dog2);
-      //const extremasResultT = this._buildExtremas(i, dogPyramidImagesT[i-1], dogPyramidImagesT[i], dogPyramidImagesT[i+1]);
-      dogPyramidImagesT.push(dog1);
+    for (let i = 1; i < this.numOctaves-1; i++) {
+      //const dog0 = this._differenceImageBinomial(pyramidImagesT[i-1][1], pyramidImagesT[i-1][2]);
+      //const dog1 = this._differenceImageBinomial(pyramidImagesT[i][0], pyramidImagesT[i][1]);
+      //const dog2 = this._differenceImageBinomial(pyramidImagesT[i][1], pyramidImagesT[i][2]);
+      //const extremasResultT = this._buildExtremas(dog0, dog1);
+      //dogPyramidImagesT.push(dog1);
+      
+      const extremasResultT = this._buildExtremas(dogPyramidImagesT[i-1], dogPyramidImagesT[i], dogPyramidImagesT[i+1]);
       extremasResultsT.push(extremasResultT);
     }
 
@@ -922,7 +920,7 @@ class Detector {
 		if (value < value0 || value < value1 || value < value2) {
 		  isMax = false;
 		}
-		if (value > value0 || value > value1 || value < value2) {
+		if (value > value0 || value > value1 || value > value2) {
 		  isMin = false;
 		}
 	      }
@@ -1130,4 +1128,5 @@ class Detector {
 module.exports = {
   Detector
 };
+
 
