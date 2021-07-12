@@ -1,7 +1,8 @@
 const tf = require('@tensorflow/tfjs');
 const Worker = require("./controller.worker.js");
 const {Tracker} = require('./image-target/tracker/tracker.js');
-const {Detector} = require('./image-target/detector/detector6.js');
+const {Detector} = require('./image-target/detector/detector10.js');
+const {SmartDetector} = require('./image-target/detector/smart-detector.js');
 const {Compiler} = require('./compiler.js');
 const {InputLoader} = require('./image-target/input-loader.js');
 
@@ -99,6 +100,7 @@ class Controller {
     }
 
     this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight, this.debugMode);
+    this.smartDetector = new SmartDetector(imageListList, this.projectionTransform, this.debugMode);
 
     this.worker.postMessage({
       type: 'setup',
@@ -149,7 +151,7 @@ class Controller {
 	}
 
         if (trackingIndexes.length < this.maxTrack) { // only run detector when matching is required
-          const featurePoints = this.detector.detect(inputT);
+          const {featurePoints} = this.detector.detect(inputT);
 
 	  let skipIndexes = trackingIndexes;
 	  if (this.interestedTargetIndex !== null) { // only detect interested target
@@ -226,6 +228,12 @@ class Controller {
     this.processingVideo = false;
   }
 
+  async smartDetect(input, modelViewTransform, targetIndex) {
+    const inputT = this.inputLoader.loadInput(input);
+    const {featurePoints, debugExtra} = await this.smartDetector.detect(inputT, modelViewTransform, targetIndex);
+    inputT.dispose();
+    return {featurePoints, debugExtra};
+  }
   async detect(input) {
     const inputT = this.inputLoader.loadInput(input);
     const {featurePoints, debugExtra} = await this.detector.detect(inputT);
@@ -236,9 +244,16 @@ class Controller {
     const {targetIndex, modelViewTransform, debugExtras} = await this._workerMatch(featurePoints, []);
     return {modelViewTransform, debugExtras};
   }
+
   async track(input, modelViewTransforms, targetIndex) {
     const inputT = this.inputLoader.loadInput(input);
     const result = this.tracker.track(inputT, modelViewTransforms, targetIndex);
+    inputT.dispose();
+    return result;
+  }
+  async trackFrame(input, modelViewTransforms, targetIndex, keyframeIndex) {
+    const inputT = this.inputLoader.loadInput(input);
+    const result = this.tracker.track(inputT, modelViewTransforms, targetIndex, keyframeIndex);
     inputT.dispose();
     return result;
   }
