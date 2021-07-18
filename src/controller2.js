@@ -1,12 +1,12 @@
 const tf = require('@tensorflow/tfjs');
 const Worker = require("./controller2.worker.js");
-const {Tracker} = require('./image-target/tracker/tracker3.js');
+const {Tracker} = require('./image-target/tracker/tracker5.js');
 const {CropDetector} = require('./image-target/detector/crop-detector.js');
 const {Detector} = require('./image-target/detector/detector.js');
-const {Compiler} = require('./compiler.js');
+const {Compiler} = require('./compiler2.js');
 const {InputLoader} = require('./image-target/input-loader.js');
 
-const INTERPOLATION_FACTOR = 10;
+const INTERPOLATION_FACTOR = 5;
 const WARMUP_COUNT_TOLERANCE = 10;
 const MISS_COUNT_TOLERANCE = 30;
 const MIN_KEYFRAME_SIZE = 80;
@@ -24,7 +24,6 @@ class Controller {
     this.processingVideo = false;
     this.interestedTargetIndex = 0;
     this.maxTrack = maxTrack; // technically can tracking multiple. but too slow in practice
-    this.imageTargetStates = [];
     this.trackingState = {};
 
     const near = 10;
@@ -84,25 +83,15 @@ class Controller {
     const imageListList = [];
     const dimensions = [];
     for (let i = 0; i < dataList.length; i++) {
-      const imageList = [];
-      const matchingList = [];
-      const trackingList = [];
-      for (let j = 0; j < dataList[i].imageList.length; j++) {
-	// keyframe too small to be useful
-	if (dataList[i].imageList[j].width < MIN_KEYFRAME_SIZE || dataList[i].imageList[j].height < MIN_KEYFRAME_SIZE) break;
-
-	imageList.push(dataList[i].imageList[j]);
-	matchingList.push(dataList[i].matchingData[j]);
-	trackingList.push(dataList[i].trackingData[j]);
-      }
+      const matchingList = dataList[i].matchingData.filter((m) => {
+	return m.width >= MIN_KEYFRAME_SIZE && m.height >= MIN_KEYFRAME_SIZE;
+      });
       matchingDataList.push(matchingList);
-      trackingDataList.push(trackingList);
-      imageListList.push(imageList);
+      trackingDataList.push(dataList[i].trackingData);
       dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
-      this.imageTargetStates[i] = {isTracking: false};
     }
 
-    this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight, this.debugMode);
+    this.tracker = new Tracker(dimensions, trackingDataList, this.projectionTransform, this.inputWidth, this.inputHeight, this.debugMode);
 
     this.worker.postMessage({
       type: 'setup',
@@ -115,7 +104,7 @@ class Controller {
 
     this.markerDimensions = dimensions;
 
-    return {dimensions: dimensions, matchingDataList, trackingDataList, imageListList};
+    return {dimensions: dimensions, matchingDataList, trackingDataList};
   }
 
   // warm up gpu - build kernels is slow
@@ -142,8 +131,7 @@ class Controller {
     return modelViewTransform
   }
   async _trackAndUpdate(inputT, lastModelViewTransforms, targetIndex) {
-    const defaultKeyframeIndex = 2; // todo
-    const {worldCoords, screenCoords} = this.tracker.track(inputT, lastModelViewTransforms, targetIndex, defaultKeyframeIndex);
+    const {worldCoords, screenCoords} = this.tracker.track(inputT, lastModelViewTransforms, targetIndex);
     if (worldCoords.length < 4) return null;
     const modelViewTransform = await this._workerTrackUpdate(lastModelViewTransforms[0], {worldCoords, screenCoords});
     return modelViewTransform;
@@ -273,9 +261,9 @@ class Controller {
     return {modelViewTransform, debugExtras};
   }
 
-  async track(input, modelViewTransforms, targetIndex, inputKeyframeIndex) {
+  async track(input, modelViewTransforms, targetIndex) {
     const inputT = this.inputLoader.loadInput(input);
-    const result = this.tracker.track(inputT, modelViewTransforms, targetIndex, inputKeyframeIndex);
+    const result = this.tracker.track(inputT, modelViewTransforms, targetIndex);
     inputT.dispose();
     return result;
   }

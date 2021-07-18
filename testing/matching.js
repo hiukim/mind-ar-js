@@ -19,7 +19,7 @@ const Display = ({result}) => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const canvasWidth = inputWidth * 2;
+    const canvasWidth = inputWidth * 2 + 500;
     canvas.width = canvasWidth;
     canvas.height = inputHeight;
     canvas.style.width = displayWidth * 2;
@@ -134,21 +134,18 @@ const Main = () => {
 
   useEffect(() => {
     const process = async () => {
-      const queryImage = await utils.loadImage('../tests/video2/out11.png');
-      //const queryImage = await utils.loadImage('../tests/videos/c1/out011.png');
-      //const queryImage = await utils.loadImage('../tests/card-transformed.png');
+      //const queryImage = await utils.loadImage('../tests/video2/out11.png');
+      const queryImage = await utils.loadImage('../tests/videos/c1/out011.png');
+      //const queryImage = await utils.loadImage('../tests/lost-track5.png');
 
       const inputWidth = queryImage.width;
       const inputHeight = queryImage.height;
       const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: true});
       //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
-      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-localized.mind');
-      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-newfreak.mind');
-      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-newfreak.mind');
-      const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-d6.mind');
+      const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-detector10.mind');
+      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/band-example/raccoon-detector9.mind');
 
-      console.log("matching Data", matchingDataList);
-      const {featurePoints} = await controller.detect(queryImage);
+      const {featurePoints} = await controller.detectFull(queryImage);
       const {modelViewTransform, debugExtras} = await controller.match(featurePoints);
 
       const result = {

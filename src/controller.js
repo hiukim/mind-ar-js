@@ -1,8 +1,8 @@
 const tf = require('@tensorflow/tfjs');
 const Worker = require("./controller.worker.js");
-const {Tracker} = require('./image-target/tracker/tracker.js');
-const {Detector} = require('./image-target/detector/detector10.js');
-const {SmartDetector} = require('./image-target/detector/smart-detector.js');
+const {Tracker} = require('./image-target/tracker/tracker2.js');
+const {CropDetector} = require('./image-target/detector/crop-detector.js');
+const {Detector} = require('./image-target/detector/detector.js');
 const {Compiler} = require('./compiler.js');
 const {InputLoader} = require('./image-target/input-loader.js');
 
@@ -14,6 +14,7 @@ class Controller {
   constructor({inputWidth, inputHeight, onUpdate=null, maxTrack=1, debugMode=false}) {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
+    this.cropDetector = new CropDetector(this.inputWidth, this.inputHeight, debugMode);
     this.detector = new Detector(this.inputWidth, this.inputHeight, debugMode);
     this.inputLoader = new InputLoader(this.inputWidth, this.inputHeight);
     this.markerDimensions = null;
@@ -100,7 +101,6 @@ class Controller {
     }
 
     this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight, this.debugMode);
-    this.smartDetector = new SmartDetector(imageListList, this.projectionTransform, this.debugMode);
 
     this.worker.postMessage({
       type: 'setup',
@@ -119,7 +119,8 @@ class Controller {
   // warm up gpu - build kernels is slow
   dummyRun(input) {
     const inputT = this.inputLoader.loadInput(input);
-    this.detector.detect(inputT);
+    //this.detector.detect(inputT);
+    this.cropDetector.detect(inputT);
     this.tracker.dummyRun(inputT);
     inputT.dispose();
   }
@@ -151,7 +152,8 @@ class Controller {
 	}
 
         if (trackingIndexes.length < this.maxTrack) { // only run detector when matching is required
-          const {featurePoints} = this.detector.detect(inputT);
+          //const {featurePoints} = this.detector.detect(inputT);
+          const {featurePoints} = this.cropDetector.detectMoving(inputT);
 
 	  let skipIndexes = trackingIndexes;
 	  if (this.interestedTargetIndex !== null) { // only detect interested target
@@ -198,6 +200,9 @@ class Controller {
               this.imageTargetStates[i].lastModelViewTransforms.unshift(modelViewTransform);
               this.imageTargetStates[i].lastModelViewTransforms.pop();
 
+	      // fix missing
+	      //this.imageTargetStates[i].lastModelViewTransform = modelViewTransform;
+
               const worldMatrix = this._glModelViewMatrix(modelViewTransform, i);
 
               if (this.imageTargetStates[i].trackingMatrix === null) {
@@ -228,15 +233,23 @@ class Controller {
     this.processingVideo = false;
   }
 
-  async smartDetect(input, modelViewTransform, targetIndex) {
+  async detectFull(input) {
     const inputT = this.inputLoader.loadInput(input);
-    const {featurePoints, debugExtra} = await this.smartDetector.detect(inputT, modelViewTransform, targetIndex);
+    const {featurePoints, debugExtra} = await this.cropDetector.detect(inputT);
     inputT.dispose();
     return {featurePoints, debugExtra};
   }
   async detect(input) {
     const inputT = this.inputLoader.loadInput(input);
-    const {featurePoints, debugExtra} = await this.detector.detect(inputT);
+    const {featurePoints, debugExtra} = await this.cropDetector.detect(inputT);
+    inputT.dispose();
+    return {featurePoints, debugExtra};
+  }
+  async detectExpect(input, modelViewTransform, targetIndex) {
+    const inputT = this.inputLoader.loadInput(input);
+    const markerWidth = this.markerDimensions[targetIndex][0];
+    const markerHeight = this.markerDimensions[targetIndex][1];
+    const {featurePoints, debugExtra} = await this.cropDetector.detectExpect(inputT, this.projectionTransform, modelViewTransform, markerWidth, markerHeight);
     inputT.dispose();
     return {featurePoints, debugExtra};
   }

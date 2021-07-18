@@ -22,7 +22,7 @@ const Main = () => {
       const inputWidth = queryImage0.width;
       const inputHeight = queryImage0.height;
       controller = new MINDAR.Controller({inputWidth, inputHeight});
-      const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
+      const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-detector10.mind');
       controller.dummyRun(queryImage0);
       setReady(true);
     }
@@ -42,7 +42,7 @@ const Main = () => {
 
     for (let i = 0; i < numRun; i++) {
       _start = new Date();
-      const featurePoints = await controller.detect(queryImages[0]);
+      const {featurePoints} = await controller.detect(queryImages[0]);
       timeSpent['detect'].push(new Date() - _start);
 
       _start = new Date();

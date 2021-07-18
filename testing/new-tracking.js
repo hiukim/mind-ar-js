@@ -13,6 +13,7 @@ const Display = ({result}) => {
   const targetCanvasRef = useRef(null);
   const newProjectedCanvasRef = useRef(null);
   const projectedCanvasRef = useRef(null);
+  const rotatedProjectedCanvasRef = useRef(null);
   const smartDetectionCanvas = useRef(null);
 
   const {queryImages, queryResults, target, dimensions, projectionMatrix} = result; 
@@ -61,7 +62,7 @@ const Display = ({result}) => {
 
     if (!smartDetection) return;
 
-    const {projectedImage, featurePoints} = smartDetection;
+    const {projectedImage, projectedFeaturePoints: featurePoints} = smartDetection;
     canvas.height = projectedImage.length;
     canvas.width = projectedImage[0].length;
     ctx.putImageData(utils.pixel2DToImageData(projectedImage), 0, 0);
@@ -72,6 +73,24 @@ const Display = ({result}) => {
       }
     }
   }, [queryIndex, trackType]);
+
+  // rotate projected
+  useEffect(() => {
+    const trackResult = queryResult.trackResults[keyframeIndex];
+    const goodTracks = queryResult.goodTracks[keyframeIndex];
+    const projectedImage = queryResult.rotatedProjected[keyframeIndex];
+    console.log("rotate", projectedImage); 
+
+    const canvas = rotatedProjectedCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!projectedImage) return;
+
+    canvas.height = projectedImage.length;
+    canvas.width = projectedImage[0].length;
+    ctx.putImageData(utils.pixel2DToImageData(projectedImage), 0, 0);
+  }, [queryIndex, keyframeIndex, trackType]);
 
   // projected image canvas
   useEffect(() => {
@@ -154,9 +173,9 @@ const Display = ({result}) => {
     if (trackType === 'detection') {
       const smartDetection = queryResult.smartDetection;
       if (smartDetection) {
-	const {reprojectedFeaturePoints} = smartDetection;
-	for (let i = 0; i < reprojectedFeaturePoints.length; i++) {
-	  utils.drawPoint(ctx, "#FF0000", Math.round(reprojectedFeaturePoints[i].x), Math.round(reprojectedFeaturePoints[i].y), reprojectedFeaturePoints[i].scale);
+	const {featurePoints} = smartDetection;
+	for (let i = 0; i < featurePoints.length; i++) {
+	  utils.drawPoint(ctx, "#FF0000", Math.round(featurePoints[i].x), Math.round(featurePoints[i].y), featurePoints[i].scale);
 	}
       }
     }
@@ -202,6 +221,9 @@ const Display = ({result}) => {
 	  <canvas className="target-canvas" ref={targetCanvasRef}></canvas>
 	  <canvas className="projected-canvas" ref={projectedCanvasRef}></canvas>
 	  <canvas className="new-projected-canvas" ref={newProjectedCanvasRef}></canvas>
+
+	  <canvas className="rotate-projected-canvas" ref={rotatedProjectedCanvasRef}></canvas>
+
 	</div>
 	<div className="column">
 	  <canvas className="smart-detection-canvas" ref={smartDetectionCanvas}></canvas>
@@ -219,31 +241,42 @@ const Main = () => {
     const process = async () => {
       //for (let i = 39; i <= 39; i+=2) {
       //for (let i = 39; i <= 43; i+=2) {
-      for (let i = 39; i <= 100; i+=2) {
-	//try {queryImages.push(await utils.loadImage('../tests/videos/p5/out' + String(i).padStart(3, '0') + '.png'));} catch (e) {}
+      for (let i = 39; i <= 100; i+=3) {
+	try {queryImages.push(await utils.loadImage('../tests/videos/p1/out' + String(i).padStart(3, '0') + '.png'));} catch (e) {}
       }
-      for (let i = 107; i <= 307; i+=2) {
-	queryImages.push(await utils.loadImage('../tests/video2/out' + i + '.png'));
+      for (let i = 107; i <= 307; i+=5) {
+	//queryImages.push(await utils.loadImage('../tests/video2/out' + i + '.png'));
       }
 
       const queryImage0 = queryImages[0];
       const inputWidth = queryImage0.width;
       const inputHeight = queryImage0.height;
       const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: true});
-      const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-detector10.mind');
-      //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/band-example/raccoon-detector9.mind');
+      //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-detector10.mind');
+      const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/band-example/raccoon-detector9.mind');
 
       const targetIndex = 0;
       const nKeyframes = trackingDataList[0].length;
       //const nKeyframes = 1;
 
       // initial match
-      const {featurePoints} = await controller.detect(queryImages[0]);
-      const {modelViewTransform: firstModelViewTransform} = await controller.match(featurePoints);
+      let firstModelViewTransform;
+      while (queryImages.length > 0) {
+	const {featurePoints} = await controller.detect(queryImages[0]);
+	const {modelViewTransform} = await controller.match(featurePoints);
+
+	if (!modelViewTransform) {
+	  console.log("no match...", queryImages.length);
+	  queryImages.shift();
+	} else {
+	  firstModelViewTransform = modelViewTransform; 
+	  break;
+	}
+      }
       if (!firstModelViewTransform) {
-	console.log("no match");
 	return;
       }
+
       let lastModelViewTransforms = [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform];
 
       const queryResults = [];
@@ -253,6 +286,7 @@ const Main = () => {
 	const goodTracks = [];
 	const projectedBefore = [];
 	const projectedAfter = [];
+	const rotatedProjected = [];
 	let smartDetection = null;
 
 	// try tracking results in all key frames
@@ -261,6 +295,7 @@ const Main = () => {
 	  const trackResult = await controller.trackFrame(queryImages[i], lastModelViewTransforms, targetIndex, j);
 	  trackResults.push(trackResult);
 
+	  rotatedProjected.push(trackResult.debugExtra.rotatedProjectedImage);
 	  projectedBefore.push(trackResult.debugExtra.projectedImage);
 
 	  const goodTrack = trackingDataList[targetIndex][j].points.map((p) => {
@@ -286,6 +321,25 @@ const Main = () => {
 	let newModelViewTransform = await controller.trackUpdate(lastModelViewTransforms[0], defaultTrackResult);
 
 	if (!newModelViewTransform) {
+	  console.log("miss");
+	  const detectResult = await controller.detectExpect(queryImages[i], lastModelViewTransforms[0], targetIndex);
+	  console.log("detectResult", detectResult);
+	  const {modelViewTransform, debugExtras} = await controller.match(detectResult.featurePoints);
+	  if (modelViewTransform) {
+	    newModelViewTransform = modelViewTransform;
+	  }
+	  console.log("modelViewTransform", modelViewTransform);
+
+	  smartDetection = {
+	    projectedImage: detectResult.debugExtra.projectedImage,
+	    featurePoints: detectResult.featurePoints,
+	    projectedFeaturePoints: detectResult.debugExtra.projectedFeaturePoints,
+	    modelViewTransform: modelViewTransform
+	  }
+	}
+
+	/*
+	if (!newModelViewTransform) {
 	  const detectResult = await controller.smartDetect(queryImages[i], lastModelViewTransforms[0], targetIndex);
 
 	  const {debugExtras: debugExtra1} = await controller.match(detectResult.debugExtra.featurePoints);
@@ -304,6 +358,7 @@ const Main = () => {
 	  lastModelViewTransforms = [modelViewTransform, modelViewTransform, modelViewTransform];
 	  newModelViewTransform = modelViewTransform;
 	}
+	*/
 
 	lastModelViewTransforms.unshift(newModelViewTransform);
 	lastModelViewTransforms.pop();
@@ -312,6 +367,7 @@ const Main = () => {
 	  trackResults,
 	  projectedBefore,
 	  projectedAfter,
+	  rotatedProjected,
 	  goodTracks,
 	  pickedKeyframeIndex: defaultTrackResult.debugExtra.keyframeIndex,
 	  smartDetection
