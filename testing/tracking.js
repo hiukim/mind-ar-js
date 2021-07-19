@@ -229,22 +229,21 @@ const Main = () => {
 	return;
       }
 
-      let lastModelViewTransforms = [firstModelViewTransform, firstModelViewTransform, firstModelViewTransform];
+      let lastModelViewTransform = firstModelViewTransform;
 
       const queryResults = [];
       for (let i = 0; i < queryImages.length; i++) {
 	console.log("process", i);
 
-	const trackResult = await controller.track(queryImages[i], lastModelViewTransforms, targetIndex);
+	const trackResult = await controller.track(queryImages[i], lastModelViewTransform, targetIndex);
 
-	const newModelViewTransform = await controller.trackUpdate(lastModelViewTransforms[0], trackResult);
+	const newModelViewTransform = await controller.trackUpdate(lastModelViewTransform, trackResult);
 
-	lastModelViewTransforms.unshift(newModelViewTransform);
-	lastModelViewTransforms.pop();
+	lastModelViewTransform = newModelViewTransform;
 
 	let updatedProjectedImage = null; 
 	if (newModelViewTransform) {
-	  const trackAgainResult = await controller.track(queryImages[i], lastModelViewTransforms, targetIndex);
+	  const trackAgainResult = await controller.track(queryImages[i], lastModelViewTransform, targetIndex);
 	  updatedProjectedImage = trackAgainResult.debugExtra.projectedImage;
 	}
 

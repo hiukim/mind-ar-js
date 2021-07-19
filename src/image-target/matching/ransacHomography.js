@@ -165,4 +165,3 @@ const _checkHomographyPointsGeometricallyConsistent = ({H, testPoints}) => {
 module.exports = {
   computeHomography,
 }
-

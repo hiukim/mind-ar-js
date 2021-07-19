@@ -2,7 +2,7 @@ const { useEffect, useMemo, useRef, useState, useCallback } = React;
 
 const COLORS = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080', '#ffffff', '#000000'];
 
-const THREE = AFRAME.THREE;
+//const THREE = AFRAME.THREE;
 
 const TEMPLATE_RADIUS = 6;
 const AR2_SEARCH_SIZE = 10;
@@ -39,15 +39,15 @@ const Display = ({result}) => {
     camera.updateProjectionMatrix();
 
     const scene = new THREE.Scene();
-    const position = new AFRAME.THREE.Vector3();
-    const quaternion = new AFRAME.THREE.Quaternion();
-    const scale = new AFRAME.THREE.Vector3();
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
     position.x = markerWidth / 2;
     position.y = markerWidth / 2 + (markerHeight - markerWidth) / 2;
     scale.x = markerWidth;
     scale.y = markerWidth;
     scale.z = markerWidth;
-    let postMatrix = new AFRAME.THREE.Matrix4();
+    let postMatrix = new THREE.Matrix4();
     postMatrix.compose(position, quaternion, scale);
 
 
@@ -66,7 +66,7 @@ const Display = ({result}) => {
       const queryImage = result.queryImages[queryIndex];
 
       const worldMatrix = Object.assign({}, allWorldMatrices[queryIndex]);
-      var m = new AFRAME.THREE.Matrix4();
+      var m = new THREE.Matrix4();
       m.elements = worldMatrix;
       m.multiply(postMatrix);
       plane.matrix = m;

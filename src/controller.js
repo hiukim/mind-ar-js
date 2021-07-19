@@ -2,28 +2,24 @@ const tf = require('@tensorflow/tfjs');
 const Worker = require("./controller.worker.js");
 const {Tracker} = require('./image-target/tracker/tracker.js');
 const {CropDetector} = require('./image-target/detector/crop-detector.js');
-const {Detector} = require('./image-target/detector/detector.js');
 const {Compiler} = require('./compiler.js');
 const {InputLoader} = require('./image-target/input-loader.js');
 
 const INTERPOLATION_FACTOR = 5;
 const WARMUP_COUNT_TOLERANCE = 10;
 const MISS_COUNT_TOLERANCE = 30;
-const MIN_KEYFRAME_SIZE = 80;
 
 class Controller {
-  constructor({inputWidth, inputHeight, onUpdate=null, maxTrack=1, debugMode=false}) {
+  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false}) {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.cropDetector = new CropDetector(this.inputWidth, this.inputHeight, debugMode);
-    this.detector = new Detector(this.inputWidth, this.inputHeight, debugMode);
     this.inputLoader = new InputLoader(this.inputWidth, this.inputHeight);
     this.markerDimensions = null;
     this.onUpdate = onUpdate;
     this.debugMode = debugMode;
     this.processingVideo = false;
     this.interestedTargetIndex = 0;
-    this.maxTrack = maxTrack; // technically can tracking multiple. but too slow in practice
     this.trackingState = {};
 
     const near = 10;
@@ -107,7 +103,6 @@ class Controller {
   // warm up gpu - build kernels is slow
   dummyRun(input) {
     const inputT = this.inputLoader.loadInput(input);
-    //this.detector.detect(inputT);
     this.cropDetector.detect(inputT);
     this.tracker.dummyRun(inputT);
     inputT.dispose();
@@ -123,14 +118,13 @@ class Controller {
 
   async _detectAndMatch(inputT, targetIndex) {
     const {featurePoints} = this.cropDetector.detectMoving(inputT);
-    //const {featurePoints} = this.detector.detect(inputT);
     const {modelViewTransform} = await this._workerMatch(featurePoints, targetIndex);
     return modelViewTransform
   }
-  async _trackAndUpdate(inputT, lastModelViewTransforms, targetIndex) {
-    const {worldCoords, screenCoords} = this.tracker.track(inputT, lastModelViewTransforms, targetIndex);
+  async _trackAndUpdate(inputT, lastModelViewTransform, targetIndex) {
+    const {worldCoords, screenCoords} = this.tracker.track(inputT, lastModelViewTransform, targetIndex);
     if (worldCoords.length < 4) return null;
-    const modelViewTransform = await this._workerTrackUpdate(lastModelViewTransforms[0], {worldCoords, screenCoords});
+    const modelViewTransform = await this._workerTrackUpdate(lastModelViewTransform, {worldCoords, screenCoords});
     return modelViewTransform;
   }
 
@@ -157,21 +151,17 @@ class Controller {
 	  if (modelViewTransform) {
 	    this.trackingState.targetIndex = this.interestedTargetIndex;
 	    this.trackingState.isTracking = true;
-            this.trackingState.lastModelViewTransforms = [modelViewTransform, modelViewTransform, modelViewTransform];
 	    this.trackingState.currentModelViewTransform = modelViewTransform;
 	  }
 	}
 
 	// tracking update
 	if (this.trackingState.isTracking) {
-	  let modelViewTransform = await this._trackAndUpdate(inputT, this.trackingState.lastModelViewTransforms, this.trackingState.targetIndex)
+	  let modelViewTransform = await this._trackAndUpdate(inputT, this.trackingState.currentModelViewTransform, this.trackingState.targetIndex)
 	  if (modelViewTransform === null) {
 	    this.trackingState.isTracking = false;
-	    this.trackingState.lastModelViewTransforms = null;
 	  } else {
 	    this.trackingState.currentModelViewTransform = modelViewTransform;
-	    this.trackingState.lastModelViewTransforms.unshift(modelViewTransform);
-	    this.trackingState.lastModelViewTransforms.pop();
 	  }
 	}
 
@@ -233,12 +223,6 @@ class Controller {
     this.processingVideo = false;
   }
 
-  async detectFull(input) {
-    const inputT = this.inputLoader.loadInput(input);
-    const {featurePoints, debugExtra} = await this.detector.detect(inputT);
-    inputT.dispose();
-    return {featurePoints, debugExtra};
-  }
   async detect(input) {
     const inputT = this.inputLoader.loadInput(input);
     const {featurePoints, debugExtra} = await this.cropDetector.detect(inputT);
@@ -251,28 +235,13 @@ class Controller {
     return {modelViewTransform, debugExtra};
   }
 
-  async track(input, modelViewTransforms, targetIndex) {
+  async track(input, modelViewTransform, targetIndex) {
     const inputT = this.inputLoader.loadInput(input);
-    const result = this.tracker.track(inputT, modelViewTransforms, targetIndex);
+    const result = this.tracker.track(inputT, modelViewTransform, targetIndex);
     inputT.dispose();
     return result;
   }
-  async trackFrame(input, modelViewTransforms, targetIndex, keyframeIndex) {
-    const inputT = this.inputLoader.loadInput(input);
-    const result = this.tracker.track(inputT, modelViewTransforms, targetIndex, keyframeIndex);
-    inputT.dispose();
-    return result;
-  }
-  async trackAllFrames(input, modelViewTransforms, targetIndex, nKeyframes) {
-    const inputT = this.inputLoader.loadInput(input);
-    const trackResults = [];
-    for (let i = 0; i < nKeyframes; i++) {
-      const result = this.tracker.track(inputT, modelViewTransforms, targetIndex, i);
-      trackResults.push(result);
-    }
-    inputT.dispose();
-    return trackResults;
-  }
+
   async trackUpdate(modelViewTransform, trackFeatures) {
     if (trackFeatures.worldCoords.length < 4 ) return null;
     const modelViewTransform2 = await this._workerTrackUpdate(modelViewTransform, trackFeatures);
@@ -367,4 +336,3 @@ class Controller {
 module.exports = {
  Controller
 }
-

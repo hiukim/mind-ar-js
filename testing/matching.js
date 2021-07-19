@@ -188,10 +188,8 @@ const Main = () => {
       const inputWidth = queryImage.width;
       const inputHeight = queryImage.height;
       const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: true});
-      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
-      //const {dimensions, matchingDataList} = await controller.addImageTargets('../examples/assets/card-example/new-card.mind');
-      const {dimensions, matchingDataList} = await controller.addImageTargets('../examples/assets/card-example/new-card-match2.mind');
-      //const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/band-example/new-raccoon.mind');
+      const {dimensions, matchingDataList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
+      //const {dimensions, matchingDataList} = await controller.addImageTargets('../examples/assets/band-example/raccoon.mind');
 
       //const {featurePoints} = await controller.detectFull(queryImage);
       const {featurePoints} = await controller.detect(queryImage);
