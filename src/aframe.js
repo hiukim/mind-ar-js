@@ -1,4 +1,4 @@
-const {Controller} = require('./controller2');
+const {Controller} = require('./controller');
 const {UI} = require('./ui/ui.js');
 require("aframe");
 require("aframe-extras");

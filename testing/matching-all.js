@@ -8,9 +8,7 @@ const TEMPLATE_RADIUS = 6;
 const AR2_SEARCH_SIZE = 10;
 
 const Display = ({result}) => {
-  const {queryImages, target, allPickedKeyframes, allTrackResults, dimensions, allWorldMatrices, allBeforeProjected, allAfterProjected, projectionMatrix} = result; 
-  const {images: targetImages, trackingData: targetTrackingData} = target;
-
+  const {queryImages, allPickedKeyframes, allTrackResults, dimensions, allWorldMatrices, allBeforeProjected, allAfterProjected, projectionMatrix} = result; 
   const [trackType, setTrackType] = useState('none');
   const [keyframeIndex, setKeyframeIndex] = useState(0);
   const [queryIndex, setQueryIndex] = useState(0);
@@ -97,11 +95,12 @@ const Main = () => {
 
   useEffect(() => {
     const process = async () => {
+      const targetIndex = 0;
       const queryImages = [];
       for (let i = 1; i <= 200; i+=3) {
       //for (let i = 107; i <= 114; i+=3) {
 	try {
-	  queryImages.push(await utils.loadImage('../tests/videos/p1/out' + String(i).padStart(3, '0') + '.png'));
+	  queryImages.push(await utils.loadImage('../tests/videos/c1/out' + String(i).padStart(3, '0') + '.png'));
 	} catch (e) {
 	}
       }
@@ -111,8 +110,8 @@ const Main = () => {
       const inputWidth = queryImage0.width;
       const inputHeight = queryImage0.height;
       const controller = new MINDAR.Controller({inputWidth, inputHeight, debugMode: false});
-      //const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card-detector10.mind');
-      const {dimensions, matchingDataList, trackingDataList, imageListList} = await controller.addImageTargets('../examples/assets/band-example/raccoon-detector9.mind');
+      const {dimensions, matchingDataList, trackingDataList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
+      //const {dimensions, matchingDataList, trackingDataList} = await controller.addImageTargets('../examples/assets/band-example/raccoon.mind');
 
       const allTrackResults = [];
       const allBeforeProjected = [];
@@ -123,9 +122,9 @@ const Main = () => {
       for (let i = 0; i < queryImages.length; i++) {
 	const queryImage = queryImages[i];
 	const {featurePoints} = await controller.detect(queryImage);
-	const {modelViewTransform, allMatchResults} = await controller.match(featurePoints);
+	const {modelViewTransform, allMatchResults} = await controller.match(featurePoints, targetIndex);
 	if (modelViewTransform) {
-	  allWorldMatrices.push(controller.getWorldMatrix(modelViewTransform, 0));
+	  allWorldMatrices.push(controller.getWorldMatrix(modelViewTransform, targetIndex));
 	} else {
 	  allWorldMatrices.push(null);
 	}
@@ -138,9 +137,6 @@ const Main = () => {
 	dimensions,
 	allWorldMatrices,
 	projectionMatrix,
-	target: {
-	  images: imageListList[0]
-	},
       }
       setResult(result);
     }

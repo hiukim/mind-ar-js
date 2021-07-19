@@ -1,5 +1,5 @@
-const {Controller} = require('./controller2');
-const {Compiler} = require('./compiler2');
+const {Controller} = require('./controller');
+const {Compiler} = require('./compiler');
 require('./aframe');
 
 module.exports = window.MINDAR = {

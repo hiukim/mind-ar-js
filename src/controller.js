@@ -1,13 +1,14 @@
 const tf = require('@tensorflow/tfjs');
 const Worker = require("./controller.worker.js");
-const {Tracker} = require('./image-target/tracker/tracker2.js');
+const {Tracker} = require('./image-target/tracker/tracker.js');
 const {CropDetector} = require('./image-target/detector/crop-detector.js');
 const {Detector} = require('./image-target/detector/detector.js');
 const {Compiler} = require('./compiler.js');
 const {InputLoader} = require('./image-target/input-loader.js');
 
-const INTERPOLATION_FACTOR = 10;
-const MISS_COUNT_TOLERANCE = 10;
+const INTERPOLATION_FACTOR = 5;
+const WARMUP_COUNT_TOLERANCE = 10;
+const MISS_COUNT_TOLERANCE = 30;
 const MIN_KEYFRAME_SIZE = 80;
 
 class Controller {
@@ -21,9 +22,9 @@ class Controller {
     this.onUpdate = onUpdate;
     this.debugMode = debugMode;
     this.processingVideo = false;
-    this.interestedTargetIndex = null;
+    this.interestedTargetIndex = 0;
     this.maxTrack = maxTrack; // technically can tracking multiple. but too slow in practice
-    this.imageTargetStates = [];
+    this.trackingState = {};
 
     const near = 10;
     const far = 10000;
@@ -82,25 +83,12 @@ class Controller {
     const imageListList = [];
     const dimensions = [];
     for (let i = 0; i < dataList.length; i++) {
-      const imageList = [];
-      const matchingList = [];
-      const trackingList = [];
-      for (let j = 0; j < dataList[i].imageList.length; j++) {
-	// keyframe too small to be useful
-	if (dataList[i].imageList[j].width < MIN_KEYFRAME_SIZE || dataList[i].imageList[j].height < MIN_KEYFRAME_SIZE) break;
-
-	imageList.push(dataList[i].imageList[j]);
-	matchingList.push(dataList[i].matchingData[j]);
-	trackingList.push(dataList[i].trackingData[j]);
-      }
-      matchingDataList.push(matchingList);
-      trackingDataList.push(trackingList);
-      imageListList.push(imageList);
+      matchingDataList.push(dataList[i].matchingData);
+      trackingDataList.push(dataList[i].trackingData);
       dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
-      this.imageTargetStates[i] = {isTracking: false};
     }
 
-    this.tracker = new Tracker(trackingDataList, imageListList, this.projectionTransform, this.inputWidth, this.inputHeight, this.debugMode);
+    this.tracker = new Tracker(dimensions, trackingDataList, this.projectionTransform, this.inputWidth, this.inputHeight, this.debugMode);
 
     this.worker.postMessage({
       type: 'setup',
@@ -113,7 +101,7 @@ class Controller {
 
     this.markerDimensions = dimensions;
 
-    return {dimensions: dimensions, matchingDataList, trackingDataList, imageListList};
+    return {dimensions: dimensions, matchingDataList, trackingDataList};
   }
 
   // warm up gpu - build kernels is slow
@@ -133,10 +121,29 @@ class Controller {
     return this._glModelViewMatrix(modelViewTransform, targetIndex);
   }
 
+  async _detectAndMatch(inputT, targetIndex) {
+    const {featurePoints} = this.cropDetector.detectMoving(inputT);
+    //const {featurePoints} = this.detector.detect(inputT);
+    const {modelViewTransform} = await this._workerMatch(featurePoints, targetIndex);
+    return modelViewTransform
+  }
+  async _trackAndUpdate(inputT, lastModelViewTransforms, targetIndex) {
+    const {worldCoords, screenCoords} = this.tracker.track(inputT, lastModelViewTransforms, targetIndex);
+    if (worldCoords.length < 4) return null;
+    const modelViewTransform = await this._workerTrackUpdate(lastModelViewTransforms[0], {worldCoords, screenCoords});
+    return modelViewTransform;
+  }
+
   processVideo(input) {
     if (this.processingVideo) return;
 
     this.processingVideo = true;
+
+    this.trackingState = {
+      showing: false,
+      trackCount: 0,
+      trackMiss: 0,
+    }
 
     const startProcessing = async() => {
       while (true) {
@@ -144,83 +151,76 @@ class Controller {
 
 	const inputT = this.inputLoader.loadInput(input);
 
-	const trackingIndexes = [];
-        for (let i = 0; i < this.imageTargetStates.length; i++) {
-          if (this.imageTargetStates[i].isTracking) {
-	    trackingIndexes.push(i);
+	// detect, if not tracking
+	if (!this.trackingState.isTracking) {
+	  const modelViewTransform = await this._detectAndMatch(inputT, this.interestedTargetIndex);
+	  if (modelViewTransform) {
+	    this.trackingState.targetIndex = this.interestedTargetIndex;
+	    this.trackingState.isTracking = true;
+            this.trackingState.lastModelViewTransforms = [modelViewTransform, modelViewTransform, modelViewTransform];
+	    this.trackingState.currentModelViewTransform = modelViewTransform;
 	  }
 	}
 
-        if (trackingIndexes.length < this.maxTrack) { // only run detector when matching is required
-          //const {featurePoints} = this.detector.detect(inputT);
-          const {featurePoints} = this.cropDetector.detectMoving(inputT);
+	// tracking update
+	if (this.trackingState.isTracking) {
+	  let modelViewTransform = await this._trackAndUpdate(inputT, this.trackingState.lastModelViewTransforms, this.trackingState.targetIndex)
+	  if (modelViewTransform === null) {
+	    this.trackingState.isTracking = false;
+	    this.trackingState.lastModelViewTransforms = null;
+	  } else {
+	    this.trackingState.currentModelViewTransform = modelViewTransform;
+	    this.trackingState.lastModelViewTransforms.unshift(modelViewTransform);
+	    this.trackingState.lastModelViewTransforms.pop();
+	  }
+	}
 
-	  let skipIndexes = trackingIndexes;
-	  if (this.interestedTargetIndex !== null) { // only detect interested target
-	    skipIndexes = [];
-	    for (let t = 0; t < this.imageTargetStates.length; t++) {
-	      if (this.interestedTargetIndex !== t) {
-		skipIndexes.push(t);
-	      }
+	// if not showing, then show it once it reaches warmup number of frames
+	if (!this.trackingState.showing) {
+	  if (this.trackingState.isTracking) {
+	    this.trackingState.trackMiss = 0;
+	    this.trackingState.trackCount += 1;
+	    if (this.trackingState.trackCount > WARMUP_COUNT_TOLERANCE) {
+	      this.trackingState.showing = true;
+	      this.trackingState.trackingMatrix = null;
 	    }
 	  }
-
-	  const {targetIndex, modelViewTransform} = await this._workerMatch(featurePoints, skipIndexes);
-
-          if (targetIndex !== -1) {
-	    trackingIndexes.push(targetIndex);
-            this.imageTargetStates[targetIndex].isTracking = true;
-            this.imageTargetStates[targetIndex].missCount = 0;
-            this.imageTargetStates[targetIndex].lastModelViewTransform = modelViewTransform;
-            this.imageTargetStates[targetIndex].lastModelViewTransforms = [modelViewTransform, modelViewTransform, modelViewTransform];
-            this.imageTargetStates[targetIndex].trackingMatrix = null;
-          }
-        }
+	}
 	
-        for (let i = 0; i < this.imageTargetStates.length; i++) {
-          if (this.imageTargetStates[i].isTracking) {
-	    const {worldCoords, screenCoords} = this.tracker.track(inputT, this.imageTargetStates[i].lastModelViewTransforms, i);
+	// if showing, then count miss, and hide it when reaches tolerance
+	if (this.trackingState.showing) {
+	  if (!this.trackingState.isTracking) {
+	    this.trackingState.trackCount = 0;
+	    this.trackingState.trackMiss += 1;
 
-	    let modelViewTransform = null;
-	    if (worldCoords.length >= 4) {
-	      modelViewTransform = await this._workerTrackUpdate(this.imageTargetStates[i].lastModelViewTransform, {worldCoords, screenCoords});
+	    if (this.trackingState.trackMiss > MISS_COUNT_TOLERANCE) {
+	      this.trackingState.showing = false;
+	      this.trackingState.trackingMatrix = null;
+	      this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: this.trackingState.targetIndex, worldMatrix: null});
 	    }
-            // remove this
-            //modelViewTransform = this.imageTargetStates[i].lastModelViewTransform;
-
-            if (modelViewTransform === null) {
-              this.imageTargetStates[i].missCount += 1;
-              if (this.imageTargetStates[i].missCount > MISS_COUNT_TOLERANCE) {
-                this.imageTargetStates[i].isTracking = false;
-		this.imageTargetStates[i].lastModelViewTransforms = null;
-                this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
-              }
-            } else {
-              this.imageTargetStates[i].missCount = 0;
-              this.imageTargetStates[i].lastModelViewTransforms.unshift(modelViewTransform);
-              this.imageTargetStates[i].lastModelViewTransforms.pop();
-
-	      // fix missing
-	      //this.imageTargetStates[i].lastModelViewTransform = modelViewTransform;
-
-              const worldMatrix = this._glModelViewMatrix(modelViewTransform, i);
-
-              if (this.imageTargetStates[i].trackingMatrix === null) {
-                this.imageTargetStates[i].trackingMatrix = worldMatrix;
-              } else {
-                for (let j = 0; j < worldMatrix.length; j++) {
-                  this.imageTargetStates[i].trackingMatrix[j] = this.imageTargetStates[i].trackingMatrix[j] + (worldMatrix[j] - this.imageTargetStates[i].trackingMatrix[j]) / INTERPOLATION_FACTOR;
-                }
-              }
-
-              const clone = [];
-              for (let j = 0; j < worldMatrix.length; j++) {
-                clone[j] = this.imageTargetStates[i].trackingMatrix[j];
-              }
-              this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
-            }
-          }
+	  } else {
+	    this.trackingState.trackMiss = 0;
+	  }
 	}
+	
+	// if showing, then call onUpdate, with world matrix
+	if (this.trackingState.showing) {
+	  const worldMatrix = this._glModelViewMatrix(this.trackingState.currentModelViewTransform, this.trackingState.targetIndex);
+
+	  if (this.trackingState.trackingMatrix === null) {
+	    this.trackingState.trackingMatrix = worldMatrix;
+	  } else {
+	    for (let j = 0; j < worldMatrix.length; j++) {
+	      this.trackingState.trackingMatrix[j] = this.trackingState.trackingMatrix[j] + (worldMatrix[j] - this.trackingState.trackingMatrix[j]) / INTERPOLATION_FACTOR;
+	    }
+	  }
+	  const clone = [];
+	  for (let j = 0; j < worldMatrix.length; j++) {
+	    clone[j] = this.trackingState.trackingMatrix[j];
+	  }
+	  this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: this.trackingState.targetIndex, worldMatrix: clone});
+	}
+
 	inputT.dispose();
         this.onUpdate && this.onUpdate({type: 'processDone'});
 	await tf.nextFrame();
@@ -235,7 +235,7 @@ class Controller {
 
   async detectFull(input) {
     const inputT = this.inputLoader.loadInput(input);
-    const {featurePoints, debugExtra} = await this.cropDetector.detect(inputT);
+    const {featurePoints, debugExtra} = await this.detector.detect(inputT);
     inputT.dispose();
     return {featurePoints, debugExtra};
   }
@@ -245,17 +245,10 @@ class Controller {
     inputT.dispose();
     return {featurePoints, debugExtra};
   }
-  async detectExpect(input, modelViewTransform, targetIndex) {
-    const inputT = this.inputLoader.loadInput(input);
-    const markerWidth = this.markerDimensions[targetIndex][0];
-    const markerHeight = this.markerDimensions[targetIndex][1];
-    const {featurePoints, debugExtra} = await this.cropDetector.detectExpect(inputT, this.projectionTransform, modelViewTransform, markerWidth, markerHeight);
-    inputT.dispose();
-    return {featurePoints, debugExtra};
-  }
-  async match(featurePoints) {
-    const {targetIndex, modelViewTransform, debugExtras} = await this._workerMatch(featurePoints, []);
-    return {modelViewTransform, debugExtras};
+
+  async match(featurePoints, targetIndex) {
+    const {modelViewTransform, debugExtra} = await this._workerMatch(featurePoints, targetIndex);
+    return {modelViewTransform, debugExtra};
   }
 
   async track(input, modelViewTransforms, targetIndex) {
@@ -286,12 +279,12 @@ class Controller {
     return modelViewTransform2;
   }
 
-  _workerMatch(featurePoints, skipTargetIndexes) {
+  _workerMatch(featurePoints, targetIndex) {
     return new Promise(async (resolve, reject) => {
       this.workerMatchDone = (data) => {
-        resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform, debugExtras: data.debugExtras});
+        resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform, debugExtra: data.debugExtra});
       }
-      this.worker.postMessage({type: 'match', featurePoints: featurePoints, skipTargetIndexes});
+      this.worker.postMessage({type: 'match', featurePoints: featurePoints, targetIndex});
     });
   }
 
@@ -374,3 +367,4 @@ class Controller {
 module.exports = {
  Controller
 }
+

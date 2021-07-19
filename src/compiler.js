@@ -1,12 +1,12 @@
 const Worker = require("./compiler.worker.js");
-const {Detector} = require('./image-target/detector/detector6.js');
-const {buildImageList} = require('./image-target/image-list.js');
+const {Detector} = require('./image-target/detector/detector.js');
+const {buildImageList, buildTrackingImageList} = require('./image-target/image-list.js');
 const {build: hierarchicalClusteringBuild} = require('./image-target/matching/hierarchical-clustering.js');
 const msgpack = require('@msgpack/msgpack');
 const tf = require('@tensorflow/tfjs');
-// TODO: better compression method. now grey image saved in pixels, which could be largere than original image
+// TODO: better compression method. now grey image saved in pixels, which could be larger than original image
 
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 class Compiler {
   constructor() {
@@ -55,6 +55,11 @@ class Compiler {
 	});
       }
 
+      for (let i = 0; i < targetImages.length; i++) {
+	const trackingImageList = buildTrackingImageList(targetImages[i]);
+	this.data[i].trackingImageList = trackingImageList; 
+      }
+
       // compute tracking data with worker: 50% progress
       const compileTrack = () => {
 	return new Promise((resolve, reject) => {
@@ -83,7 +88,11 @@ class Compiler {
     const dataList = [];
     for (let i = 0; i < this.data.length; i++) {
       dataList.push({
-        targetImage: this.data[i].targetImage,
+        //targetImage: this.data[i].targetImage,
+	targetImage: {
+	  width: this.data[i].targetImage.width,
+	  height: this.data[i].targetImage.height,
+	},
         trackingData: this.data[i].trackingData,
         matchingData: this.data[i].matchingData
       });
@@ -106,10 +115,8 @@ class Compiler {
     const {dataList} = content;
     this.data = [];
     for (let i = 0; i < dataList.length; i++) {
-      const imageList = buildImageList(dataList[i].targetImage);
       this.data.push({
-        imageList: imageList,
-        targetImage: dataList[i].targetImage,
+	targetImage: dataList[i].targetImage,
         trackingData: dataList[i].trackingData,
         matchingData: dataList[i].matchingData
       });
@@ -131,10 +138,17 @@ const _extractMatchingFeatures = async (imageList, doneCallback) => {
       const inputT = tf.tensor(image.data, [image.data.length], 'float32').reshape([image.height, image.width]);
       //const ps = detector.detectImageData(image.data);
       const {featurePoints: ps} = detector.detect(inputT);
-      const pointsCluster = hierarchicalClusteringBuild({points: ps});
+
+      const maximaPoints = ps.filter((p) => p.maxima); 
+      const minimaPoints = ps.filter((p) => !p.maxima); 
+      const maximaPointsCluster = hierarchicalClusteringBuild({points: maximaPoints});
+      const minimaPointsCluster = hierarchicalClusteringBuild({points: minimaPoints});
+
       keyframes.push({
-	points: ps,
-	pointsCluster,
+	maximaPoints,
+	minimaPoints,
+	maximaPointsCluster,
+	minimaPointsCluster,
 	width: image.width,
 	height: image.height,
 	scale: image.scale

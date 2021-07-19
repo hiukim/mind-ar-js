@@ -42,7 +42,7 @@ const Display = ({result}) => {
   }
 
   useEffect(() => {
-    const {queryImage, pyramidImages, extremaAngles, dogPyramidImages, extremasResults, localizedExtremas} = result;
+    const {queryImage, pyramidImages, extremaAngles, dogPyramidImages, extremasResults, localizedExtremas, crop} = result;
 
     const octavePoints = [];
     const octaveLines = [];
@@ -126,23 +126,14 @@ const Display = ({result}) => {
     for (let i = 0; i < localizedExtremas.length; i++) {
       const ex = localizedExtremas[i];
       if (ex[0] == 0) continue;
-      const octave = ex[1] + 1; 
-      const y = ex[2]; 
-      const x = ex[3]; 
-      let originalY = y * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
-      let originalX = x * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
-      let radius = Math.pow(2, octave);
-      //utils.drawPoint(ctx, '#ff0000', originalX, originalY, radius);
-    }
-
-    for (let i = 0; i < localizedExtremas.length; i++) {
-      const ex = localizedExtremas[i];
-      if (ex[0] == 0) continue;
       const octave = ex[1]; 
       const y = ex[2]; 
       const x = ex[3]; 
       let originalY = y * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
       let originalX = x * Math.pow(2, octave) + Math.pow(2, octave-1) - 0.5;
+      originalY += crop.startY;
+      originalX += crop.startX;
+
       let radius = Math.pow(2, octave);
       utils.drawPoint(ctx, '#ff0000', originalX, originalY, radius);
 
@@ -159,30 +150,6 @@ const Display = ({result}) => {
 
       utils.drawLine(ctx, '#ff0000', originalX, originalY, originalX+dx, originalY+dy);
     }
-
-    {
-      // quick testing pixels
-      const image = pyramidImages[1][1];
-      const pixels = [];
-      for (let y = 449; y <= 453; y++) {
-	pixels.push([]);
-	for (let x = 344; x <= 348; x++) {
-	  pixels[pixels.length-1].push(image[y][x]);
-	}
-      }
-      console.log("test pixels", pixels);
-      for (let y = 1; y < pixels.length-1; y++) {
-	for (let x = 1; x < pixels[y].length-1; x++) {
-	  const dy = pixels[y+1][x] - pixels[y-1][x];
-	  const dx = pixels[y][x+1] - pixels[y][x-1];
-	  const angle = Math.atan2(dy, dx);
-	  const bin = (angle + Math.PI) * 36 / (2 * Math.PI);
-	  const mag = Math.sqrt(dy * dy + dx * dx);
-	  console.log("y x dy dx angle", y, x, dy, dx, angle, bin, mag);
-	}
-      }
-    }
-
     prunedContainerRef.current.appendChild(canvas);
   }, [result]);
   return (
@@ -222,6 +189,7 @@ const Main = () => {
 	prunedExtremas: debugExtra.prunedExtremas,
 	localizedExtremas: debugExtra.localizedExtremas,
 	extremaAngles: debugExtra.extremaAngles,
+	crop: debugExtra.crop
       }
       console.log("result", result);
       setResult(result);

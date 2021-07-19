@@ -1,5 +1,5 @@
 const tf = require('@tensorflow/tfjs');
-const {Detector} = require('./detector10.js');
+const {Detector} = require('./detector.js');
 const {buildModelViewProjectionTransform, computeScreenCoordiate} = require('../estimation/utils.js');
 
 class CropDetector {
@@ -22,7 +22,12 @@ class CropDetector {
   detect(inputImageT) { // crop center
     const startY = Math.floor(this.height / 2 - this.cropSize / 2);
     const startX = Math.floor(this.width / 2 - this.cropSize / 2);
-    return this._detect(inputImageT, startX, startY);
+    const result = this._detect(inputImageT, startX, startY);
+
+    if (this.debugMode) {
+      result.debugExtra.crop = {startX, startY, cropSize: this.cropSize}; 
+    }
+    return result;
   }
 
   detectMoving(inputImageT) { // loop a few locations around center
@@ -39,26 +44,7 @@ class CropDetector {
 
     this.lastRandomIndex = (this.lastRandomIndex + 1) % 9;
 
-    return this._detect(inputImageT, startX, startY);
-  }
-
-  detectExpect(inputImageT, projectionTransform, modelViewTransform, markerWidth, markerHeight) {
-    const modelViewProjectionTransform = buildModelViewProjectionTransform(projectionTransform, modelViewTransform);
-    const {x, y} = computeScreenCoordiate(modelViewProjectionTransform, markerWidth/2, markerHeight/2);
-    const startY = Math.floor(y - this.cropSize / 2);
-    const startX = Math.floor(x - this.cropSize / 2);
     const result = this._detect(inputImageT, startX, startY);
-    console.log("expect", startX, startY, result);
-    if (this.debugMode) {
-      result.debugExtra.projectedFeaturePoints = result.featurePoints.map((p) => {
-	return {
-	  x: p.x - startX,
-	  y: p.y - startY,
-	  scale: p.scale,
-	  angle: p.angle
-	}
-      });
-    }
     return result;
   }
 

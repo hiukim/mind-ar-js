@@ -18,40 +18,27 @@ onmessage = (msg) => {
     estimator = new Estimator(data.projectionTransform);
   }
   else if (data.type === 'match') {
-    const skipTargetIndexes = data.skipTargetIndexes;
+    const targetIndex = data.targetIndex;
 
     let matchedTargetIndex = -1;
     let matchedModelViewTransform = null;
     let debugExtras = null;
 
-    if (debugMode) {
-      debugExtras = [];
-    }
+    const {keyframeIndex, screenCoords, worldCoords, debugExtra} = matcher.matchDetection(matchingDataList[targetIndex], data.featurePoints);
 
-    for (let i = 0; i < matchingDataList.length; i++) {
-      if (skipTargetIndexes.includes(i)) continue;
-
-      const {keyframeIndex, screenCoords, worldCoords, debugExtra} = matcher.matchDetection(matchingDataList[i], data.featurePoints);
-
-      if (debugMode) {
-	debugExtras.push(debugExtra);
-      }
-
-      if (keyframeIndex === -1) continue;
-
+    if (keyframeIndex !== -1) {
       const modelViewTransform = estimator.estimate({screenCoords, worldCoords});
-      if (modelViewTransform === null) continue;
-
-      matchedTargetIndex = i;
-      matchedModelViewTransform = modelViewTransform;
-      break;
+      if (modelViewTransform) {
+	matchedTargetIndex = targetIndex;
+	matchedModelViewTransform = modelViewTransform;
+      }
     }
 
     postMessage({
       type: 'matchDone',
       targetIndex: matchedTargetIndex,
       modelViewTransform: matchedModelViewTransform,
-      debugExtras
+      debugExtra
     });
   }
   else if (data.type === 'trackUpdate') {
@@ -63,3 +50,4 @@ onmessage = (msg) => {
     });
   }
 };
+

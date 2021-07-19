@@ -1,12 +1,10 @@
 // Fast computation on number of bit sets
 // Ref: https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
 const compute = (options) => {
-  const {v1, v2, quick} = options;
+  const {v1, v2} = options;
   let d = 0;
 
-  const n = quick? Math.floor(v1.length / 4): v1.length;
-
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < v1.length; i++) {
     let x = (v1[i] ^ v2[i]) >>> 0;
     d += bitCount(x);
   }
