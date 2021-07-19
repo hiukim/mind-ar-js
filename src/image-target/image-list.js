@@ -1,6 +1,6 @@
 const {resize} = require("./utils/images.js");
 
-const MIN_IMAGE_PIXEL_SIZE = 28;
+const MIN_IMAGE_PIXEL_SIZE = 100;
 
 // Build a list of image {data, width, height, scale} with different scales
 const buildImageList = (inputImage) => {

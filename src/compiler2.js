@@ -138,8 +138,24 @@ const _extractMatchingFeatures = async (imageList, doneCallback) => {
       const inputT = tf.tensor(image.data, [image.data.length], 'float32').reshape([image.height, image.width]);
       //const ps = detector.detectImageData(image.data);
       const {featurePoints: ps} = detector.detect(inputT);
+
+      const maximaPoints = ps.filter((p) => p.maxima); 
+      const minimaPoints = ps.filter((p) => !p.maxima); 
+
+      const maximaPointsCluster = hierarchicalClusteringBuild({points: maximaPoints});
+      const minimaPointsCluster = hierarchicalClusteringBuild({points: minimaPoints});
+
+      console.log("maximaPoints", maximaPoints);
+      console.log("minimaPoints", minimaPoints);
+      console.log("maximaPointsCluster", maximaPointsCluster);
+      console.log("minimaPointsCluster", minimaPointsCluster);
+
       const pointsCluster = hierarchicalClusteringBuild({points: ps});
       keyframes.push({
+	maximaPoints,
+	minimaPoints,
+	maximaPointsCluster,
+	minimaPointsCluster,
 	points: ps,
 	pointsCluster,
 	width: image.width,

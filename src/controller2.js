@@ -8,7 +8,7 @@ const {InputLoader} = require('./image-target/input-loader.js');
 
 const INTERPOLATION_FACTOR = 5;
 const WARMUP_COUNT_TOLERANCE = 10;
-const MISS_COUNT_TOLERANCE = 30;
+const MISS_COUNT_TOLERANCE = 10;
 const MIN_KEYFRAME_SIZE = 80;
 
 class Controller {
@@ -83,10 +83,7 @@ class Controller {
     const imageListList = [];
     const dimensions = [];
     for (let i = 0; i < dataList.length; i++) {
-      const matchingList = dataList[i].matchingData.filter((m) => {
-	return m.width >= MIN_KEYFRAME_SIZE && m.height >= MIN_KEYFRAME_SIZE;
-      });
-      matchingDataList.push(matchingList);
+      matchingDataList.push(dataList[i].matchingData);
       trackingDataList.push(dataList[i].trackingData);
       dimensions.push([dataList[i].targetImage.width, dataList[i].targetImage.height]);
     }
@@ -257,8 +254,8 @@ class Controller {
     return {featurePoints, debugExtra};
   }
   async match(featurePoints) {
-    const {targetIndex, modelViewTransform, debugExtras} = await this._workerMatch(featurePoints, 0);
-    return {modelViewTransform, debugExtras};
+    const {targetIndex, modelViewTransform, debugExtra} = await this._workerMatch(featurePoints, 0);
+    return {modelViewTransform, debugExtra};
   }
 
   async track(input, modelViewTransforms, targetIndex) {
@@ -292,7 +289,7 @@ class Controller {
   _workerMatch(featurePoints, targetIndex) {
     return new Promise(async (resolve, reject) => {
       this.workerMatchDone = (data) => {
-        resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform, debugExtras: data.debugExtras});
+        resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform, debugExtra: data.debugExtra});
       }
       this.worker.postMessage({type: 'match', featurePoints: featurePoints, targetIndex});
     });

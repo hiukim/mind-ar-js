@@ -13,6 +13,7 @@ const HAMMING_THRESHOLD = 0.7;
 // match list of querpoints against pre-built list of keyframes
 const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => {
   let debugExtra = null;
+  let timerStart;
   if (debugMode) debugExtra = [];
 
   let result = null;
@@ -21,8 +22,22 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
     const keypoints = keyframe.points;
 
     if (debugMode) {
-      debugExtra[i] = {};
+      debugExtra[i] = {
+	time: {
+	  matchesTime: 0,
+	  houghTime: 0,
+	  homographyTime: 0,
+	  inlierTime: 0,
+	  matches2Time: 0,
+	  hough2Time: 0,
+	  homography2Time: 0,
+	  inlier2Time: 0,
+	}
+      };
+      timerStart = new Date();
     }
+
+    let compareCount = 0;
 
     const matches = [];
     for (let j = 0; j < querypoints.length; j++) {
@@ -41,6 +56,7 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
         const keypoint = keypoints[keypointIndexes[k]];
         if (keypoint.maxima != querypoint.maxima) continue;
 
+	compareCount += 1;
         const d = hammingCompute({v1: keypoint.descriptors, v2: querypoint.descriptors});
         if (d < bestD1) {
           bestD2 = bestD1;
@@ -54,9 +70,12 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
         matches.push({querypointIndex: j, keypointIndex: bestIndex});
       }
     }
+    console.log("hamming compareCount", compareCount);
 
     if (debugMode) {
       debugExtra[i].matches = matches;
+      debugExtra[i].time.matchesTime = debugExtra[i].time.matchesTime + (new Date() - timerStart);
+      timerStart = new Date();
     }
 
     if (matches.length < MIN_NUM_INLIERS) {
@@ -75,6 +94,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
 
     if (debugMode) {
       debugExtra[i].houghMatches = houghMatches;
+      debugExtra[i].time.houghTime = debugExtra[i].time.houghTime + (new Date() - timerStart);
+      timerStart = new Date();
     }
 
     const srcPoints = [];
@@ -92,6 +113,11 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
       keyframe,
     });
 
+    if (debugMode) {
+      debugExtra[i].time.homographyTime = debugExtra[i].time.homographyTime + (new Date() - timerStart);
+      timerStart = new Date();
+    }
+
     if (H === null) continue;
 
     const inlierMatches = _findInlierMatches({
@@ -104,6 +130,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
 
     if (debugMode) {
       debugExtra[i].inlierMatches = inlierMatches;
+      debugExtra[i].time.inlierTime = debugExtra[i].time.inlierTime + (new Date() - timerStart);
+      timerStart = new Date();
     }
 
     if (inlierMatches.length < MIN_NUM_INLIERS) {
@@ -149,6 +177,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
 
     if (debugMode) {
       debugExtra[i].matches2 = matches2;
+      debugExtra[i].time.matches2Time = debugExtra[i].time.matches2Time + (new Date() - timerStart);
+      timerStart = new Date();
     }
 
     const houghMatches2 = computeHoughMatches({
@@ -163,6 +193,8 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
 
     if (debugMode) {
       debugExtra[i].houghMatches2 = houghMatches2;
+      debugExtra[i].time.hough2Time = debugExtra[i].time.hough2Time + (new Date() - timerStart);
+      timerStart = new Date();
     }
 
     const srcPoints2 = [];
@@ -179,6 +211,11 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
       dstPoints: dstPoints2,
       keyframe
     });
+
+    if (debugMode) {
+      debugExtra[i].time.homography2Time = debugExtra[i].time.homography2Time + (new Date() - timerStart);
+      timerStart = new Date();
+    }
 
     if (H2 === null) continue;
 
@@ -197,6 +234,9 @@ const match = ({keyframes, querypoints, querywidth, queryheight, debugMode}) => 
     if (debugMode) {
       debugExtra[i].inlierMatches2 = inlierMatches2;
       debugExtra[i].H2 = H2;
+
+      debugExtra[i].time.inlier2Time = debugExtra[i].time.inlier2Time + (new Date() - timerStart);
+      timerStart = new Date();
     }
 
     if (result === null || result.matches.length < inlierMatches2.length) {

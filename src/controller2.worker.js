@@ -1,4 +1,4 @@
-const {Matcher} = require('./image-target/matching/matcher.js');
+const {Matcher} = require('./image-target/matching/matcher2.js');
 const {Estimator} = require('./image-target/estimation/estimator.js');
 
 let projectionTransform = null;
@@ -24,15 +24,7 @@ onmessage = (msg) => {
     let matchedModelViewTransform = null;
     let debugExtras = null;
 
-    if (debugMode) {
-      debugExtras = [];
-    }
-
     const {keyframeIndex, screenCoords, worldCoords, debugExtra} = matcher.matchDetection(matchingDataList[targetIndex], data.featurePoints);
-
-    if (debugMode) {
-      debugExtras.push(debugExtra);
-    }
 
     if (keyframeIndex !== -1) {
       const modelViewTransform = estimator.estimate({screenCoords, worldCoords});
@@ -46,7 +38,7 @@ onmessage = (msg) => {
       type: 'matchDone',
       targetIndex: matchedTargetIndex,
       modelViewTransform: matchedModelViewTransform,
-      debugExtras
+      debugExtra
     });
   }
   else if (data.type === 'trackUpdate') {
