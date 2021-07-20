@@ -3,18 +3,14 @@ const {createRandomizer} = require('../utils/randomizer.js');
 const {quadrilateralConvex, matrixInverse33, smallestTriangleArea, multiplyPointHomographyInhomogenous, checkThreePointsConsistent, checkFourPointsConsistent, determinant} = require('../utils/geometry.js');
 const {solveHomography} = require('../utils/homography');
 
-const EPSILON = 0.0000000000001;
-const SQRT2 = 1.41421356237309504880;
-const HOMOGRAPHY_DEFAULT_CAUCHY_SCALE = 0.01;
-const HOMOGRAPHY_DEFAULT_NUM_HYPOTHESES = 1024;
-//const HOMOGRAPHY_DEFAULT_MAX_TRIALS = 1064;
-//const HOMOGRAPHY_DEFAULT_CHUNK_SIZE = 50;
-const HOMOGRAPHY_DEFAULT_MAX_TRIALS = 100;
-const HOMOGRAPHY_DEFAULT_CHUNK_SIZE = 50;
+const CAUCHY_SCALE = 0.01;
+const CHUNK_SIZE = 10;
+const NUM_HYPOTHESES = 20;
+const NUM_HYPOTHESES_QUICK = 10;
 
 // Using RANSAC to estimate homography
 const computeHomography = (options) => {
-  const {srcPoints, dstPoints, keyframe} = options;
+  const {srcPoints, dstPoints, keyframe, quickMode} = options;
 
   // testPoints is four corners of keyframe
   const testPoints = [
@@ -27,9 +23,9 @@ const computeHomography = (options) => {
   const sampleSize = 4; // use four points to compute homography
   if (srcPoints.length < sampleSize) return null;
 
-  const scale = HOMOGRAPHY_DEFAULT_CAUCHY_SCALE;
+  const scale = CAUCHY_SCALE;
   const oneOverScale2 = 1.0 / (scale * scale);
-  const chuckSize = Math.min(HOMOGRAPHY_DEFAULT_CHUNK_SIZE, srcPoints.length);
+  const chuckSize = Math.min(CHUNK_SIZE, srcPoints.length);
 
   const randomizer = createRandomizer();
 
@@ -40,15 +36,17 @@ const computeHomography = (options) => {
 
   randomizer.arrayShuffle({arr: perm, sampleSize: perm.length});
 
+  const numHypothesis = quickMode? NUM_HYPOTHESES_QUICK: NUM_HYPOTHESES;
+  const maxTrials = numHypothesis * 2;
+
   // build numerous hypotheses by randoming draw four points
   // TODO: optimize: if number of points is less than certain number, can brute force all combinations
   let trial = 0;
   const Hs = [];
-  while (trial < HOMOGRAPHY_DEFAULT_MAX_TRIALS && Hs.length < HOMOGRAPHY_DEFAULT_NUM_HYPOTHESES) {
+  while (trial < maxTrials && Hs.length < numHypothesis) {
+    trial +=1;
 
     randomizer.arrayShuffle({arr: perm, sampleSize: sampleSize});
-
-    trial +=1;
 
     // their relative positions match each other
     if (!checkFourPointsConsistent(
@@ -97,20 +95,19 @@ const computeHomography = (options) => {
     hypotheses.splice(-Math.floor((hypotheses.length+1)/2)); // keep the best half
   }
 
-  let bestIndex = 0;
-  for (let i = 1; i < hypotheses.length; i++) {
-    if (hypotheses[i].cost < hypotheses[bestIndex].cost) bestIndex = i;
+  let finalH = null;
+  for (let i = 0; i < hypotheses.length; i++) {
+    const H = _normalizeHomography({inH: hypotheses[i].H});
+    if (_checkHeuristics({H: H, testPoints, keyframe})) {
+      finalH = H;
+      break;
+    }
   }
-
-  const finalH = _normalizeHomography({inH: hypotheses[bestIndex].H});
-
-  if (!_checkHeuristics({H: finalH, testPoints, keyframe})) return null;
   return finalH;
 }
 
 const _checkHeuristics = ({H, testPoints, keyframe}) => {
   const HInv = matrixInverse33(H, 0.00001);
-  // console.log("final H Inv: ", HInv);
   if (HInv === null) return false;
 
   const mp = []
