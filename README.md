@@ -12,6 +12,14 @@ MindAR is a lightweight library for web augmented reality. Highlighted features 
 
 :star: Developer friendly. Easy to setup. With AFRAME extension, you can get your app starts with only 10 lines of codes
 
+# Managed Solution - Pictarize
+
+This opensource project is under MIT, so you are free to use however you want. There is also a hosted platform built on top of this library called Pictarize, which allows you to build and publish apps directly online. Check it out if you are interested!
+
+https://pictarize.com
+
+<img src="https://drive.google.com/uc?export=view&id=1ygYyPpyvnxyofrIsRQP5oU-iFLu_xABa" border="10"/>
+
 # Documentation
 
 Official Documentation: https://hiukim.github.io/mind-ar-js-doc
