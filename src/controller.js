@@ -19,7 +19,7 @@ class Controller {
     this.onUpdate = onUpdate;
     this.debugMode = debugMode;
     this.processingVideo = false;
-    this.interestedTargetIndex = 0;
+    this.interestedTargetIndex = -1;
     this.trackingState = {};
 
     const near = 10;
@@ -118,8 +118,8 @@ class Controller {
 
   async _detectAndMatch(inputT, targetIndex) {
     const {featurePoints} = this.cropDetector.detectMoving(inputT);
-    const {modelViewTransform} = await this._workerMatch(featurePoints, targetIndex);
-    return modelViewTransform
+    const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._workerMatch(featurePoints, targetIndex);
+    return {targetIndex: matchedTargetIndex, modelViewTransform}
   }
   async _trackAndUpdate(inputT, lastModelViewTransform, targetIndex) {
     const {worldCoords, screenCoords} = this.tracker.track(inputT, lastModelViewTransform, targetIndex);
@@ -137,6 +137,7 @@ class Controller {
       showing: false,
       trackCount: 0,
       trackMiss: 0,
+      targetIndex: null,
     }
 
     const startProcessing = async() => {
@@ -147,9 +148,11 @@ class Controller {
 
 	// detect, if not tracking
 	if (!this.trackingState.isTracking) {
-	  const modelViewTransform = await this._detectAndMatch(inputT, this.interestedTargetIndex);
-	  if (modelViewTransform) {
-	    this.trackingState.targetIndex = this.interestedTargetIndex;
+	  const matchingIndex = this.trackingState.targetIndex !== null? this.trackingState.targetIndex: this.interestedTargetIndex;
+	  const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._detectAndMatch(inputT, matchingIndex);
+
+	  if (matchedTargetIndex !== -1) {
+	    this.trackingState.targetIndex = matchedTargetIndex;
 	    this.trackingState.isTracking = true;
 	    this.trackingState.currentModelViewTransform = modelViewTransform;
 	  }
@@ -187,6 +190,7 @@ class Controller {
 	      this.trackingState.showing = false;
 	      this.trackingState.trackingMatrix = null;
 	      this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: this.trackingState.targetIndex, worldMatrix: null});
+	      this.trackingState.targetIndex = null;
 	    }
 	  } else {
 	    this.trackingState.trackMiss = 0;

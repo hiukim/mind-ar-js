@@ -37,6 +37,7 @@
        const sceneEl = document.querySelector('a-scene');
        const arSystem = sceneEl.systems["mindar-system"];
 
+       console.log("detecting all...");
        let targetIndex = 0;
        switchButton.addEventListener("click", () => {
 	 targetIndex = 1 - targetIndex;

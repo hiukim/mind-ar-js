@@ -22,15 +22,31 @@ onmessage = (msg) => {
 
     let matchedTargetIndex = -1;
     let matchedModelViewTransform = null;
-    let debugExtras = null;
+    let matchedDebugExtra = null;
 
-    const {keyframeIndex, screenCoords, worldCoords, debugExtra} = matcher.matchDetection(matchingDataList[targetIndex], data.featurePoints);
+    const interestedTargetIndexes = [];
+    if (targetIndex !== -1) {
+      interestedTargetIndexes.push(targetIndex);
+    } else {
+      for (let i = 0; i < matchingDataList.length; i++) {
+	interestedTargetIndexes.push(i);
+      }
+    }
 
-    if (keyframeIndex !== -1) {
-      const modelViewTransform = estimator.estimate({screenCoords, worldCoords});
-      if (modelViewTransform) {
-	matchedTargetIndex = targetIndex;
-	matchedModelViewTransform = modelViewTransform;
+    for (let i = 0; i < interestedTargetIndexes.length; i++) {
+      const matchingIndex = interestedTargetIndexes[i];
+
+      const {keyframeIndex, screenCoords, worldCoords, debugExtra} = matcher.matchDetection(matchingDataList[matchingIndex], data.featurePoints);
+      matchedDebugExtra = debugExtra;
+
+      if (keyframeIndex !== -1) {
+	const modelViewTransform = estimator.estimate({screenCoords, worldCoords});
+
+	if (modelViewTransform) {
+	  matchedTargetIndex = matchingIndex;
+	  matchedModelViewTransform = modelViewTransform;
+	}
+	break;
       }
     }
 
@@ -38,7 +54,7 @@ onmessage = (msg) => {
       type: 'matchDone',
       targetIndex: matchedTargetIndex,
       modelViewTransform: matchedModelViewTransform,
-      debugExtra
+      debugExtra: matchedDebugExtra
     });
   }
   else if (data.type === 'trackUpdate') {
