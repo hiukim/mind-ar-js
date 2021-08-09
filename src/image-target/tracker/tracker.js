@@ -79,8 +79,9 @@ class Tracker {
     const worldCoords = [];
     const screenCoords = [];
     const goodTrack = [];
+
     for (let i = 0; i < matchingPoints.length; i++) {
-      if (sim[i] > AR2_SIM_THRESH) {
+      if (sim[i] > AR2_SIM_THRESH && i < trackingFrame.points.length) {
 	goodTrack.push(i);
 	const point = computeScreenCoordiate(modelViewProjectionTransform, matchingPoints[i][0], matchingPoints[i][1]);
 	screenCoords.push(point);
