@@ -30,6 +30,7 @@
     "aframe-extras": "^6.1.1",
     "ml-matrix": "^6.6.0",
     "stats-js": "^1.0.1",
+    "svd-js": "^1.1.1",
     "terser-webpack-plugin": "^4.2.3",
     "tinyqueue": "^2.0.3"
   },
