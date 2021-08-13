@@ -65,7 +65,8 @@
           const y = points[i].y;
           const offset = (x + y * canvas.width);
           data[offset] = pix;
-          for (var size = 1; size <= 3; size++) {
+          //for (var size = 1; size <= 3; size++) {
+          for (var size = 1; size <= 6; size++) {
             data[offset-size] = pix;
             data[offset+size] = pix;
             data[offset-size*canvas.width] = pix;
