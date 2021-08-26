@@ -13,6 +13,7 @@ const Display = ({result}) => {
   const [queryIndex, setQueryIndex] = useState(0);
   const projectedCanvasContainerRef = useRef(null);
   const queryCanvasRef = useRef(null);
+  const capturedCanvasRef = useRef(null);
   const targetCanvasRef = useRef(null);
   const newProjectedCanvasRef = useRef(null);
   const projectedCanvasRef = useRef(null);
@@ -122,6 +123,20 @@ const Display = ({result}) => {
     }
   }, [queryIndex, keyframeIndex, trackType]);
 
+  // region captured image
+  useEffect(() => {
+    const projectedImage = queryResult.capturedImage;
+    const canvas = capturedCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (projectedImage) {
+      canvas.height = projectedImage.length;
+      canvas.width = projectedImage[0].length;
+      ctx.putImageData(utils.pixel3DToImageData(projectedImage), 0, 0);
+    }
+  }, [queryIndex, keyframeIndex, trackType]);
+
   // query
   useEffect(() => {
     const queryImage = queryImages[queryIndex];
@@ -180,6 +195,7 @@ const Display = ({result}) => {
 	<div className="column">
 	  <canvas className="target-canvas" ref={targetCanvasRef}></canvas>
 	  <canvas className="new-projected-canvas" ref={newProjectedCanvasRef}></canvas>
+	  <canvas className="captured-canvas" ref={capturedCanvasRef}></canvas>
 	</div>
 	<div className="column" ref={projectedCanvasContainerRef}>
 	</div>
@@ -242,14 +258,18 @@ const Main = () => {
 	lastModelViewTransform = newModelViewTransform;
 
 	let updatedProjectedImage = null; 
+	let capturedImage = null;
 	if (newModelViewTransform) {
 	  const trackAgainResult = await controller.track(queryImages[i], lastModelViewTransform, targetIndex);
 	  updatedProjectedImage = trackAgainResult.debugExtra.projectedImage;
+
+	  capturedImage = controller.captureRegion(queryImages[i], lastModelViewTransform, targetIndex);
 	}
 
 	queryResults.push({
 	  trackResult,
 	  updatedProjectedImage,
+	  capturedImage,
 	});
 
 	if (!newModelViewTransform) break;

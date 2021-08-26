@@ -52,6 +52,23 @@ const utils = {
     return imageData;
   },
 
+  pixel3DToImageData: (pixels) => {
+    const height = pixels.length;
+    const width = pixels[0].length;
+    const data = new Uint8ClampedArray(height * width * 4);
+    for (let j = 0; j < height; j++) {
+      for (let i = 0; i < width; i++) {
+	const pos = j * width + i;
+	data[pos*4 + 0] = pixels[j][i][0];
+	data[pos*4 + 1] = pixels[j][i][1];
+	data[pos*4 + 2] = pixels[j][i][2];
+	data[pos*4 + 3] = 255; 
+      }
+    }
+    const imageData = new ImageData(data, width, height);
+    return imageData;
+  },
+
   pixel1DToImageData: (pixels, width, height) => {
     const data = new Uint8ClampedArray(pixels.length * 4);
     for (let j = 0; j < pixels.length; j++) {

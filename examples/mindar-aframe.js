@@ -15,10 +15,11 @@ AFRAME.registerSystem('mindar-system', {
   tick: function() {
   },
 
-  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError}) {
+  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError, captureRegion}) {
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
     this.showStats = showStats;
+    this.captureRegion = captureRegion;
     //this.ui = new UI({uiLoading, uiScanning, uiError});
   },
 
@@ -129,8 +130,10 @@ AFRAME.registerSystem('mindar-system', {
 
 	  for (let i = 0; i < this.anchorEntities.length; i++) {
 	    if (this.anchorEntities[i].targetIndex === targetIndex) {
-	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix);
-
+	      if (worldMatrix) {
+		this.anchorEntities[i].el.updatePaint(this.controller.capturedRegion);
+	      }
+	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix, );
 	      if (worldMatrix) {
 		//this.ui.hideScanning();
 	      }
@@ -139,6 +142,7 @@ AFRAME.registerSystem('mindar-system', {
 	}
       }
     });
+    this.controller.shouldCaptureRegion = this.captureRegion;
 
     const proj = this.controller.getProjectionMatrix();
     const fov = 2 * Math.atan(1/proj[5] / vh * container.clientHeight ) * 180 / Math.PI; // vertical fov
@@ -187,6 +191,7 @@ AFRAME.registerComponent('mindar', {
     imageTargetSrc: {type: 'string'},
     maxTrack: {type: 'int', default: 1},
     showStats: {type: 'boolean', default: false},
+    captureRegion: {type: 'boolean', default: false},
     autoStart: {type: 'boolean', default: true},
     uiLoading: {type: 'string', default: 'yes'},
     uiScanning: {type: 'string', default: 'yes'},
@@ -199,6 +204,7 @@ AFRAME.registerComponent('mindar', {
     arSystem.setup({
       imageTargetSrc: this.data.imageTargetSrc, 
       maxTrack: this.data.maxTrack,
+      captureRegion: this.data.captureRegion,
       showStats: this.data.showStats,
       uiLoading: this.data.uiLoading,
       uiScanning: this.data.uiScanning,
@@ -226,6 +232,20 @@ AFRAME.registerComponent('mindar-image-target', {
     arSystem.registerAnchor(this, this.data.targetIndex);
 
     const root = this.el.object3D;
+
+    this.paintMaterial = null;
+
+    const modelEl = this.el.querySelector("a-gltf-model")
+    if (modelEl && modelEl.getAttribute("mindar-paint")) {
+      modelEl.addEventListener('model-loaded', () => {
+	modelEl.getObject3D('mesh').traverse((o) => {
+	  if (o.isMesh && o.material && o.material.name === modelEl.getAttribute("mindar-paint")) {
+	    this.paintMaterial = o.material;
+	  }
+	});
+      });
+    }
+
     root.visible = false;
     root.matrixAutoUpdate = false;
   },
@@ -258,5 +278,37 @@ AFRAME.registerComponent('mindar-image-target', {
     m.elements = worldMatrix;
     m.multiply(this.postMatrix);
     this.el.object3D.matrix = m;
-  }
+  },
+
+  updatePaint(pixels) {
+    if (!this.paintMaterial || this.el.object3D.visible) return;
+
+    const height = pixels.length;
+    const width = pixels[0].length;
+    const data = new Uint8ClampedArray(height * width * 4);
+    for (let j = 0; j < height; j++) {
+      for (let i = 0; i < width; i++) {
+	const pos = j * width + i;
+	data[pos*4 + 0] = pixels[j][i][0];
+	data[pos*4 + 1] = pixels[j][i][1];
+	data[pos*4 + 2] = pixels[j][i][2];
+	data[pos*4 + 3] = 255; 
+      }
+    }
+    const imageData = new ImageData(data, width, height);
+    const canvas = document.createElement("canvas");
+    canvas.height = height;
+    canvas.width = width;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.putImageData(imageData, 0, 0);
+
+    const dataURL = canvas.toDataURL("image/png");
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(dataURL, (texture) => {
+      this.paintMaterial.map.dispose();
+      this.paintMaterial.map = texture;
+      this.paintMaterial.needsUpdate = true;
+    });
+  },
 });
