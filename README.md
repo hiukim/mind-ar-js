@@ -20,6 +20,14 @@ https://pictarize.com
 
 <img src="https://drive.google.com/uc?export=view&id=1ygYyPpyvnxyofrIsRQP5oU-iFLu_xABa" border="10"/>
 
+# On Demand Programming Support
+You can find the full documentation below. I tried to write it as clear as possible with many examples. If you have generic questions about the library that can benefit the whole community, please create github issues. Or better yet, fix it or improve it and create pull requests.
+
+If, however, you need coding help or fixing individaul bugs specific to your projects, try not to send me personal emails. If you do need immediate help, I can offer on-demand support here:
+
+[![Contact me on Codementor](https://www.codementor.io/m-badges/hiukim/find-me-on-cm-g.svg)](https://www.codementor.io/@hiukim?refer=badge)
+
+
 # Documentation
 
 Official Documentation: https://hiukim.github.io/mind-ar-js-doc
