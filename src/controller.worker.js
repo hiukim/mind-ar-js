@@ -18,40 +18,43 @@ onmessage = (msg) => {
     estimator = new Estimator(data.projectionTransform);
   }
   else if (data.type === 'match') {
-    const skipTargetIndexes = data.skipTargetIndexes;
+    const targetIndex = data.targetIndex;
 
     let matchedTargetIndex = -1;
     let matchedModelViewTransform = null;
-    let debugExtras = null;
+    let matchedDebugExtra = null;
 
-    if (debugMode) {
-      debugExtras = [];
+    const interestedTargetIndexes = [];
+    if (targetIndex !== -1) {
+      interestedTargetIndexes.push(targetIndex);
+    } else {
+      for (let i = 0; i < matchingDataList.length; i++) {
+	interestedTargetIndexes.push(i);
+      }
     }
 
-    for (let i = 0; i < matchingDataList.length; i++) {
-      if (skipTargetIndexes.includes(i)) continue;
+    for (let i = 0; i < interestedTargetIndexes.length; i++) {
+      const matchingIndex = interestedTargetIndexes[i];
 
-      const {keyframeIndex, screenCoords, worldCoords, debugExtra} = matcher.matchDetection(matchingDataList[i], data.featurePoints);
+      const {keyframeIndex, screenCoords, worldCoords, debugExtra} = matcher.matchDetection(matchingDataList[matchingIndex], data.featurePoints);
+      matchedDebugExtra = debugExtra;
 
-      if (debugMode) {
-	debugExtras.push(debugExtra);
+      if (keyframeIndex !== -1) {
+	const modelViewTransform = estimator.estimate({screenCoords, worldCoords});
+
+	if (modelViewTransform) {
+	  matchedTargetIndex = matchingIndex;
+	  matchedModelViewTransform = modelViewTransform;
+	}
+	break;
       }
-
-      if (keyframeIndex === -1) continue;
-
-      const modelViewTransform = estimator.estimate({screenCoords, worldCoords});
-      if (modelViewTransform === null) continue;
-
-      matchedTargetIndex = i;
-      matchedModelViewTransform = modelViewTransform;
-      break;
     }
 
     postMessage({
       type: 'matchDone',
       targetIndex: matchedTargetIndex,
       modelViewTransform: matchedModelViewTransform,
-      debugExtras
+      debugExtra: matchedDebugExtra
     });
   }
   else if (data.type === 'trackUpdate') {
@@ -63,3 +66,4 @@ onmessage = (msg) => {
     });
   }
 };
+

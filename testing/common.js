@@ -13,7 +13,7 @@ const utils = {
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
     ctx.fillStyle = color;
-    ctx.lineWidth = 1;
+    //ctx.lineWidth = 1;
     ctx.strokeStyle = color;
     ctx.stroke();
   },
@@ -45,6 +45,23 @@ const utils = {
 	data[pos*4 + 0] = pixels[j][i];
 	data[pos*4 + 1] = pixels[j][i];
 	data[pos*4 + 2] = pixels[j][i];
+	data[pos*4 + 3] = 255; 
+      }
+    }
+    const imageData = new ImageData(data, width, height);
+    return imageData;
+  },
+
+  pixel3DToImageData: (pixels) => {
+    const height = pixels.length;
+    const width = pixels[0].length;
+    const data = new Uint8ClampedArray(height * width * 4);
+    for (let j = 0; j < height; j++) {
+      for (let i = 0; i < width; i++) {
+	const pos = j * width + i;
+	data[pos*4 + 0] = pixels[j][i][0];
+	data[pos*4 + 1] = pixels[j][i][1];
+	data[pos*4 + 2] = pixels[j][i][2];
 	data[pos*4 + 3] = 255; 
       }
     }

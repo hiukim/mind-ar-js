@@ -1,12 +1,11 @@
 {
   "name": "mind-ar",
-  "version": "0.4.2",
+  "version": "0.5.1",
   "description": "web augmented reality framework",
   "main": "dist/mindar.prod.js",
   "scripts": {
     "watch": "webpack --watch --config webpack.config.dev.cjs",
-    "build": "webpack --config webpack.config.prod.cjs",
-    "build-min": "webpack --config webpack.config.prod-min.cjs"
+    "build": "webpack --config webpack.config.prod.cjs"
   },
   "engines": {
     "node": ">=12.0.0"
@@ -31,6 +30,7 @@
     "aframe-extras": "^6.1.1",
     "ml-matrix": "^6.6.0",
     "stats-js": "^1.0.1",
+    "svd-js": "^1.1.1",
     "terser-webpack-plugin": "^4.2.3",
     "tinyqueue": "^2.0.3"
   },

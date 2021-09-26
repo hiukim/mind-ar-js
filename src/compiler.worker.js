@@ -1,5 +1,5 @@
 const {extract} = require('./image-target/tracker/extract.js');
-const {buildImageList} = require('./image-target/image-list.js');
+const {buildTrackingImageList} = require('./image-target/image-list.js');
 
 onmessage = (msg) => {
   const {data} = msg;
@@ -11,7 +11,7 @@ onmessage = (msg) => {
     const list = [];
     for (let i = 0; i < targetImages.length; i++) {
       const targetImage = targetImages[i];
-      const imageList = buildImageList(targetImage);
+      const imageList = buildTrackingImageList(targetImage);
       const percentPerAction = percentPerImage / imageList.length;
 
       //console.log("compiling tracking...", i);
@@ -36,6 +36,7 @@ const _extractTrackingFeatures = (imageList, doneCallback) => {
     const points = extract(image);
 
     const featureSet = {
+      data: image.data,
       scale: image.scale,
       width: image.width,
       height: image.height,
@@ -47,3 +48,4 @@ const _extractTrackingFeatures = (imageList, doneCallback) => {
   }
   return featureSets;
 }
+

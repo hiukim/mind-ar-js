@@ -1,0 +1,53 @@
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.1/umd/react.production.min.js" integrity="sha512-YMtLFKDKe5a4zi7rJ0y4wdGErKZe3tx7L+AXDTxjNDzkv7jsaNhvumeU1xQvw6UqVwBVmYlO9NhsSuSVPUN/xQ==" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.1/umd/react-dom.production.min.js" integrity="sha512-vN6rbu+vWW4Ck3s6RbLZs+0gRl5PWOZRUqap38gZtsheSqA2zDeI3PCshuxfYx7ytkoFMrmd0gA2sZZeP1RZYQ==" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.21.1/babel.min.js" charset="utf-8"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="../dist-dev/mindar.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <script src="./common.js"></script>
+  <script type="text/babel" src="./matching-all.js"></script>
+
+  <link rel="stylesheet" href="./mobile-console.css">
+
+  <style>
+    .control .section {
+      margin: 5px 0px;
+    }
+    .control button {
+      background: transparent;
+      border: solid 1px;
+      outline: none;
+      border-radius: 0;
+    }
+    .control button.selected {
+      background: #ddd;
+    }
+
+    .result-container {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .result-container > div {
+      position: relative;
+      width: 180px;
+      height: 360px;
+    }
+    .result-container > div canvas,img {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+
+  <script>
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <div id="debug"></div>
+</body>
+</html>

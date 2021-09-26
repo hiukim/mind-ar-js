@@ -10,6 +10,17 @@
   <script type="text/babel" src="./tracking.js"></script>
 
   <style>
+    .canvas-container {
+      display: flex;
+      flex-direction: row;
+    }
+    canvas {
+      width: 300px;
+      display: block;
+    }
+    .query-canvas {
+      width: 600px;
+    }
     .control .section {
       margin: 5px 0px;
     }
@@ -21,15 +32,6 @@
     }
     .control button.selected {
       background: #ddd;
-    }
-
-    .canvas-container {
-      position: relative;
-    }
-    .canvas-container canvas {
-      position: absolute;
-      left: 0;
-      top: 0;
     }
   </style>
 </head>

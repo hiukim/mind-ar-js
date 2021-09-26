@@ -52,6 +52,8 @@ const refineEstimate = ({initialModelViewTransform, projectionTransform, worldCo
 
     updatedModelViewTransform = ret.modelViewTransform;
 
+    //console.log("err", ret.err);
+
     if (ret.err < TRACKING_THRESH) {
       finalModelViewTransform = updatedModelViewTransform;
       break;

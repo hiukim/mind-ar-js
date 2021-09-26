@@ -2,7 +2,7 @@ const kHoughBinDelta = 1;
 
 // mathces [querypointIndex:x, keypointIndex: x]
 const computeHoughMatches = (options) => {
-  const {keypoints, querypoints, keywidth, keyheight, querywidth, queryheight, matches} = options;
+  const {keywidth, keyheight, querywidth, queryheight, matches} = options;
 
   const maxX = querywidth * 1.2;
   const minX = -maxX;
@@ -21,8 +21,8 @@ const computeHoughMatches = (options) => {
   // compute numXBins and numYBins based on matches
   const projectedDims = [];
   for (let i = 0; i < matches.length; i++) {
-    const queryscale = querypoints[matches[i].querypointIndex].scale;
-    const keyscale = keypoints[matches[i].keypointIndex].scale;
+    const queryscale = matches[i].querypoint.scale;
+    const keyscale = matches[i].keypoint.scale;
     if (keyscale == 0) console.log("ERROR divide zero");
     const scale = queryscale / keyscale;
     projectedDims.push( scale * maxDim );
@@ -45,8 +45,8 @@ const computeHoughMatches = (options) => {
   const querypointBinLocations = [];
   const votes = {};
   for (let i = 0; i < matches.length; i++) {
-    const querypoint = querypoints[matches[i].querypointIndex];
-    const keypoint = keypoints[matches[i].keypointIndex];
+    const querypoint = matches[i].querypoint;
+    const keypoint = matches[i].keypoint;
 
     const {x, y, scale, angle} = _mapCorrespondence({querypoint, keypoint, keycenterX, keycenterY, scaleOneOverLogK});
 
@@ -172,4 +172,3 @@ const _mapCorrespondence = ({querypoint, keypoint, keycenterX, keycenterY, scale
 module.exports = {
   computeHoughMatches
 }
-

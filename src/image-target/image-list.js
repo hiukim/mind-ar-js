@@ -1,6 +1,6 @@
 const {resize} = require("./utils/images.js");
 
-const MIN_IMAGE_PIXEL_SIZE = 28;
+const MIN_IMAGE_PIXEL_SIZE = 100;
 
 // Build a list of image {data, width, height, scale} with different scales
 const buildImageList = (inputImage) => {
@@ -28,6 +28,19 @@ const buildImageList = (inputImage) => {
   return imageList;
 }
 
+const buildTrackingImageList = (inputImage) => {
+  const minDimension = Math.min(inputImage.width, inputImage.height);
+  const scaleList = [];
+  const imageList = [];
+  scaleList.push( 256.0 / minDimension);
+  scaleList.push( 128.0 / minDimension);
+  for (let i = 0; i < scaleList.length; i++) {
+    imageList.push(Object.assign(resize({image: inputImage, ratio: scaleList[i]}), {scale: scaleList[i]}));
+  }
+  return imageList;
+}
+
 module.exports = {
-  buildImageList
+  buildImageList,
+  buildTrackingImageList
 }

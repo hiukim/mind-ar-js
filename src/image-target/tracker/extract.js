@@ -3,13 +3,14 @@ const {Cumsum} = require('../utils/cumsum');
 const SEARCH_SIZE1 = 10;
 const SEARCH_SIZE2 = 2;
 
-const TEMPLATE_SIZE = 22 // DEFAULT
-//const TEMPLATE_SIZE = 6;
+//const TEMPLATE_SIZE = 22 // DEFAULT
+const TEMPLATE_SIZE = 6;
 const TEMPLATE_SD_THRESH = 5.0;
 const MAX_SIM_THRESH = 0.95;
 
 const MAX_THRESH = 0.9;
-const MIN_THRESH = 0.55;
+//const MIN_THRESH = 0.55;
+const MIN_THRESH = 0.2;
 const SD_THRESH = 8.0;
 const OCCUPANCY_SIZE = 24 * 2 / 3;
 

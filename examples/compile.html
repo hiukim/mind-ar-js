@@ -20,8 +20,8 @@
 
       const showData = (data) => {
         console.log("data", data);
-        for (let i = 0; i < data.imageList.length; i++) {
-          const image = data.imageList[i];
+        for (let i = 0; i < data.trackingImageList.length; i++) {
+          const image = data.trackingImageList[i];
 	  const points = data.trackingData[i].points.map((p) => {
 	    return {x: Math.round(p.x), y: Math.round(p.y)};
 	  });
@@ -30,7 +30,7 @@
 
         for (let i = 0; i < data.imageList.length; i++) {
           const image = data.imageList[i];
-          const kpmPoints = data.matchingData[i].points;
+          const kpmPoints = [...data.matchingData[i].maximaPoints, ...data.matchingData[i].minimaPoints];
           const points2 = [];
           for (let j = 0; j < kpmPoints.length; j++) {
             points2.push({x: Math.round(kpmPoints[j].x), y: Math.round(kpmPoints[j].y)});
@@ -65,7 +65,8 @@
           const y = points[i].y;
           const offset = (x + y * canvas.width);
           data[offset] = pix;
-          for (var size = 1; size <= 3; size++) {
+          //for (var size = 1; size <= 3; size++) {
+          for (var size = 1; size <= 6; size++) {
             data[offset-size] = pix;
             data[offset+size] = pix;
             data[offset-size*canvas.width] = pix;
@@ -161,3 +162,4 @@
     </div>
   </body>
 </html>
+
