@@ -1,10 +1,13 @@
 const path = require('path');
 
 module.exports = {
-  entry: './src/index.js',
+  entry: {
+    'mindar-image': './src/image-target/index.js',
+    'mindar-image-aframe': './src/image-target/aframe.js',
+  },
   mode: 'production',
   output: {
-    filename: 'mindar.prod.js',
+    filename: '[name].prod.js',
     path: path.resolve(__dirname, 'dist'),
     publicPath: ''
   },

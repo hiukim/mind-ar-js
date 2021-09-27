@@ -1,5 +1,5 @@
-const {extract} = require('./image-target/tracker/extract.js');
-const {buildTrackingImageList} = require('./image-target/image-list.js');
+const {extract} = require('./tracker/extract.js');
+const {buildTrackingImageList} = require('./image-list.js');
 
 onmessage = (msg) => {
   const {data} = msg;

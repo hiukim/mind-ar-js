@@ -1,7 +1,7 @@
 const Worker = require("./compiler.worker.js");
-const {Detector} = require('./image-target/detector/detector.js');
-const {buildImageList, buildTrackingImageList} = require('./image-target/image-list.js');
-const {build: hierarchicalClusteringBuild} = require('./image-target/matching/hierarchical-clustering.js');
+const {Detector} = require('./detector/detector.js');
+const {buildImageList, buildTrackingImageList} = require('./image-list.js');
+const {build: hierarchicalClusteringBuild} = require('./matching/hierarchical-clustering.js');
 const msgpack = require('@msgpack/msgpack');
 const tf = require('@tensorflow/tfjs');
 // TODO: better compression method. now grey image saved in pixels, which could be larger than original image

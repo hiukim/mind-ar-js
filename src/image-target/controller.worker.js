@@ -1,5 +1,5 @@
-const {Matcher} = require('./image-target/matching/matcher.js');
-const {Estimator} = require('./image-target/estimation/estimator.js');
+const {Matcher} = require('./matching/matcher.js');
+const {Estimator} = require('./estimation/estimator.js');
 
 let projectionTransform = null;
 let matchingDataList = null;

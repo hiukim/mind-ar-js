@@ -1,9 +1,9 @@
 const tf = require('@tensorflow/tfjs');
 const Worker = require("./controller.worker.js");
-const {Tracker} = require('./image-target/tracker/tracker.js');
-const {CropDetector} = require('./image-target/detector/crop-detector.js');
+const {Tracker} = require('./tracker/tracker.js');
+const {CropDetector} = require('./detector/crop-detector.js');
 const {Compiler} = require('./compiler.js');
-const {InputLoader} = require('./image-target/input-loader.js');
+const {InputLoader} = require('./input-loader.js');
 
 const INTERPOLATION_FACTOR = 5;
 const WARMUP_COUNT_TOLERANCE = 10;

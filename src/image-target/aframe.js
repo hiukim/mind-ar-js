@@ -1,6 +1,3 @@
-//const {Controller} = require('./controller');
-//const {UI} = require('./ui/ui.js');
-
 const Controller = MINDAR.Controller;
 const UI = MINDAR.UI;
 
