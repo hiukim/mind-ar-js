@@ -10,9 +10,10 @@ const WARMUP_COUNT_TOLERANCE = 10;
 const MISS_COUNT_TOLERANCE = 30;
 
 class Controller {
-  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false}) {
+  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1}) {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
+    this.maxTrack = maxTrack;
     this.cropDetector = new CropDetector(this.inputWidth, this.inputHeight, debugMode);
     this.inputLoader = new InputLoader(this.inputWidth, this.inputHeight);
     this.markerDimensions = null;
@@ -22,7 +23,7 @@ class Controller {
     this.shouldCaptureRegion = false;
     this.capturedRegion = null;
     this.interestedTargetIndex = -1;
-    this.trackingState = {};
+    this.trackingStates = [];
 
     const near = 10;
     const far = 10000;
@@ -118,9 +119,9 @@ class Controller {
     return this._glModelViewMatrix(modelViewTransform, targetIndex);
   }
 
-  async _detectAndMatch(inputT, targetIndex) {
+  async _detectAndMatch(inputT, targetIndexes) {
     const {featurePoints} = this.cropDetector.detectMoving(inputT);
-    const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._workerMatch(featurePoints, targetIndex);
+    const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._workerMatch(featurePoints, targetIndexes);
     return {targetIndex: matchedTargetIndex, modelViewTransform}
   }
   async _trackAndUpdate(inputT, lastModelViewTransform, targetIndex) {
@@ -135,11 +136,15 @@ class Controller {
 
     this.processingVideo = true;
 
-    this.trackingState = {
-      showing: false,
-      trackCount: 0,
-      trackMiss: 0,
-      targetIndex: null,
+    this.trackingStates = [];
+    for (let i = 0; i < this.markerDimensions.length; i++) {
+      this.trackingStates.push({
+	showing: false,
+	isTracking: false,
+	currentModelViewTransform: null,
+	trackCount: 0,
+	trackMiss: 0
+      });
     }
 
     const startProcessing = async() => {
@@ -150,15 +155,27 @@ class Controller {
 
 	let shouldCapture = false;
 
-	// detect, if not tracking
-	if (!this.trackingState.isTracking) {
-	  const matchingIndex = this.trackingState.targetIndex !== null? this.trackingState.targetIndex: this.interestedTargetIndex;
-	  const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._detectAndMatch(inputT, matchingIndex);
+	const nTracking = this.trackingStates.reduce((acc, s) => {
+	  return acc + (!!s.isTracking? 1: 0);
+	}, 0);
+
+	// detect and match only if less then maxTrack
+	if (nTracking < this.maxTrack) {
+
+	  const matchingIndexes = [];
+	  for (let i = 0; i < this.trackingStates.length; i++) {
+	    const trackingState = this.trackingStates[i];
+	    if (trackingState.isTracking === true) continue;
+	    if (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== i) continue;
+
+	    matchingIndexes.push(i);
+	  }
+
+	  const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._detectAndMatch(inputT, matchingIndexes);
 
 	  if (matchedTargetIndex !== -1) {
-	    this.trackingState.targetIndex = matchedTargetIndex;
-	    this.trackingState.isTracking = true;
-	    this.trackingState.currentModelViewTransform = modelViewTransform;
+	    this.trackingStates[matchedTargetIndex].isTracking = true;
+	    this.trackingStates[matchedTargetIndex].currentModelViewTransform = modelViewTransform;
 
 	    if (this.shouldCaptureRegion) {
 	      shouldCapture = true;
@@ -167,64 +184,67 @@ class Controller {
 	}
 
 	// tracking update
-	if (this.trackingState.isTracking) {
-	  let modelViewTransform = await this._trackAndUpdate(inputT, this.trackingState.currentModelViewTransform, this.trackingState.targetIndex)
-	  if (modelViewTransform === null) {
-	    this.trackingState.isTracking = false;
-	  } else {
-	    this.trackingState.currentModelViewTransform = modelViewTransform;
+	for (let i = 0; i < this.trackingStates.length; i++) {
+	  const trackingState = this.trackingStates[i];
 
-	    if (shouldCapture) {
-	      this.capturedRegion = this.captureRegion(input, modelViewTransform, this.trackingState.targetIndex);
+	  if (trackingState.isTracking) {
+	    let modelViewTransform = await this._trackAndUpdate(inputT, trackingState.currentModelViewTransform, i);
+	    if (modelViewTransform === null) {
+	      trackingState.isTracking = false;
+	    } else {
+	      trackingState.currentModelViewTransform = modelViewTransform;
+
+	      if (shouldCapture) {
+		this.capturedRegion = this.captureRegion(input, modelViewTransform, i);
+	      }
 	    }
 	  }
-	}
 
-	// if not showing, then show it once it reaches warmup number of frames
-	if (!this.trackingState.showing) {
-	  if (this.trackingState.isTracking) {
-	    this.trackingState.trackMiss = 0;
-	    this.trackingState.trackCount += 1;
-	    if (this.trackingState.trackCount > WARMUP_COUNT_TOLERANCE) {
-	      this.trackingState.showing = true;
-	      this.trackingState.trackingMatrix = null;
+	  // if not showing, then show it once it reaches warmup number of frames
+	  if (!trackingState.showing) {
+	    if (trackingState.isTracking) {
+	      trackingState.trackMiss = 0;
+	      trackingState.trackCount += 1;
+	      if (trackingState.trackCount > WARMUP_COUNT_TOLERANCE) {
+		trackingState.showing = true;
+		trackingState.trackingMatrix = null;
+	      }
 	    }
 	  }
-	}
-	
-	// if showing, then count miss, and hide it when reaches tolerance
-	if (this.trackingState.showing) {
-	  if (!this.trackingState.isTracking) {
-	    this.trackingState.trackCount = 0;
-	    this.trackingState.trackMiss += 1;
+	  
+	  // if showing, then count miss, and hide it when reaches tolerance
+	  if (trackingState.showing) {
+	    if (!trackingState.isTracking) {
+	      trackingState.trackCount = 0;
+	      trackingState.trackMiss += 1;
 
-	    if (this.trackingState.trackMiss > MISS_COUNT_TOLERANCE) {
-	      this.trackingState.showing = false;
-	      this.trackingState.trackingMatrix = null;
-	      this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: this.trackingState.targetIndex, worldMatrix: null});
-	      this.trackingState.targetIndex = null;
+	      if (trackingState.trackMiss > MISS_COUNT_TOLERANCE) {
+		trackingState.showing = false;
+		trackingState.trackingMatrix = null;
+		this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
+	      }
+	    } else {
+	      trackingState.trackMiss = 0;
 	    }
-	  } else {
-	    this.trackingState.trackMiss = 0;
 	  }
-	}
-	
-	// if showing, then call onUpdate, with world matrix
-	if (this.trackingState.showing) {
-	  const worldMatrix = this._glModelViewMatrix(this.trackingState.currentModelViewTransform, this.trackingState.targetIndex);
+	  
+	  // if showing, then call onUpdate, with world matrix
+	  if (trackingState.showing) {
+	    const worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
 
-	  if (this.trackingState.trackingMatrix === null) {
-	    this.trackingState.trackingMatrix = worldMatrix;
-	  } else {
+	    if (trackingState.trackingMatrix === null) {
+	      trackingState.trackingMatrix = worldMatrix;
+	    } else {
+	      for (let j = 0; j < worldMatrix.length; j++) {
+		trackingState.trackingMatrix[j] = trackingState.trackingMatrix[j] + (worldMatrix[j] - trackingState.trackingMatrix[j]) / INTERPOLATION_FACTOR;
+	      }
+	    }
+	    const clone = [];
 	    for (let j = 0; j < worldMatrix.length; j++) {
-	      this.trackingState.trackingMatrix[j] = this.trackingState.trackingMatrix[j] + (worldMatrix[j] - this.trackingState.trackingMatrix[j]) / INTERPOLATION_FACTOR;
+	      clone[j] = trackingState.trackingMatrix[j];
 	    }
+	    this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
 	  }
-	  const clone = [];
-	  for (let j = 0; j < worldMatrix.length; j++) {
-	    clone[j] = this.trackingState.trackingMatrix[j];
-	  }
-	  this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: this.trackingState.targetIndex, worldMatrix: clone});
 	}
 
 	inputT.dispose();
@@ -247,7 +267,7 @@ class Controller {
   }
 
   async match(featurePoints, targetIndex) {
-    const {modelViewTransform, debugExtra} = await this._workerMatch(featurePoints, targetIndex);
+    const {modelViewTransform, debugExtra} = await this._workerMatch(featurePoints, [targetIndex]);
     return {modelViewTransform, debugExtra};
   }
 
@@ -274,12 +294,12 @@ class Controller {
     return modelViewTransform2;
   }
 
-  _workerMatch(featurePoints, targetIndex) {
+  _workerMatch(featurePoints, targetIndexes) {
     return new Promise(async (resolve, reject) => {
       this.workerMatchDone = (data) => {
         resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform, debugExtra: data.debugExtra});
       }
-      this.worker.postMessage({type: 'match', featurePoints: featurePoints, targetIndex});
+      this.worker.postMessage({type: 'match', featurePoints: featurePoints, targetIndexes});
     });
   }
 

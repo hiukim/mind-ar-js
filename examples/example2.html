@@ -33,18 +33,24 @@
    <script>
      document.addEventListener("DOMContentLoaded", () => {
        const startButton = document.querySelector("#start-button");
-       const switchButton = document.getElementById("switch-button");
+       const detectAllButton = document.getElementById("detect-all-button");
+       const detect0Button = document.getElementById("detect-0-button");
+       const detect1Button = document.getElementById("detect-1-button");
        const sceneEl = document.querySelector('a-scene');
        const arSystem = sceneEl.systems["mindar-system"];
 
-       console.log("detecting all...");
-       let targetIndex = 0;
-       switchButton.addEventListener("click", () => {
-	 targetIndex = 1 - targetIndex;
-	 arSystem.switchTarget(targetIndex);
-	 console.log("switch target", targetIndex);
+       detectAllButton.addEventListener("click", () => {
+	 console.log("detecting all...");
+	 arSystem.switchTarget(-1);
        });
-
+       detect0Button.addEventListener("click", () => {
+	 console.log("detecting 0 only...");
+	 arSystem.switchTarget(0);
+       });
+       detect1Button.addEventListener("click", () => {
+	 console.log("detecting 1 only...");
+	 arSystem.switchTarget(1);
+       });
        startButton.addEventListener('click', () => {
 	 arSystem.start(); // start AR 
        });
@@ -54,13 +60,15 @@
   <body>
     <div id="example-control-overlay" class="overlay">
       <div>
-	<button id="switch-button">Switch</button>
 	<button id="start-button">Start</button>
+	<button id="detect-all-button">Detect All</button>
+	<button id="detect-0-button">Detect 0</button>
+	<button id="detect-1-button">Detect 1</button>
       </div>
     </div>
 
     <div class="example-container">
-      <a-scene mindar="imageTargetSrc: ./assets/band-example/band.mind; showStats: true; autoStart: false" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      <a-scene mindar="imageTargetSrc: ./assets/band-example/band.mind; showStats: true; autoStart: false; maxTrack: 2" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
           <a-asset-item id="bearModel" src="./assets/band-example/bear/scene.gltf"></a-asset-item>
           <a-asset-item id="raccoonModel" src="./assets/band-example/raccoon/scene.gltf"></a-asset-item>

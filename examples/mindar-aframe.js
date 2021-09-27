@@ -2,6 +2,7 @@
 //const {UI} = require('./ui/ui.js');
 
 const Controller = MINDAR.Controller;
+const UI = MINDAR.UI;
 
 AFRAME.registerSystem('mindar-system', {
   container: null,
@@ -20,7 +21,7 @@ AFRAME.registerSystem('mindar-system', {
     this.maxTrack = maxTrack;
     this.showStats = showStats;
     this.captureRegion = captureRegion;
-    //this.ui = new UI({uiLoading, uiScanning, uiError});
+    this.ui = new UI({uiLoading, uiScanning, uiError});
   },
 
   registerAnchor: function(el, targetIndex) {
@@ -32,13 +33,12 @@ AFRAME.registerSystem('mindar-system', {
 
     if (this.showStats) {
       this.mainStats = new Stats();
-      console.log("Main Stats", this.mainStats);
       this.mainStats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
       this.mainStats.domElement.style.cssText = 'position:absolute;top:0px;left:0px;z-index:999';
       this.container.appendChild(this.mainStats.domElement);
     }
 
-    //this.ui.showLoading();
+    this.ui.showLoading();
     this._startVideo();
   },
 
@@ -82,7 +82,7 @@ AFRAME.registerSystem('mindar-system', {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       // TODO: show unsupported error
       this.el.emit("arError", {error: 'VIDEO_FAIL'});
-      //this.ui.showCompatibility();
+      this.ui.showCompatibility();
       return;
     }
 
@@ -135,7 +135,7 @@ AFRAME.registerSystem('mindar-system', {
 	      }
 	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix, );
 	      if (worldMatrix) {
-		//this.ui.hideScanning();
+		this.ui.hideScanning();
 	      }
 	    }
 	  }
@@ -177,8 +177,8 @@ AFRAME.registerSystem('mindar-system', {
 
     await this.controller.dummyRun(this.video);
     this.el.emit("arReady");
-    //this.ui.hideLoading();
-    //this.ui.showScanning();
+    this.ui.hideLoading();
+    this.ui.showScanning();
 
     this.controller.processVideo(this.video);
   },

@@ -18,20 +18,11 @@ onmessage = (msg) => {
     estimator = new Estimator(data.projectionTransform);
   }
   else if (data.type === 'match') {
-    const targetIndex = data.targetIndex;
+    const interestedTargetIndexes = data.targetIndexes;
 
     let matchedTargetIndex = -1;
     let matchedModelViewTransform = null;
     let matchedDebugExtra = null;
-
-    const interestedTargetIndexes = [];
-    if (targetIndex !== -1) {
-      interestedTargetIndexes.push(targetIndex);
-    } else {
-      for (let i = 0; i < matchingDataList.length; i++) {
-	interestedTargetIndexes.push(i);
-      }
-    }
 
     for (let i = 0; i < interestedTargetIndexes.length; i++) {
       const matchingIndex = interestedTargetIndexes[i];

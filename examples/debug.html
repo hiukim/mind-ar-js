@@ -13,18 +13,18 @@
 
     <script>
       const process = async() => {
-	const queryImage = await loadImage('./assets/card-example/card.png');
+	const queryImage = await loadImage('./assets/card-example/test-card.png');
 	
 	const controller = new MINDAR.Controller({inputWidth: queryImage.width, inputHeight: queryImage.height});
-	const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('../examples/assets/card-example/card.mind');
+	const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('./assets/card-example/card.mind');
 
-	const featurePoints = await controller.detect(queryImage);
+	const {featurePoints} = await controller.detect(queryImage);
 	console.log("feature", featurePoints);
 
-	const {modelViewTransform} = await controller.match(featurePoints);
+	const {modelViewTransform} = await controller.match(featurePoints, 0);
 	console.log("transform", modelViewTransform);
 
-	const trackResult = await controller.track(queryImage, [modelViewTransform, modelViewTransform, modelViewTransform], 0);
+	const trackResult = await controller.track(queryImage, modelViewTransform, 0);
 	console.log("track", trackResult);
 
 	const newModelViewTransform = await controller.trackUpdate(modelViewTransform, trackResult);
