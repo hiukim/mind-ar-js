@@ -25,10 +25,12 @@
   "license": "MIT",
   "dependencies": {
     "@msgpack/msgpack": "^1.12.2",
+    "@tensorflow-models/face-landmarks-detection": "0.0.3",
     "@tensorflow/tfjs": "^3.6.0",
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
     "terser-webpack-plugin": "^4.2.3",
+    "three": "^0.132.2",
     "tinyqueue": "^2.0.3"
   },
   "devDependencies": {

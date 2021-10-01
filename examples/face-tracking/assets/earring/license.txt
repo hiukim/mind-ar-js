@@ -1,0 +1,11 @@
+Model Information:
+* title:	Earring Jade
+* source:	https://sketchfab.com/3d-models/earring-jade-c91e552728fb4b149d52193fd3e03ac5
+* author:	Softmind Game Factory (https://sketchfab.com/softmind)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Earring Jade" (https://sketchfab.com/3d-models/earring-jade-c91e552728fb4b149d52193fd3e03ac5) by Softmind Game Factory (https://sketchfab.com/softmind) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

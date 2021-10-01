@@ -1,0 +1,54 @@
+<!--
+ Face Tracking example
+-->
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="../../dist-dev/mindar-face.js"></script>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/16/Stats.min.js"></script>
+    <script src="../../dist-dev/mindar-face-aframe.js" type="module"></script>
+   
+    <style>
+      body {
+        margin: 0;
+      }
+      .example-container {
+        overflow: hidden;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="example-container">
+      <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        <a-assets>
+          <a-asset-item id="headModel" src="./assets/sparkar/headOccluder.glb"></a-asset-item>
+          <a-asset-item id="glassModel" src="./assets/glasses2/scene.gltf"></a-asset-item>
+          <a-asset-item id="hatModel" src="./assets/hat/scene.gltf"></a-asset-item>
+          <a-asset-item id="earringModel" src="./assets/earring/scene.gltf"></a-asset-item>
+        </a-assets>
+
+        <a-camera active="false" position="0 0 0"></a-camera>
+
+	<!-- head occluder -->
+        <a-entity mindar-face-target="anchorIndex: 168">
+	  <a-gltf-model mindar-face-occluder position="0 -0.3 0.15"rotation="0 0 0" scale="0.065 0.065 0.065" src="#headModel"></a-gltf-model>
+        </a-entity>
+
+        <a-entity mindar-face-target="anchorIndex: 10">
+	  <a-gltf-model rotation="0 -0 0" position="0 1.0 -0.5" scale="0.35 0.35 0.35" src="#hatModel"></a-gltf-model>
+        </a-entity>
+
+        <a-entity mindar-face-target="anchorIndex: 168">
+	  <a-gltf-model rotation="0 -0 0" position="0 0 0" scale="0.01 0.01 0.01" src="#glassModel"></a-gltf-model>
+        </a-entity>
+      </a-scene>
+    </div>
+  </body>
+</html>
+

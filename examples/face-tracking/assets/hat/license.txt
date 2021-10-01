@@ -1,0 +1,11 @@
+Model Information:
+* title:	Clown Hat
+* source:	https://sketchfab.com/3d-models/clown-hat-0f5ef2e6205c4b438c593a979a3ccdae
+* author:	PatelDev (https://sketchfab.com/PatelDev)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Clown Hat" (https://sketchfab.com/3d-models/clown-hat-0f5ef2e6205c4b438c593a979a3ccdae) by PatelDev (https://sketchfab.com/PatelDev) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
