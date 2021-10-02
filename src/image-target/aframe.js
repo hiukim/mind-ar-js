@@ -1,7 +1,6 @@
-const Controller = MINDAR.Controller;
-const UI = MINDAR.UI;
+const {Controller, UI} = window.MINDAR.IMAGE;
 
-AFRAME.registerSystem('mindar-system', {
+AFRAME.registerSystem('mindar-image-system', {
   container: null,
   video: null,
   processingImage: false,
@@ -181,8 +180,8 @@ AFRAME.registerSystem('mindar-system', {
   },
 });
 
-AFRAME.registerComponent('mindar', {
-  dependencies: ['mindar-system'],
+AFRAME.registerComponent('mindar-image', {
+  dependencies: ['mindar-image-system'],
 
   schema: {
     imageTargetSrc: {type: 'string'},
@@ -196,7 +195,7 @@ AFRAME.registerComponent('mindar', {
   },
 
   init: function() {
-    const arSystem = this.el.sceneEl.systems['mindar-system'];
+    const arSystem = this.el.sceneEl.systems['mindar-image-system'];
 
     arSystem.setup({
       imageTargetSrc: this.data.imageTargetSrc, 
@@ -216,7 +215,7 @@ AFRAME.registerComponent('mindar', {
 });
 
 AFRAME.registerComponent('mindar-image-target', {
-  dependencies: ['mindar-system'],
+  dependencies: ['mindar-image-system'],
 
   schema: {
     targetIndex: {type: 'number'},
@@ -225,7 +224,7 @@ AFRAME.registerComponent('mindar-image-target', {
   postMatrix: null, // rescale the anchor to make width of 1 unit = physical width of card
 
   init: function() {
-    const arSystem = this.el.sceneEl.systems['mindar-system'];
+    const arSystem = this.el.sceneEl.systems['mindar-image-system'];
     arSystem.registerAnchor(this, this.data.targetIndex);
 
     const root = this.el.object3D;
@@ -233,10 +232,10 @@ AFRAME.registerComponent('mindar-image-target', {
     this.paintMaterial = null;
 
     const modelEl = this.el.querySelector("a-gltf-model")
-    if (modelEl && modelEl.getAttribute("mindar-paint")) {
+    if (modelEl && modelEl.getAttribute("mindar-image-paint")) {
       modelEl.addEventListener('model-loaded', () => {
 	modelEl.getObject3D('mesh').traverse((o) => {
-	  if (o.isMesh && o.material && o.material.name === modelEl.getAttribute("mindar-paint")) {
+	  if (o.isMesh && o.material && o.material.name === modelEl.getAttribute("mindar-image-paint")) {
 	    this.paintMaterial = o.material;
 	  }
 	});
