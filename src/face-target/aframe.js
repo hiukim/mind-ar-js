@@ -2,19 +2,19 @@ const {Controller, UI} = window.MINDAR.FACE;
 
 const THREE = AFRAME.THREE;
 
-AFRAME.registerSystem('mindar-system-face', {
+AFRAME.registerSystem('mindar-face-system', {
   container: null,
   video: null,
   processingVideo: false,
   shouldFaceUser: true,
+  lastHasFace: false,
 
   init: function() {
     this.anchorEntities = [];
     this.faceMeshEntities = [];
   },
 
-  setup: function({showStats, uiLoading, uiScanning, uiError}) {
-    this.showStats = showStats;
+  setup: function({uiLoading, uiScanning, uiError}) {
     this.ui = new UI({uiLoading, uiScanning, uiError});
   },
 
@@ -61,6 +61,7 @@ AFRAME.registerSystem('mindar-system-face', {
     this.processingVideo = true;
   },
 
+  // mock a video with an image
   __startVideo: function() {
     this.video = document.createElement("img");
     this.video.onload = async () => {
@@ -103,9 +104,6 @@ AFRAME.registerSystem('mindar-system-face', {
       facingMode: (this.shouldFaceUser? 'face': 'environment'),
     }}).then((stream) => {
       this.video.addEventListener( 'loadedmetadata', async () => {
-	//this.estimateSize = {w: this.video.videoWidth, h: this.video.videoHeight};
-
-        //console.log("video ready...", this.video);
         this.video.setAttribute('width', this.video.videoWidth);
         this.video.setAttribute('height', this.video.videoHeight);
         await this._setupAR();
@@ -133,6 +131,13 @@ AFRAME.registerSystem('mindar-system-face', {
 	  anchorIndexes.push(this.anchorEntities[i].anchorIndex);
 	}
 	const hasFace = await this.controller.detect(this.video);
+	if (hasFace && !this.lastHasFace) {
+	  this.el.emit("targetFound");
+	}
+	if (!hasFace && this.lastHasFace) {
+	  this.el.emit("targetLost");
+	}
+	this.lastHasFace = hasFace;
 
 	for (let i = 0; i < this.anchorEntities.length; i++) {
 	  if (hasFace) {
@@ -209,19 +214,18 @@ AFRAME.registerSystem('mindar-system-face', {
 });
 
 AFRAME.registerComponent('mindar-face', {
-  dependencies: ['mindar-system-face'],
+  dependencies: ['mindar-face-system'],
 
   schema: {
     autoStart: {type: 'boolean', default: true},
     faceOccluder: {type: 'boolean', default: true},
-    showStats: {type: 'boolean', default: false},
     uiLoading: {type: 'string', default: 'yes'},
     uiScanning: {type: 'string', default: 'yes'},
     uiError: {type: 'string', default: 'yes'},
   },
 
   init: function() {
-    const arSystem = this.el.sceneEl.systems['mindar-system-face'];
+    const arSystem = this.el.sceneEl.systems['mindar-face-system'];
 
     if (this.data.faceOccluder) {
       const faceOccluderMeshEntity = document.createElement('a-entity');
@@ -230,7 +234,6 @@ AFRAME.registerComponent('mindar-face', {
     }
 
     arSystem.setup({
-      showStats: this.data.showStats,
       uiLoading: this.data.uiLoading,
       uiScanning: this.data.uiScanning,
       uiError: this.data.uiError,
@@ -245,14 +248,14 @@ AFRAME.registerComponent('mindar-face', {
 });
 
 AFRAME.registerComponent('mindar-face-target', {
-  dependencies: ['mindar-system-face'],
+  dependencies: ['mindar-face-system'],
 
   schema: {
     anchorIndex: {type: 'number'},
   },
 
   init: function() {
-    const arSystem = this.el.sceneEl.systems['mindar-system-face'];
+    const arSystem = this.el.sceneEl.systems['mindar-face-system'];
     arSystem.registerAnchor(this, this.data.anchorIndex);
     this.el.object3D.visible = false;
   },
@@ -289,7 +292,7 @@ AFRAME.registerComponent('mindar-face-occluder', {
 
 AFRAME.registerComponent('mindar-face-default-face-occluder', {
   init: function() {
-    const arSystem = this.el.sceneEl.systems['mindar-system-face'];
+    const arSystem = this.el.sceneEl.systems['mindar-face-system'];
     arSystem.registerFaceMesh(this);
   },
 

@@ -1,0 +1,6 @@
+Model Information:
+* title:	Head Occluder
+* source:	https://sparkar.facebook.com/ar-studio/learn/articles/people-tracking/face-reference-assets
+* author:	Facebook
+
+This model is from Facebook SparkAR, please check out licensing agreement with them if you want to use it.

@@ -1,0 +1,94 @@
+<!--
+  API and Events handle
+-->
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="../../dist-dev/mindar-face.js"></script>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="../../dist-dev/mindar-face-aframe.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+	const sceneEl = document.querySelector('a-scene');
+	const arSystem = sceneEl.systems["mindar-system-face"];
+
+	const exampleTargetLink = document.querySelector('#example-target-link');
+	const startButton = document.querySelector("#example-start-button");
+	const stopButton = document.querySelector("#example-stop-button");
+	const switchCameraButton = document.querySelector("#example-switch-camera-button");
+
+	// arReady event triggered when ready
+        sceneEl.addEventListener("arReady", (event) => {
+	  console.log("ar ready");
+        });
+
+	// detect target found
+        sceneEl.addEventListener("targetFound", event => {
+          console.log("target found");
+        });
+
+	// detect target lost
+        sceneEl.addEventListener("targetLost", event => {
+          console.log("target lost");
+        });
+
+	// arError event triggered when something went wrong. Mostly browser compatbility issue
+        sceneEl.addEventListener("arError", (event) => {
+	  console.log("ar error");
+        });
+
+	startButton.addEventListener('click', () => {
+	  arSystem.start(); // start AR 
+        });
+	stopButton.addEventListener('click', () => {
+	  arSystem.stop(); // stop
+	});
+	switchCameraButton.addEventListener('click', () => {
+	  arSystem.switchCamera();
+	});
+      });
+    </script>
+   
+    <style>
+      body {
+        margin: 0;
+      }
+      .example-container {
+        overflow: hidden;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+
+      #example-control-overlay {
+	background: none;
+	height: 30px;
+      }
+      #example-control-overlay >div {
+	position: absolute;
+	right: 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="example-container">
+      <div id="example-control-overlay" class="overlay">
+	<div>
+	  <button id="example-start-button">Start</button>
+	  <button id="example-stop-button">Stop</button>
+	  <button id="example-switch-camera-button">Switch Camera</button>
+	</div>
+      </div>
+
+      <a-scene mindar-face="autoStart: false" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        <a-camera active="false" position="0 0 0" look-controls="false"></a-camera>
+
+        <a-entity mindar-face-target="anchorIndex: 1">
+	  <a-sphere id="example-target-link" color="green" radius="0.1"></a-sphere>
+        </a-entity>
+      </a-scene>
+    </div>
+  </body>
+</html>

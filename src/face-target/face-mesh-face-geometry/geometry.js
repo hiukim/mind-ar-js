@@ -1,3 +1,7 @@
+/**
+ * Original source: https://github.com/spite/FaceMeshFaceGeometry
+ */
+
 const FACES = [
   127,
   34,

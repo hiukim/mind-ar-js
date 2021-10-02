@@ -1,3 +1,6 @@
+/**
+ * Original source: https://github.com/spite/FaceMeshFaceGeometry
+ */
 const { FACES: indices, UVS: texCoords } = require("./geometry.js");
 const { BufferGeometry, BufferAttribute, Vector3, Triangle, Matrix4 } = require("three");
 
