@@ -8,7 +8,7 @@ MindAR is a lightweight library for web augmented reality. Highlighted features 
 
 :star: Utilize gpu (through webgl) and web worker for performance
 
-:star: Support natural feature tracking (i.e. image target), with multiple targets
+:star: Support natural image tracking (multiple targets) and face tracking
 
 :star: Developer friendly. Easy to setup. With AFRAME extension, you can get your app starts with only 10 lines of codes
 
@@ -23,7 +23,7 @@ https://pictarize.com
 # On Demand Programming Support
 You can find the full documentation below. I tried to write it as clear as possible with many examples. If you have generic questions about the library that can benefit the whole community, please create github issues. Or better yet, fix it or improve it and create pull requests.
 
-If, however, you need coding help or fixing individaul bugs specific to your projects, try not to send me personal emails. If you do need immediate help, I can offer on-demand support here:
+If, however, you need coding help or fixing individaul bugs specific to your projects, I can offer on-demand support here:
 
 [![Contact me on Codementor](https://www.codementor.io/m-badges/hiukim/find-me-on-cm-g.svg)](https://www.codementor.io/@hiukim?refer=badge)
 
@@ -34,28 +34,24 @@ Official Documentation: https://hiukim.github.io/mind-ar-js-doc
 
 # Demo - Try it yourself
 
-### Basic Example
+### Image Tracking - Basic Example
 <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/basic-demo-fde07aa7567bf213e61b37dbaa192fec.gif" width="300">
 
-watch the video: https://youtu.be/hgVB9HpQpqY, or try it yourself:
+Demo video: https://youtu.be/hgVB9HpQpqY, 
 
-Open this url with your phone: https://hiukim.github.io/mind-ar-js-doc/samples/basic.html. Allow camera access and look at the below image to trigger the AR effects.
+Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/basic/
 
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/card-06cb9111a8e32627db6bfafc7aa22a4d.png" width="240" border="10" />
-
-### Multiple Targets Example
+### Image Tracking - Multiple Targets Example
 <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" width="300">
 
-Open this url with your phone: https://hiukim.github.io/mind-ar-js-doc/samples/multi-targets.html. Allow camera access and look at the below images (one at a time) to trigger the AR effects.
+Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/multi-tracks
 
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/bear-3c737546fb0bde7a9c45b45ee999d132.png" width="240" border="10" /> <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/raccoon-2ef571baece2ee4724d0d19edf3de791.pngg" width="240" border="10" />
-
-### Interactive Example
+### Image Tracking - Interactive Example
 <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" width="300"/>
 
-watch the video: https://youtu.be/gm57gL1NGoQ, or try it yourself:
+Demo video: https://youtu.be/gm57gL1NGoQ
 
-Open this url with your phone: https://hiukim.github.io/mind-ar-js-doc/samples/advanced.html. Allow camera access and look at the same image in the Basic example.
+Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/interative
 
 ### More examples
 More examples can be found here: https://hiukim.github.io/mind-ar-js-doc/examples/summary
@@ -72,13 +68,16 @@ To give you a quick idea, this is the complete source code for the Basic example
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@0.3.1/dist/mindar.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@bb95bd10d55913d8c2dac49955b9340b83b27b75/dist/mindar-image.prod.js"></script>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@bb95bd10d55913d8c2dac49955b9340b83b27b75/dist/mindar-image.aframe.js"></script>
   </head>
   <body>
-    <a-scene mindar="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@0.3.1/examples/assets/card-example/card.mind; showStats: true;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@bb95bd10d55913d8c2dac49955b9340b83b27b75/examples/image-tracking/assets/card-example/card.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
       <a-assets>
-        <img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@0.3.1/examples/assets/card-example/card.png" />
-        <a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@0.3.1/examples/assets/card-example/softmind/scene.gltf"></a-asset-item>
+        <img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@bb95bd10d55913d8c2dac49955b9340b83b27b75/examples/image-tracking/assets/card-example/card.png" />
+        <a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@bb95bd10d55913d8c2dac49955b9340b83b27b75/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -103,7 +102,7 @@ https://hiukim.github.io/mind-ar-js-doc/tools/compile
 I think it frustrating that there is very little educational materials on the Internet that can explain the inside-out of augmented reality. There are many scattered pieces around, but no one really put together a complete picture. That's one of the main drive of this project. I hope this project can be also educational other being practical. So I'm going to write a series of technical blog posts explaining all the theoretical details later. Please stay tuned!
 
 # Roadmaps
-1. Supports more augmented reality features, like Face Tracking, Plane Tracking
+1. Supports more augmented reality features, like Plane Tracking
 
 2. Research on different state-of-the-arts algorithms to improve tracking accuracies and performance
 
@@ -128,11 +127,11 @@ Whatever you can think of. It's an opensource web AR framework for everyone!
 
 #### To create a production build
 
-run `> npm run build`. A `mindar.prod.js` will be generated. That's the library.
+run `> npm run build`. `mindar-XXX.prod.js` and `mindar-XXX-aframe.propd.js will be generated for each tracking type.
 
 #### For development
 
-run `> npm run watch`. This will observe the file changes in `src` folder and continueously build a `mindar.js` inside the `dist-dev` folder. The examples inside the `examples` folder is using this development build. You can open this examples in browser to start debug/development. 
+run `> npm run watch`. This will observe the file changes in `src` folder and continueously build a `mindar-XXX.js` and `mindar-XXX-aframe` inside the `dist-dev` folder. The examples inside the `examples` folder is using this development build. You can open this examples in browser to start debug/development. 
 
 The examples should run in desktop browser and they are just html files, so it's easy to start development. However, because it requires camera access, so you need a webcam. Also, you need to run the html file with some localhost web server. Simply opening the files won't work.
 
@@ -145,20 +144,8 @@ This library utilize tensorflowjs (https://github.com/tensorflow/tfjs) for webgl
 
 The core detection and tracking algorithm is written with custom operations in tensorflowjs. They are like shaders program. It might looks intimidating at first, but it's actually not that difficult to understand.
 
-#### examples explained
-1. `examples/example1.html` and `examples/example2.html` are basically the demo examples in the above section. They are using the wrapped aframe extension.
-
-2. `examples/example3.html` contains events handling.
-
-#### src explained
-1. `src/image-target` contains all the AR algorithms. (There will be more details coming up regarding those algorithms)
-
-2. `src/controller.js` serves kind of a API for external applications that use the AR algorithms. It also handles the control flow of the application.
-
-3. `src/aframe.js` is the AFRAME extension wrapper. It uses `controller.js`
-
-4. `src/compiler.js` is the API for compiling target image.
-
 # Credits
 The computer vision idea is borrowed from artoolkit (i.e. https://github.com/artoolkitx/artoolkit5). Unfortunately, the library doesn't seems to be maintained anymore.
+
+Face Tracking is based on tensorflowjs face landmark detection mode (i.e. https://github.com/tensorflow/tfjs-models/tree/master/face-landmarks-detection). It also utilize this face geometry library: https://github.com/spite/FaceMeshFaceGeometry
 
