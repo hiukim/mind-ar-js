@@ -96,7 +96,7 @@ You can compile your own target images right on the browser using this friendly 
 
 https://hiukim.github.io/mind-ar-js-doc/tools/compile
 
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/step2-1e9df4e618de281f49ab797851006faf.png" width="300"/>
+<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/step2-9f3c4dcb8a2e60766d86f950d06929ea.png" width="300"/>
 
 # AR algorithms and theory
 I think it frustrating that there is very little educational materials on the Internet that can explain the inside-out of augmented reality. There are many scattered pieces around, but no one really put together a complete picture. That's one of the main drive of this project. I hope this project can be also educational other being practical. So I'm going to write a series of technical blog posts explaining all the theoretical details later. Please stay tuned!
