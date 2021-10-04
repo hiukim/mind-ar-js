@@ -1,6 +1,6 @@
 {
   "name": "mind-ar",
-  "version": "0.5.1",
+  "version": "1.0.0",
   "description": "web augmented reality framework",
   "main": "dist/mindar.prod.js",
   "scripts": {
@@ -19,7 +19,9 @@
     "web AR",
     "aframe",
     "web augmented reality",
-    "image tracking"
+    "image tracking",
+    "face tracking",
+    "tensorflowjs"
   ],
   "author": "hiukim",
   "license": "MIT",
