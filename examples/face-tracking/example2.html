@@ -6,9 +6,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="../../dist-dev/mindar-face.js"></script>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/16/Stats.min.js"></script>
     <script src="../../dist-dev/mindar-face-aframe.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+	const list = ["glasses1", "glasses2", "hat1", "hat2", "earring"];
+	const visibles = [true, false, false, true, true];
+
+	const setVisible = (button, entities, visible) => {
+	  if (visible) {
+	    button.classList.add("selected");
+	  } else {
+	    button.classList.remove("selected");
+	  }
+	  entities.forEach((entity) => {
+	    entity.setAttribute("visible", visible);
+	  });
+	}
+	list.forEach((item, index) => {
+	  const button = document.querySelector("#" + item);
+	  const entities = document.querySelectorAll("." + item + "-entity");
+	  setVisible(button, entities, visibles[index]);
+	  button.addEventListener('click', () => {
+	    visibles[index] = !visibles[index];
+	    setVisible(button, entities, visibles[index]);
+	  });
+	});
+      })
+    </script>
    
     <style>
       body {
@@ -20,16 +45,42 @@
         width: 100%;
         height: 100%;
       }
+      .options-panel {
+	position: fixed;
+	left: 0;
+	top: 0;
+	z-index: 2;
+      }
+      .options-panel img {
+	border: solid 2px;
+	width: 50px;
+	height: 50px;
+	object-fit: cover;
+	cursor: pointer;
+      }
+      .options-panel img.selected {
+	border-color: green;
+      }
     </style>
   </head>
 
   <body>
     <div class="example-container">
+      <div class="options-panel">
+	<img id="hat1" src="./assets/hat/thumbnail.png"/>
+	<img id="hat2" src="./assets/hat2/thumbnail.png"/>
+	<img id="glasses1" src="./assets/glasses/thumbnail.png"/>
+	<img id="glasses2" src="./assets/glasses2/thumbnail.png"/>
+	<img id="earring" src="./assets/earring/thumbnail.png"/>
+      </div>
+
       <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
           <a-asset-item id="headModel" src="./assets/sparkar/headOccluder.glb"></a-asset-item>
           <a-asset-item id="glassesModel" src="./assets/glasses/scene.gltf"></a-asset-item>
+          <a-asset-item id="glassesModel2" src="./assets/glasses2/scene.gltf"></a-asset-item>
           <a-asset-item id="hatModel" src="./assets/hat/scene.gltf"></a-asset-item>
+          <a-asset-item id="hatModel2" src="./assets/hat2/scene.gltf"></a-asset-item>
           <a-asset-item id="earringModel" src="./assets/earring/scene.gltf"></a-asset-item>
         </a-assets>
 
@@ -41,19 +92,26 @@
         </a-entity>
 
         <a-entity mindar-face-target="anchorIndex: 10">
-	  <a-gltf-model rotation="0 -0 0" position="0 1.0 -0.5" scale="0.35 0.35 0.35" src="#hatModel"></a-gltf-model>
+	  <a-gltf-model rotation="0 -0 0" position="0 1.0 -0.5" scale="0.35 0.35 0.35" src="#hatModel" class="hat1-entity" visible="false"></a-gltf-model>
+        </a-entity>
+        <a-entity mindar-face-target="anchorIndex: 10">
+	  <a-gltf-model rotation="0 -0 0" position="0 -0.2 -0.5" scale="0.008 0.008 0.008" src="#hatModel2" class="hat2-entity" visible="false"></a-gltf-model>
         </a-entity>
 
         <a-entity mindar-face-target="anchorIndex: 168">
-	  <a-gltf-model rotation="0 -0 0" position="0 0 0" scale="0.01 0.01 0.01" src="#glassesModel"></a-gltf-model>
+	  <a-gltf-model rotation="0 -0 0" position="0 0 0" scale="0.01 0.01 0.01" src="#glassesModel" class="glasses1-entity" visible="false"></a-gltf-model>
+        </a-entity>
+
+        <a-entity mindar-face-target="anchorIndex: 168">
+	  <a-gltf-model rotation="0 -90 0" position="0 -0.3 0" scale="0.6 0.6 0.6" src="#glassesModel2" class="glasses2-entity" visible="false"></a-gltf-model>
         </a-entity>
 	
         <a-entity mindar-face-target="anchorIndex: 127">
-	  <a-gltf-model rotation="-0.1 -0 0" position="0 -0.3 -0.3" scale="0.05 0.05 0.05" src="#earringModel"></a-gltf-model>
+	  <a-gltf-model rotation="-0.1 -0 0" position="0 -0.3 -0.3" scale="0.05 0.05 0.05" src="#earringModel" class="earring-entity" visible="false"></a-gltf-model>
         </a-entity>
 
         <a-entity mindar-face-target="anchorIndex: 356">
-	  <a-gltf-model rotation="0.1 -0 0" position="0 -0.3 -0.3" scale="0.05 0.05 0.05" src="#earringModel"></a-gltf-model>
+	  <a-gltf-model rotation="0.1 -0 0" position="0 -0.3 -0.3" scale="0.05 0.05 0.05" src="#earringModel" class="earring-entity" visible="false"></a-gltf-model>
         </a-entity>
       </a-scene>
     </div>

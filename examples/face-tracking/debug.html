@@ -17,9 +17,14 @@
 	
 	const controller = new MINDAR.FACE.Controller();
 	await controller.setup();
+	controller.setInputSize(queryImage.width, queryImage.height);
+	controller.setDisplaySize(queryImage.width, queryImage.height);
 
-	const {landmarks} = await controller.detect(queryImage);
-	console.log("landmarks", landmarks);
+	const hasFace = await controller.detect(queryImage);
+	console.log("detected face", hasFace, controller.faceGeometry);
+
+	const landmark = controller.getLandmarkProperties(0);
+	console.log("landmark", landmark);
       }
       process();
     </script>

@@ -1,0 +1,558 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1824,
+      "max": [
+        81.554443359375,
+        247.32603454589844,
+        108.80770874023438
+      ],
+      "min": [
+        -83.25384521484375,
+        123.64000701904297,
+        -120.43941497802734
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 21888,
+      "componentType": 5126,
+      "count": 1824,
+      "max": [
+        0.99981272220611572,
+        0.99965226650238037,
+        0.9999125599861145
+      ],
+      "min": [
+        -0.9998125433921814,
+        -0.99966585636138916,
+        -0.99913185834884644
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 1824,
+      "max": [
+        1,
+        0.83878999948501587,
+        0.99966591596603394,
+        1
+      ],
+      "min": [
+        -1,
+        -0.99992656707763672,
+        -0.99965226650238037,
+        -1
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1824,
+      "max": [
+        0.82006466388702393,
+        0.87634140253067017
+      ],
+      "min": [
+        -0.39681586623191833,
+        -0.41669577360153198
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 9096,
+      "max": [
+        1823
+      ],
+      "min": [
+        0
+      ],
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 43776,
+      "componentType": 5126,
+      "count": 571,
+      "max": [
+        28.611888885498047,
+        245.85481262207031,
+        50.792392730712891
+      ],
+      "min": [
+        -30.296741485595703,
+        191.18319702148438,
+        26.997941970825195
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 50628,
+      "componentType": 5126,
+      "count": 571,
+      "max": [
+        0.99997758865356445,
+        0.9998505711555481,
+        0.99920284748077393
+      ],
+      "min": [
+        -0.99997752904891968,
+        -0.97810989618301392,
+        -0.21660405397415161
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 29184,
+      "componentType": 5126,
+      "count": 571,
+      "max": [
+        0.99906140565872192,
+        0.99149042367935181,
+        0.88307791948318481,
+        1
+      ],
+      "min": [
+        -0.99906134605407715,
+        -0.99673652648925781,
+        -0.99778825044631958,
+        -1
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 14592,
+      "componentType": 5126,
+      "count": 571,
+      "max": [
+        1,
+        1.1579463481903076
+      ],
+      "min": [
+        0.00047684088349342346,
+        0.015076844953000546
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 36384,
+      "componentType": 5125,
+      "count": 2880,
+      "max": [
+        570
+      ],
+      "min": [
+        0
+      ],
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 57480,
+      "componentType": 5126,
+      "count": 124,
+      "max": [
+        22.241592407226562,
+        240.57730102539062,
+        50.538234710693359
+      ],
+      "min": [
+        -23.926448822021484,
+        197.49971008300781,
+        39.127483367919922
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 58968,
+      "componentType": 5126,
+      "count": 124,
+      "max": [
+        0.090275324881076813,
+        0.34567177295684814,
+        0.98655658960342407
+      ],
+      "min": [
+        -0.090272724628448486,
+        0.16342034935951233,
+        0.93835550546646118
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 38320,
+      "componentType": 5126,
+      "count": 124,
+      "max": [
+        0.99999874830245972,
+        0.91292762756347656,
+        0.16830980777740479,
+        1
+      ],
+      "min": [
+        -0.99999874830245972,
+        -0.9805523157119751,
+        -0.33001485466957092,
+        -1
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 19160,
+      "componentType": 5126,
+      "count": 124,
+      "max": [
+        0.48451042175292969,
+        0.86369234323501587
+      ],
+      "min": [
+        0.13069708645343781,
+        0.13630761206150055
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 47904,
+      "componentType": 5125,
+      "count": 600,
+      "max": [
+        123
+      ],
+      "min": [
+        0
+      ],
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "Anthony Yanez (https://sketchfab.com/paulyanez)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/models/82bcc48237ec4ff98ce770de60913d26",
+      "title": "Mario's Cap (Super Mario Bros)"
+    },
+    "generator": "Sketchfab-3.53.2",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 50304,
+      "byteOffset": 0,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 20152,
+      "byteOffset": 50304,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 60456,
+      "byteOffset": 70456,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 40304,
+      "byteOffset": 130912,
+      "byteStride": 16,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 171216,
+      "uri": "scene.bin"
+    }
+  ],
+  "images": [
+    {
+      "uri": "textures/21_-_Default_normal.png"
+    },
+    {
+      "uri": "textures/21_-_Default_baseColor.png"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "emissiveFactor": [
+        0,
+        0,
+        0
+      ],
+      "name": "03_-_Default",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.92156899999999997,
+          0,
+          0,
+          1
+        ],
+        "metallicFactor": 1,
+        "roughnessFactor": 0.89297135959999996
+      }
+    },
+    {
+      "doubleSided": true,
+      "emissiveFactor": [
+        0,
+        0,
+        0
+      ],
+      "name": "03_-_Default_0",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "metallicFactor": 0.69999999999999996,
+        "roughnessFactor": 0.89297135959999996
+      }
+    },
+    {
+      "doubleSided": true,
+      "emissiveFactor": [
+        0,
+        0,
+        0
+      ],
+      "name": "21_-_Default",
+      "normalTexture": {
+        "index": 0,
+        "scale": 1,
+        "texCoord": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "baseColorTexture": {
+          "index": 1,
+          "texCoord": 0
+        },
+        "metallicFactor": 0.69999999999999996,
+        "roughnessFactor": 0.89297135959999996
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Mario_Hat_03 - Default_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TANGENT": 2,
+            "TEXCOORD_0": 3
+          },
+          "indices": 4,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Mario_Hat_03 - Default_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 6,
+            "POSITION": 5,
+            "TANGENT": 7,
+            "TEXCOORD_0": 8
+          },
+          "indices": 9,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Mario_Hat_21 - Default_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 11,
+            "POSITION": 10,
+            "TANGENT": 12,
+            "TEXCOORD_0": 13
+          },
+          "indices": 14,
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "name": "RootNode (gltf orientation matrix)",
+      "rotation": [
+        -0.70710678118654746,
+        -0,
+        -0,
+        0.70710678118654757
+      ]
+    },
+    {
+      "children": [
+        2
+      ],
+      "name": "RootNode (model correction matrix)"
+    },
+    {
+      "children": [
+        3
+      ],
+      "matrix": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "name": "0bb80e2f36224277977abe2a4be5dc5a.fbx"
+    },
+    {
+      "children": [
+        4
+      ],
+      "name": "RootNode"
+    },
+    {
+      "children": [
+        5
+      ],
+      "matrix": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0.99999999999998668,
+        1.6292068494294582e-07,
+        0,
+        0,
+        -1.6292068494294582e-07,
+        0.99999999999998668,
+        0,
+        -8.0220661163330078,
+        52.46295166015625,
+        -1.3272724151611328,
+        1
+      ],
+      "name": "Mario_Hat"
+    },
+    {
+      "children": [
+        6,
+        7,
+        8
+      ],
+      "matrix": [
+        1,
+        0,
+        -0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0.849700927734375,
+        -185.4830322265625,
+        5.8158564567565918,
+        1
+      ],
+      "name": ""
+    },
+    {
+      "mesh": 0,
+      "name": "Mario_Hat_03 - Default_0"
+    },
+    {
+      "mesh": 1,
+      "name": "Mario_Hat_03 - Default_0"
+    },
+    {
+      "mesh": 2,
+      "name": "Mario_Hat_21 - Default_0"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "OSG_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    }
+  ]
+}
+
