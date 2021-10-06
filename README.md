@@ -1,14 +1,14 @@
 # MindAR
 
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/basic-demo-fde07aa7567bf213e61b37dbaa192fec.gif" height="250"> <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" height="250"> <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" height="250">
+<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" height="250"><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" height="250"><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-tryon-demo-1e3433ff1dd89795d5c1b385778a9da8.gif" height="250">
 
 MindAR is a lightweight library for web augmented reality. Highlighted features include:
+
+:star: Support Image tracking and Face tracking
 
 :star: Written in pure javascript, end-to-end from the underlying computer vision engine to frontend
 
 :star: Utilize gpu (through webgl) and web worker for performance
-
-:star: Support natural image tracking (multiple targets) and face tracking
 
 :star: Developer friendly. Easy to setup. With AFRAME extension, you can get your app starts with only 10 lines of codes
 
@@ -52,6 +52,11 @@ Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/multi-tracks
 Demo video: https://youtu.be/gm57gL1NGoQ
 
 Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/interative
+
+### Face Tracking - Virtual Try-On Example
+<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-tryon-demo-1e3433ff1dd89795d5c1b385778a9da8.gif" width="300"/>
+
+Try it yourself: https://hiukim.github.io/mind-ar-js-doc/face-tracking-examples/tryon
 
 ### More examples
 More examples can be found here: https://hiukim.github.io/mind-ar-js-doc/examples/summary
