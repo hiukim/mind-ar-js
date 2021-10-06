@@ -1,6 +1,6 @@
 {
   "name": "mind-ar",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "web augmented reality framework",
   "main": "dist/mindar.prod.js",
   "scripts": {
