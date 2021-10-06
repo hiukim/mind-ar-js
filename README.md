@@ -12,6 +12,13 @@ MindAR is a lightweight library for web augmented reality. Highlighted features 
 
 :star: Developer friendly. Easy to setup. With AFRAME extension, you can get your app starts with only 10 lines of codes
 
+# Web AR Development Course - Fund Raising
+
+I'm planning on creating a Udemy course about WebAR development to raise fund for the continuous development and support of the MindAR library. Would love to hear everyone feedback. Please checkout this discussion:
+
+https://github.com/hiukim/mind-ar-js/discussions/58
+
+
 # Managed Solution - Pictarize
 
 This opensource project is under MIT, so you are free to use however you want. There is also a hosted platform built on top of this library called Pictarize, which allows you to build and publish apps directly online. Check it out if you are interested!
