@@ -1,7 +1,7 @@
 const {Controller, UI} = window.MINDAR.IMAGE;
 
 class MindARThree {
-  constructor({container, imageTargetSrc, maxTrack, uiLoading, uiScanning, uiError}) {
+  constructor({container, imageTargetSrc, maxTrack, uiLoading="yes", uiScanning="yes", uiError="yes"}) {
     this.container = container;
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
@@ -9,6 +9,7 @@ class MindARThree {
 
     this.scene = new THREE.Scene();
     this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    this.renderer.outputEncoding = THREE.sRGBEncoding;
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.camera = new THREE.PerspectiveCamera();
     this.anchors = [];
@@ -139,6 +140,7 @@ class MindARThree {
 
   resize() {
     const {renderer, camera, container, video} = this;
+    if (!video) return;
 
     let vw, vh; // display css width, height
     const videoRatio = video.videoWidth / video.videoHeight;
