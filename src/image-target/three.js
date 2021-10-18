@@ -1,20 +1,30 @@
-const {Controller, UI} = window.MINDAR.IMAGE;
+const THREE = require("three");
+const {CSS3DRenderer} = require('three/examples/jsm/renderers/CSS3DRenderer.js');
+const {Controller} = require("./controller");
+const {UI} = require("../ui/ui");
+
+const cssScaleDownMatrix = new THREE.Matrix4();
+cssScaleDownMatrix.compose(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(0.001, 0.001, 0.001));
 
 class MindARThree {
-  constructor({container, imageTargetSrc, maxTrack, uiLoading="yes", uiScanning="yes", uiError="yes"}) {
+  constructor({container, imageTargetSrc, maxTrack, captureRegion=false, uiLoading="yes", uiScanning="yes", uiError="yes"}) {
     this.container = container;
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
+    this.captureRegion = captureRegion;
     this.ui = new UI({uiLoading, uiScanning, uiError});
 
     this.scene = new THREE.Scene();
+    this.cssScene = new THREE.Scene();
     this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    this.cssRenderer = new CSS3DRenderer({antialias: true });
     this.renderer.outputEncoding = THREE.sRGBEncoding;
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.camera = new THREE.PerspectiveCamera();
     this.anchors = [];
 
     this.container.appendChild(this.renderer.domElement);
+    this.container.appendChild(this.cssRenderer.domElement);
 
     window.addEventListener('resize', this.resize.bind(this));
   }
@@ -26,6 +36,7 @@ class MindARThree {
   }
 
   stop() {
+    this.controller.stopProcessVideo();
     const tracks = this.video.srcObject.getTracks();
     tracks.forEach(function(track) {
       track.stop();
@@ -34,10 +45,22 @@ class MindARThree {
   }
 
   addAnchor(targetIndex) {
-    const anchor = new THREE.Group();
-    anchor.matrixAutoUpdate = false;
-    this.anchors.push({anchor, targetIndex});
-    this.scene.add(anchor);
+    const group = new THREE.Group();
+    group.visible = false;
+    group.matrixAutoUpdate = false;
+    const anchor = {group, targetIndex, onTargetFound: null, onTargetLost: null, css: false, visible: false};
+    this.anchors.push(anchor);
+    this.scene.add(group);
+    return anchor;
+  }
+
+  addCSSAnchor(targetIndex) {
+    const group = new THREE.Group();
+    group.visible = false;
+    group.matrixAutoUpdate = false;
+    const anchor = {group, targetIndex, onTargetFound: null, onTargetLost: null, css: true, visible: false};
+    this.anchors.push(anchor);
+    this.cssScene.add(group);
     return anchor;
   }
 
@@ -91,13 +114,35 @@ class MindARThree {
 
 	    for (let i = 0; i < this.anchors.length; i++) {
 	      if (this.anchors[i].targetIndex === targetIndex) {
-		this.anchors[i].anchor.visible = worldMatrix !== null;
+		if (this.anchors[i].onTargetLost && this.anchors[i].visible && worldMatrix === null) {
+		  this.anchors[i].onTargetLost();
+		  this.anchors[i].visible = false;
+		}
+		if (this.anchors[i].onTargetFound && !this.anchors[i].visible && worldMatrix !== null) {
+		  let capturedImage = null; 
+		  if (this.captureRegion) {
+		    capturedImage = this._pixels3DToImage(this.controller.capturedRegion);
+		  }
+		  this.anchors[i].onTargetFound({capturedImage});
+		  this.anchors[i].visible = true;
+		}
+
+		if (this.anchors[i].css) {
+		  this.anchors[i].group.children.forEach((obj) => {
+		    obj.element.style.visibility = worldMatrix === null? "hidden": "visible";
+		  });
+		} else {
+		  this.anchors[i].group.visible = worldMatrix !== null;
+		}
 
 		if (worldMatrix !== null) {
 		  let m = new THREE.Matrix4();
 		  m.elements = worldMatrix;
 		  m.multiply(this.postMatrixs[targetIndex]);
-		  this.anchors[i].anchor.matrix = m;
+		  if (this.anchors[i].css) {
+		    m.multiply(cssScaleDownMatrix);
+		  }
+		  this.anchors[i].group.matrix = m;
 		}
 
 		if (worldMatrix !== null) {
@@ -108,6 +153,9 @@ class MindARThree {
 	  }
 	}
       });
+      if (this.captureRegion) {
+	this.controller.shouldCaptureRegion = true;
+      }
 
       this.resize();
 
@@ -139,7 +187,7 @@ class MindARThree {
   }
 
   resize() {
-    const {renderer, camera, container, video} = this;
+    const {renderer, cssRenderer, camera, container, video} = this;
     if (!video) return;
 
     let vw, vh; // display css width, height
@@ -169,8 +217,56 @@ class MindARThree {
     video.style.width = vw + "px";
     video.style.height = vh + "px";
 
+    const canvas = renderer.domElement;
+    const cssCanvas = cssRenderer.domElement;
+
+    canvas.style.position = 'absolute';
+    canvas.style.left = 0;
+    canvas.style.top = 0;
+    canvas.style.width = container.clientWidth + 'px';
+    canvas.style.height = container.clientHeight + 'px';
+
+    cssCanvas.style.position = 'absolute';
+    cssCanvas.style.left = 0;
+    cssCanvas.style.top = 0;
+    cssCanvas.style.width = container.clientWidth + 'px';
+    cssCanvas.style.height = container.clientHeight + 'px';
+
     renderer.setSize(container.clientWidth, container.clientHeight);
+    cssRenderer.setSize(container.clientWidth, container.clientHeight);
+  }
+
+  _pixels3DToImage(pixels) {
+    const height = pixels.length;
+    const width = pixels[0].length;
+    const data = new Uint8ClampedArray(height * width * 4);
+    for (let j = 0; j < height; j++) {
+      for (let i = 0; i < width; i++) {
+	const pos = j * width + i;
+	data[pos*4 + 0] = pixels[j][i][0];
+	data[pos*4 + 1] = pixels[j][i][1];
+	data[pos*4 + 2] = pixels[j][i][2];
+	data[pos*4 + 3] = 255; 
+      }
+    }
+    const imageData = new ImageData(data, width, height);
+    const canvas = document.createElement("canvas");
+    canvas.height = height;
+    canvas.width = width;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL("image/png");
   }
 }
 
+if (!window.MINDAR) {
+  window.MINDAR = {};
+}
+if (!window.MINDAR.IMAGE) {
+  window.MINDAR.IMAGE = {};
+}
+
 window.MINDAR.IMAGE.MindARThree = MindARThree;
+window.MINDAR.IMAGE.THREE = THREE;

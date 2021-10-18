@@ -19,7 +19,7 @@ class Controller {
   }
 
   createFaceGeoemtry() {
-    const faceGeometry = new FaceMeshFaceGeometry({ useVideoTexture: true });
+    const faceGeometry = new FaceMeshFaceGeometry({ useVideoTexture: false });
     this.customFaceGeometries.push(faceGeometry);
     return faceGeometry;
   }
