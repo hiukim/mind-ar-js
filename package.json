@@ -28,7 +28,7 @@
   "dependencies": {
     "@msgpack/msgpack": "^1.12.2",
     "@tensorflow-models/face-landmarks-detection": "0.0.3",
-    "@tensorflow/tfjs": "^3.6.0",
+    "@tensorflow/tfjs": "^3.9.0",
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
     "terser-webpack-plugin": "^4.2.3",
