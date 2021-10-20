@@ -23,6 +23,8 @@ class MindARThree {
     this.camera = new THREE.PerspectiveCamera();
     this.anchors = [];
 
+    this.renderer.domElement.style.position = 'absolute';
+    this.cssRenderer.domElement.style.position = 'absolute';
     this.container.appendChild(this.renderer.domElement);
     this.container.appendChild(this.cssRenderer.domElement);
 
