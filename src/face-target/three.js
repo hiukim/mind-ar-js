@@ -25,6 +25,7 @@ class MindARThree {
     this.container.appendChild(this.renderer.domElement);
     this.container.appendChild(this.cssRenderer.domElement);
 
+    this.shouldFaceUser = true;
     this.faceVisible = false;
     this.processingVideo = false;
 
@@ -45,6 +46,12 @@ class MindARThree {
     });
     this.video.remove();
     this.processingVideo = false;
+  }
+
+  switchCamera() {
+    this.shouldFaceUser = !this.shouldFaceUser;
+    this.stop();
+    this.start();
   }
 
   addFaceMesh() {
@@ -95,7 +102,7 @@ class MindARThree {
       }
 
       navigator.mediaDevices.getUserMedia({audio: false, video: {
-	facingMode: 'face',
+	facingMode: (this.shouldFaceUser? 'face': 'environment'),
       }}).then((stream) => {
 	this.video.addEventListener( 'loadedmetadata', () => {
 	  this.video.setAttribute('width', this.video.videoWidth);
@@ -184,10 +191,14 @@ class MindARThree {
       vh = vw / videoRatio;
     }
 
-    camera.left = -0.5 * vw;
-    camera.right = 0.5 * vw;
-    camera.top = 0.5 * vh;
-    camera.bottom = -0.5 * vh;
+    //camera.left = -0.5 * vw;
+    //camera.right = 0.5 * vw;
+    //camera.top = 0.5 * vh;
+    //camera.bottom = -0.5 * vh;
+    camera.left = -0.5 * container.clientWidth;
+    camera.right = 0.5 * container.clientWidth;
+    camera.top = 0.5 * container.clientHeight;
+    camera.bottom = -0.5 * container.clientHeight;
     camera.updateProjectionMatrix();
     
     video.style.top = (-(vh - container.clientHeight) / 2) + "px";
@@ -214,6 +225,7 @@ class MindARThree {
     cssRenderer.setSize(container.clientWidth, container.clientHeight);
 
     this.controller.setDisplaySize(vw, vh);
+    //this.controller.setDisplaySize(container.clientWidth, container.clientHeight);
   }
 }
 
