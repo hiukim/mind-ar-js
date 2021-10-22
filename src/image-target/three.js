@@ -1,4 +1,5 @@
 const THREE = require("three");
+const tf = require('@tensorflow/tfjs');
 const {CSS3DRenderer} = require('three/examples/jsm/renderers/CSS3DRenderer.js');
 const {Controller} = require("./controller");
 const {UI} = require("../ui/ui");
@@ -272,3 +273,4 @@ if (!window.MINDAR.IMAGE) {
 
 window.MINDAR.IMAGE.MindARThree = MindARThree;
 window.MINDAR.IMAGE.THREE = THREE;
+window.MINDAR.IMAGE.tf = tf;
