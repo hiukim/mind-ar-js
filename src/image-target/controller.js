@@ -7,7 +7,7 @@ const {InputLoader} = require('./input-loader.js');
 
 const INTERPOLATION_FACTOR = 5;
 const WARMUP_COUNT_TOLERANCE = 10;
-const MISS_COUNT_TOLERANCE = 30;
+const MISS_COUNT_TOLERANCE = 15;
 
 class Controller {
   constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1}) {
@@ -26,7 +26,7 @@ class Controller {
     this.trackingStates = [];
 
     const near = 10;
-    const far = 10000;
+    const far = 100000;
     const fovy = 45.0 * Math.PI / 180; // 45 in radian. field of view vertical
     const f = (this.inputHeight/2) / Math.tan(fovy/2);
     //     [fx  s cx]
