@@ -18,6 +18,7 @@ I'm planning on creating a Udemy course about WebAR development to raise fund fo
 
 https://github.com/hiukim/mind-ar-js/discussions/58
 
+![course-banner](https://user-images.githubusercontent.com/459126/141425015-f5fe2912-b26d-4366-8952-5866a072fb34.jpg)
 
 # Managed Solution - Pictarize
 
