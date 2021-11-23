@@ -10,10 +10,12 @@ const WARMUP_COUNT_TOLERANCE = 10;
 const MISS_COUNT_TOLERANCE = 30;
 
 class Controller {
-  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1}) {
+  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1, warmupCountTolerance=WARMUP_COUNT_TOLERANCE, missCountTolerance=MISS_COUNT_TOLERANCE}) {
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.maxTrack = maxTrack;
+    this.warmupCountTolerance = warmupCountTolerance;
+    this.missCountTolerance = missCountTolerance;
     this.cropDetector = new CropDetector(this.inputWidth, this.inputHeight, debugMode);
     this.inputLoader = new InputLoader(this.inputWidth, this.inputHeight);
     this.markerDimensions = null;
@@ -205,7 +207,7 @@ class Controller {
 	    if (trackingState.isTracking) {
 	      trackingState.trackMiss = 0;
 	      trackingState.trackCount += 1;
-	      if (trackingState.trackCount > WARMUP_COUNT_TOLERANCE) {
+	      if (trackingState.trackCount > this.warmupCountTolerance) {
 		trackingState.showing = true;
 		trackingState.trackingMatrix = null;
 	      }
@@ -218,7 +220,7 @@ class Controller {
 	      trackingState.trackCount = 0;
 	      trackingState.trackMiss += 1;
 
-	      if (trackingState.trackMiss > MISS_COUNT_TOLERANCE) {
+	      if (trackingState.trackMiss > this.missCountTolerance) {
 		trackingState.showing = false;
 		trackingState.trackingMatrix = null;
 		this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
@@ -380,5 +382,7 @@ class Controller {
 }
 
 module.exports = {
- Controller
+ Controller,
+ WARMUP_COUNT_TOLERANCE,
+ MISS_COUNT_TOLERANCE
 }

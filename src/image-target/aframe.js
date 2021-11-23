@@ -1,4 +1,4 @@
-const {Controller, UI} = window.MINDAR.IMAGE;
+const {Controller, UI, WARMUP_COUNT_TOLERANCE, MISS_COUNT_TOLERANCE} = window.MINDAR.IMAGE;
 
 AFRAME.registerSystem('mindar-image-system', {
   container: null,
@@ -12,9 +12,11 @@ AFRAME.registerSystem('mindar-image-system', {
   tick: function() {
   },
 
-  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError, captureRegion}) {
+  setup: function({imageTargetSrc, maxTrack, warmupCountTolerance, missCountTolerance, showStats, uiLoading, uiScanning, uiError, captureRegion}) {
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
+    this.warmupCountTolerance = warmupCountTolerance;
+    this.missCountTolerance = missCountTolerance;
     this.showStats = showStats;
     this.captureRegion = captureRegion;
     this.ui = new UI({uiLoading, uiScanning, uiError});
@@ -116,7 +118,9 @@ AFRAME.registerSystem('mindar-image-system', {
     this.controller = new Controller({
       inputWidth: video.videoWidth,
       inputHeight: video.videoHeight,
-      maxTrack: this.maxTrack, 
+      maxTrack: this.maxTrack,
+      warmupCountTolerance: this.warmupCountTolerance,
+      missCountTolerance: this.missCountTolerance, 
       onUpdate: (data) => {
 	if (data.type === 'processDone') {
 	  if (this.mainStats) this.mainStats.update();
@@ -186,6 +190,8 @@ AFRAME.registerComponent('mindar-image', {
   schema: {
     imageTargetSrc: {type: 'string'},
     maxTrack: {type: 'int', default: 1},
+    warmupCountTolerance: {type: 'int', default: WARMUP_COUNT_TOLERANCE},
+    missCountTolerance: {type: 'int', default: MISS_COUNT_TOLERANCE},
     showStats: {type: 'boolean', default: false},
     captureRegion: {type: 'boolean', default: false},
     autoStart: {type: 'boolean', default: true},
@@ -200,6 +206,8 @@ AFRAME.registerComponent('mindar-image', {
     arSystem.setup({
       imageTargetSrc: this.data.imageTargetSrc, 
       maxTrack: this.data.maxTrack,
+      warmupCountTolerance: this.data.warmupCountTolerance,
+      missCountTolerance: this.data.missCountTolerance,
       captureRegion: this.data.captureRegion,
       showStats: this.data.showStats,
       uiLoading: this.data.uiLoading,

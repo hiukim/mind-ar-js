@@ -1,11 +1,13 @@
-const {Controller} = require('./controller');
+const {Controller, WARMUP_COUNT_TOLERANCE, MISS_COUNT_TOLERANCE} = require('./controller');
 const {Compiler} = require('./compiler');
 const {UI} = require('../ui/ui');
 
 const e = {
   Controller, 
   Compiler,
-  UI
+  UI,
+  WARMUP_COUNT_TOLERANCE,
+  MISS_COUNT_TOLERANCE
 }
 
 if (!window.MINDAR) {
