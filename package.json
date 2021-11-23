@@ -31,16 +31,16 @@
     "@tensorflow/tfjs": "^3.6.0",
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
-    "terser-webpack-plugin": "^4.2.3",
     "three": "^0.132.2",
     "tinyqueue": "^2.0.3"
   },
   "devDependencies": {
     "css-loader": "^5.1.1",
     "html-loader": "^2.1.1",
-    "node-sass": "^5.0.0",
+    "sass": "^1.43.4",
     "sass-loader": "^11.0.1",
     "style-loader": "^2.0.0",
+    "terser-webpack-plugin": "^4.2.3",
     "webpack": "^5.24.3",
     "webpack-cli": "^4.5.0",
     "worker-loader": "^2.0.0"
