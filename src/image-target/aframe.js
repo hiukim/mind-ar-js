@@ -202,7 +202,7 @@ AFRAME.registerSystem('mindar-image-system', {
 
     const proj = this.controller.getProjectionMatrix();
     const fov = 2 * Math.atan(1/proj[5] / vh * container.clientHeight ) * 180 / Math.PI; // vertical fov
-    console.log("loaded proj: ", proj, ". fov: ", fov);
+    //console.log("loaded proj: ", proj, ". fov: ", fov);
     const cameraEle = container.getElementsByTagName("a-camera")[0];
     const camera = cameraEle.getObject3D('camera');
     camera.fov = fov;
