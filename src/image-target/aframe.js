@@ -171,6 +171,9 @@ AFRAME.registerSystem('mindar-image-system', {
       }
     }
 
+    this._resize();
+    window.addEventListener('resize', this._resize.bind(this));
+
     await this.controller.dummyRun(this.video);
     this.el.emit("arReady");
     this.ui.hideLoading();
@@ -178,6 +181,33 @@ AFRAME.registerSystem('mindar-image-system', {
 
     this.controller.processVideo(this.video);
   },
+
+  _resize: function() {
+    const video = this.video;
+    const container = this.container;
+    let vw, vh; // display css width, height
+    const videoRatio = video.videoWidth / video.videoHeight;
+    const containerRatio = container.clientWidth / container.clientHeight;
+    if (videoRatio > containerRatio) {
+      vh = container.clientHeight;
+      vw = vh * videoRatio;
+    } else {
+      vw = container.clientWidth;
+      vh = vw / videoRatio;
+    }
+    this.video.style.top = (-(vh - container.clientHeight) / 2) + "px";
+    this.video.style.left = (-(vw - container.clientWidth) / 2) + "px";
+    this.video.style.width = vw + "px";
+    this.video.style.height = vh + "px";
+
+    const proj = this.controller.getProjectionMatrix();
+    const fov = 2 * Math.atan(1/proj[5] / vh * container.clientHeight ) * 180 / Math.PI; // vertical fov
+    console.log("loaded proj: ", proj, ". fov: ", fov);
+    const cameraEle = container.getElementsByTagName("a-camera")[0];
+    const camera = cameraEle.getObject3D('camera');
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+  }
 });
 
 AFRAME.registerComponent('mindar-image', {
