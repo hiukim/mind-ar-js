@@ -171,7 +171,6 @@ AFRAME.registerSystem('mindar-image-system', {
       }
     }
 
-    this._resize();
     window.addEventListener('resize', this._resize.bind(this));
 
     await this.controller.dummyRun(this.video);
@@ -182,9 +181,12 @@ AFRAME.registerSystem('mindar-image-system', {
     this.controller.processVideo(this.video);
   },
 
-  _resize: function() {
+  _resize: async function() {
+    this.controller.stopProcessVideo();
+
     const video = this.video;
     const container = this.container;
+
     let vw, vh; // display css width, height
     const videoRatio = video.videoWidth / video.videoHeight;
     const containerRatio = container.clientWidth / container.clientHeight;
@@ -195,18 +197,65 @@ AFRAME.registerSystem('mindar-image-system', {
       vw = container.clientWidth;
       vh = vw / videoRatio;
     }
+
+    this.controller = new Controller({
+      inputWidth: video.videoWidth,
+      inputHeight: video.videoHeight,
+      maxTrack: this.maxTrack,
+      warmupCountTolerance: this.warmupCountTolerance,
+      missCountTolerance: this.missCountTolerance, 
+      onUpdate: (data) => {
+        if (data.type === 'processDone') {
+          if (this.mainStats) this.mainStats.update();
+        }
+	      else if (data.type === 'updateMatrix') {
+	        const {targetIndex, worldMatrix} = data;
+
+          for (let i = 0; i < this.anchorEntities.length; i++) {
+            if (this.anchorEntities[i].targetIndex === targetIndex) {
+              if (worldMatrix) {
+          this.anchorEntities[i].el.updatePaint(this.controller.capturedRegion);
+              }
+              this.anchorEntities[i].el.updateWorldMatrix(worldMatrix, );
+              if (worldMatrix) {
+          this.ui.hideScanning();
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const proj = this.controller.getProjectionMatrix();
+    const fov = 2 * Math.atan(1/proj[5] / vh * container.clientHeight ) * 180 / Math.PI; // vertical fov
+    const near = proj[14] / (proj[10] - 1.0);
+    const far = proj[14] / (proj[10] + 1.0);
+    const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
+    //console.log("loaded proj: ", proj, ". fov: ", fov, ". near: ", near, ". far: ", far, ". ratio: ", ratio);
+    const newAspect = container.clientWidth / container.clientHeight;
+    const cameraEle = container.getElementsByTagName("a-camera")[0];
+    const camera = cameraEle.getObject3D('camera');
+    camera.fov = fov;
+    camera.aspect = newAspect;
+    camera.near = near;
+    camera.far = far;
+    camera.updateProjectionMatrix();
+
     this.video.style.top = (-(vh - container.clientHeight) / 2) + "px";
     this.video.style.left = (-(vw - container.clientWidth) / 2) + "px";
     this.video.style.width = vw + "px";
     this.video.style.height = vh + "px";
 
-    const proj = this.controller.getProjectionMatrix();
-    const fov = 2 * Math.atan(1/proj[5] / vh * container.clientHeight ) * 180 / Math.PI; // vertical fov
-    //console.log("loaded proj: ", proj, ". fov: ", fov);
-    const cameraEle = container.getElementsByTagName("a-camera")[0];
-    const camera = cameraEle.getObject3D('camera');
-    camera.fov = fov;
-    camera.updateProjectionMatrix();
+    const {dimensions: imageTargetDimensions} = await this.controller.addImageTargets(this.imageTargetSrc);
+
+    for (let i = 0; i < this.anchorEntities.length; i++) {
+      const {el, targetIndex} = this.anchorEntities[i];
+      if (targetIndex < imageTargetDimensions.length) {
+        el.setupMarker(imageTargetDimensions[targetIndex]);
+      }
+    }
+
+    this.controller.processVideo(this.video);
   }
 });
 
