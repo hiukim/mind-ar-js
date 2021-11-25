@@ -27,6 +27,8 @@ class Controller {
     this.interestedTargetIndex = -1;
     this.trackingStates = [];
 
+    console.log(this.warmupCountTolerance, this.missCountTolerance);
+
     const near = 10;
     const far = 10000;
     const fovy = 45.0 * Math.PI / 180; // 45 in radian. field of view vertical
@@ -382,7 +384,5 @@ class Controller {
 }
 
 module.exports = {
- Controller,
- WARMUP_COUNT_TOLERANCE,
- MISS_COUNT_TOLERANCE
+ Controller
 }

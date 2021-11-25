@@ -1,4 +1,4 @@
-const {Controller, UI, WARMUP_COUNT_TOLERANCE, MISS_COUNT_TOLERANCE} = window.MINDAR.IMAGE;
+const {Controller, UI} = window.MINDAR.IMAGE;
 
 AFRAME.registerSystem('mindar-image-system', {
   container: null,
@@ -190,8 +190,8 @@ AFRAME.registerComponent('mindar-image', {
   schema: {
     imageTargetSrc: {type: 'string'},
     maxTrack: {type: 'int', default: 1},
-    warmupCountTolerance: {type: 'int', default: WARMUP_COUNT_TOLERANCE},
-    missCountTolerance: {type: 'int', default: MISS_COUNT_TOLERANCE},
+    warmupCountTolerance: {type: 'int', default: NaN},
+    missCountTolerance: {type: 'int', default: NaN},
     showStats: {type: 'boolean', default: false},
     captureRegion: {type: 'boolean', default: false},
     autoStart: {type: 'boolean', default: true},
@@ -206,8 +206,8 @@ AFRAME.registerComponent('mindar-image', {
     arSystem.setup({
       imageTargetSrc: this.data.imageTargetSrc, 
       maxTrack: this.data.maxTrack,
-      warmupCountTolerance: this.data.warmupCountTolerance,
-      missCountTolerance: this.data.missCountTolerance,
+      ...!isNaN(this.data.warmupCountTolerance) && {warmupCountTolerance: this.data.warmupCountTolerance},
+      ...!isNaN(this.data.missCountTolerance) && {missCountTolerance: this.data.missCountTolerance},
       captureRegion: this.data.captureRegion,
       showStats: this.data.showStats,
       uiLoading: this.data.uiLoading,
