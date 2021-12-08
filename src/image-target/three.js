@@ -140,7 +140,7 @@ class MindARThree {
 
 		if (worldMatrix !== null) {
 		  let m = new THREE.Matrix4();
-		  m.elements = worldMatrix;
+		  m.elements = [...worldMatrix];
 		  m.multiply(this.postMatrixs[targetIndex]);
 		  if (this.anchors[i].css) {
 		    m.multiply(cssScaleDownMatrix);
