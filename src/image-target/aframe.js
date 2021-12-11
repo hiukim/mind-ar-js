@@ -102,17 +102,6 @@ AFRAME.registerSystem('mindar-image-system', {
     const video = this.video;
     const container = this.container;
 
-    let vw, vh; // display css width, height
-    const videoRatio = video.videoWidth / video.videoHeight;
-    const containerRatio = container.clientWidth / container.clientHeight;
-    if (videoRatio > containerRatio) {
-      vh = container.clientHeight;
-      vw = vh * videoRatio;
-    } else {
-      vw = container.clientWidth;
-      vh = vw / videoRatio;
-    }
-
     this.controller = new Controller({
       inputWidth: video.videoWidth,
       inputHeight: video.videoHeight,
@@ -140,6 +129,41 @@ AFRAME.registerSystem('mindar-image-system', {
     });
     this.controller.shouldCaptureRegion = this.captureRegion;
 
+    this._resize();
+    window.addEventListener('resize', this._resize.bind(this));
+
+    const {dimensions: imageTargetDimensions} = await this.controller.addImageTargets(this.imageTargetSrc);
+
+    for (let i = 0; i < this.anchorEntities.length; i++) {
+      const {el, targetIndex} = this.anchorEntities[i];
+      if (targetIndex < imageTargetDimensions.length) {
+        el.setupMarker(imageTargetDimensions[targetIndex]);
+      }
+    }
+
+    await this.controller.dummyRun(this.video);
+    this.el.emit("arReady");
+    this.ui.hideLoading();
+    this.ui.showScanning();
+
+    this.controller.processVideo(this.video);
+  },
+
+  _resize: function() {
+    const video = this.video;
+    const container = this.container;
+
+    let vw, vh; // display css width, height
+    const videoRatio = video.videoWidth / video.videoHeight;
+    const containerRatio = container.clientWidth / container.clientHeight;
+    if (videoRatio > containerRatio) {
+      vh = container.clientHeight;
+      vw = vh * videoRatio;
+    } else {
+      vw = container.clientWidth;
+      vh = vw / videoRatio;
+    }
+
     const proj = this.controller.getProjectionMatrix();
     const fov = 2 * Math.atan(1/proj[5] / vh * container.clientHeight ) * 180 / Math.PI; // vertical fov
     const near = proj[14] / (proj[10] - 1.0);
@@ -161,23 +185,7 @@ AFRAME.registerSystem('mindar-image-system', {
     this.video.style.left = (-(vw - container.clientWidth) / 2) + "px";
     this.video.style.width = vw + "px";
     this.video.style.height = vh + "px";
-
-    const {dimensions: imageTargetDimensions} = await this.controller.addImageTargets(this.imageTargetSrc);
-
-    for (let i = 0; i < this.anchorEntities.length; i++) {
-      const {el, targetIndex} = this.anchorEntities[i];
-      if (targetIndex < imageTargetDimensions.length) {
-        el.setupMarker(imageTargetDimensions[targetIndex]);
-      }
-    }
-
-    await this.controller.dummyRun(this.video);
-    this.el.emit("arReady");
-    this.ui.hideLoading();
-    this.ui.showScanning();
-
-    this.controller.processVideo(this.video);
-  },
+  }
 });
 
 AFRAME.registerComponent('mindar-image', {
