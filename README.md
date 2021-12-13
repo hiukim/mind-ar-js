@@ -14,9 +14,9 @@ MindAR is a lightweight library for web augmented reality. Highlighted features 
 
 # Web AR Development Course - Fund Raising
 
-I'm planning on creating a Udemy course about WebAR development to raise fund for the continuous development and support of the MindAR library. Would love to hear everyone feedback. Please checkout this discussion:
+To raise fund for the continuous development and support of the MindAR Library, I've created a WebAR development course. It's a very comprehensive guide to Web AR development, not limited to MindAR. Check it out if you are interested:
 
-https://github.com/hiukim/mind-ar-js/discussions/58
+https://www.udemy.com/course/introduction-to-web-ar-development/?referralCode=D2565F4CA6D767F30D61
 
 ![course-banner](https://user-images.githubusercontent.com/459126/141425015-f5fe2912-b26d-4366-8952-5866a072fb34.jpg)
 
@@ -102,9 +102,6 @@ You can compile your own target images right on the browser using this friendly 
 https://hiukim.github.io/mind-ar-js-doc/tools/compile
 
 <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/step2-9f3c4dcb8a2e60766d86f950d06929ea.png" width="300"/>
-
-# AR algorithms and theory
-I think it frustrating that there is very little educational materials on the Internet that can explain the inside-out of augmented reality. There are many scattered pieces around, but no one really put together a complete picture. That's one of the main drive of this project. I hope this project can be also educational other being practical. So I'm going to write a series of technical blog posts explaining all the theoretical details later. Please stay tuned!
 
 # Roadmaps
 1. Supports more augmented reality features, like Plane Tracking
