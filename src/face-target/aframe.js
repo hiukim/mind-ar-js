@@ -5,7 +5,6 @@ const THREE = AFRAME.THREE;
 AFRAME.registerSystem('mindar-face-system', {
   container: null,
   video: null,
-  processingVideo: false,
   shouldFaceUser: true,
   lastHasFace: false,
 
@@ -53,12 +52,12 @@ AFRAME.registerSystem('mindar-face-system', {
     if (!keepVideo) {
       this.video.pause();
     }
-    this.processingVideo = false;
+    this.controller.stopProcessVideo();
   },
 
   unpause: function() {
     this.video.play();
-    this.processingVideo = true;
+    this.controller.processVideo(this.video);
   },
 
   // mock a video with an image
@@ -70,7 +69,6 @@ AFRAME.registerSystem('mindar-face-system', {
 
       await this._setupAR();
       this._processVideo();
-      this.processingVideo = false;
       this.ui.hideLoading();
     }
     this.video.style.position = 'absolute'
@@ -107,7 +105,6 @@ AFRAME.registerSystem('mindar-face-system', {
         this.video.setAttribute('width', this.video.videoWidth);
         this.video.setAttribute('height', this.video.videoHeight);
         await this._setupAR();
-	this.controller.setInputSize(this.video.videoWidth, this.video.videoHeight);
 	this._processVideo();
 	this.ui.hideLoading();
       });
@@ -119,51 +116,75 @@ AFRAME.registerSystem('mindar-face-system', {
   },
 
   _processVideo: function() {
-    const sleep = () => { 
-      return new Promise(window.requestAnimationFrame); 
-    }
-    const startProcessing = async() => {
-      while (true) {
-	if (!this.processingVideo) break;
+    this.controller.onUpdate = ({hasFace, estimateResult}) => {
 
-	const anchorIndexes = [];
-	for (let i = 0; i < this.anchorEntities.length; i++) {
-	  anchorIndexes.push(this.anchorEntities[i].anchorIndex);
-	}
-	const hasFace = await this.controller.detect(this.video);
-	if (hasFace && !this.lastHasFace) {
-	  this.el.emit("targetFound");
-	}
-	if (!hasFace && this.lastHasFace) {
-	  this.el.emit("targetLost");
-	}
-	this.lastHasFace = hasFace;
+      if (hasFace && !this.lastHasFace) {
+	this.el.emit("targetFound");
+      }
+      if (!hasFace && this.lastHasFace) {
+	this.el.emit("targetLost");
+      }
+      this.lastHasFace = hasFace;
+
+      if (hasFace) {
+	const {metricLandmarks, faceMatrix, faceScale} = estimateResult;
+	const m = new THREE.Matrix4();
+	m.set(
+	  faceMatrix[0],faceMatrix[1],faceMatrix[2],faceMatrix[3],
+	  faceMatrix[4],faceMatrix[5],faceMatrix[6],faceMatrix[7],
+	  faceMatrix[8],faceMatrix[9],faceMatrix[10],faceMatrix[11],
+	  faceMatrix[12],faceMatrix[13],faceMatrix[14],faceMatrix[15],
+	)
 
 	for (let i = 0; i < this.anchorEntities.length; i++) {
-	  if (hasFace) {
-	    const landmarkProperties = this.controller.getLandmarkProperties(this.anchorEntities[i].anchorIndex);
-	    this.anchorEntities[i].el.updateVisibility(true);
-	    this.anchorEntities[i].el.updatePosition(landmarkProperties);
-	  } else {
-	    this.anchorEntities[i].el.updateVisibility(false);
-	  }
+	  const landmarkIndex = this.anchorEntities[i].anchorIndex;
+	  this.anchorEntities[i].el.updateVisibility(true);
+	  this.anchorEntities[i].el.updatePosition({
+	    position: {
+	      x: metricLandmarks[landmarkIndex][0],
+	      y: metricLandmarks[landmarkIndex][1],
+	      z: metricLandmarks[landmarkIndex][2]
+	    },
+	    rotation: {x: 0, y: 0, z: 0},
+	    scale: faceScale,
+	    faceMatrix: m,
+	  });
 	}
 
 	for (let i = 0; i < this.faceMeshEntities.length; i++) {
-	  this.faceMeshEntities[i].el.updateVisibility(hasFace);
+	  this.faceMeshEntities[i].el.updateVisibility(true);
+	  this.faceMeshEntities[i].el.updatePosition({faceMatrix: m});
 	}
-	await sleep();
+      } else {
+	for (let i = 0; i < this.anchorEntities.length; i++) {
+	  this.anchorEntities[i].el.updateVisibility(false);
+	}
+	for (let i = 0; i < this.faceMeshEntities.length; i++) {
+	  this.faceMeshEntities[i].el.updateVisibility(false);
+	}
       }
     }
-    this.processingVideo = true;
-    startProcessing();
+    this.controller.processVideo(this.video);
   },
 
   _setupAR: async function() {
-    this.controller = new Controller();
+    this.controller = new Controller({});
     this._resize();
-    await this.controller.setup();
-    await this.controller.detect(this.video); // warm up the model
+
+    await this.controller.setup(this.video);
+    await this.controller.dummyRun(this.video);
+    const {fov, aspect, near, far} = this.controller.getCameraParams();
+
+    const camera = new THREE.PerspectiveCamera();
+    camera.fov = fov;
+    camera.aspect = aspect;
+    camera.near = near;
+    camera.far = far;
+    camera.updateProjectionMatrix();
+
+    const cameraEle = this.container.getElementsByTagName("a-camera")[0];
+    cameraEle.setObject3D('camera', camera);
+    cameraEle.setAttribute('camera', 'active', true);
 
     for (let i = 0; i < this.faceMeshEntities.length; i++) {
       this.faceMeshEntities[i].el.addFaceMesh(this.controller.createFaceGeoemtry());
@@ -192,22 +213,11 @@ AFRAME.registerSystem('mindar-face-system', {
     this.video.style.width = vw + "px";
     this.video.style.height = vh + "px";
 
-    const camera = new THREE.OrthographicCamera(1, 1, 1, 1, -1000, 1000);
-    camera.left = -0.5 * vw;
-    camera.right = 0.5 * vw;
-    camera.top = 0.5 * vh;
-    camera.bottom = -0.5 * vh;
-    camera.updateProjectionMatrix();
-
     const sceneEl = container.getElementsByTagName("a-scene")[0];
-    sceneEl.style.width = vw + "px";
-    sceneEl.style.height = vh + "px";
-    sceneEl.style.top = (-(vh - container.clientHeight) / 2) + "px";
-    sceneEl.style.left = (-(vw - container.clientWidth) / 2) + "px";
-
-    const cameraEle = container.getElementsByTagName("a-camera")[0];
-    cameraEle.setObject3D('camera', camera);
-    cameraEle.setAttribute('camera', 'active', true);
+    sceneEl.style.top = this.video.style.top;
+    sceneEl.style.left = this.video.style.left;
+    sceneEl.style.width = this.video.style.width;
+    sceneEl.style.height = this.video.style.height;
 
     this.controller.setDisplaySize(vw, vh);
   }
@@ -257,20 +267,28 @@ AFRAME.registerComponent('mindar-face-target', {
   init: function() {
     const arSystem = this.el.sceneEl.systems['mindar-face-system'];
     arSystem.registerAnchor(this, this.data.anchorIndex);
-    this.el.object3D.visible = false;
+
+    const root = this.el.object3D;
+    root.visible = false;
+    root.matrixAutoUpdate = false;
   },
 
   updateVisibility(visible) {
     this.el.object3D.visible = visible;
   },
 
-  updatePosition({position, rotation, scale}) {
+  updatePosition({position, rotation, scale, faceMatrix}) {
     const root = this.el.object3D;
-    root.position.copy(position);
-    root.scale.copy(scale);
-    root.rotation.x = rotation.x;
-    root.rotation.y = rotation.y;
-    root.rotation.z = rotation.z;
+
+    const m = new THREE.Matrix4();
+    const _position = new AFRAME.THREE.Vector3(position.x, position.y, position.z);
+    const _quaternion = new AFRAME.THREE.Quaternion();
+    const _scale = new AFRAME.THREE.Vector3(scale, scale, scale);
+    m.compose(_position, _quaternion, _scale);
+
+    const finalMatrix = faceMatrix.clone();
+    finalMatrix.multiply(m);
+    root.matrix = finalMatrix;
   },
 });
 
@@ -294,15 +312,22 @@ AFRAME.registerComponent('mindar-face-default-face-occluder', {
   init: function() {
     const arSystem = this.el.sceneEl.systems['mindar-face-system'];
     arSystem.registerFaceMesh(this);
+
+    const root = this.el.object3D;
+    root.matrixAutoUpdate = false;
   },
 
   updateVisibility(visible) {
     this.el.object3D.visible = visible;
   },
 
+  updatePosition({faceMatrix}) {
+    const root = this.el.object3D;
+    root.matrix = faceMatrix;
+  },
+
   addFaceMesh(faceGeometry) {
-    const material = new THREE.MeshPhongMaterial({colorWrite: false});
-    //const material = new THREE.MeshPhongMaterial({color: 0xffffff});
+    const material = new THREE.MeshBasicMaterial({colorWrite: false});
     const mesh = new THREE.Mesh(faceGeometry, material);
     this.el.setObject3D('mesh', mesh);
   },

@@ -11,23 +11,29 @@ class MindARThree {
     this.container = container;
     this.ui = new UI({uiLoading, uiScanning, uiError});
 
-    this.controller = new Controller();
+    this.controller = new Controller({});
     this.scene = new THREE.Scene();
     this.cssScene = new THREE.Scene();
     this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
     this.cssRenderer = new CSS3DRenderer({antialias: true });
     this.renderer.outputEncoding = THREE.sRGBEncoding;
     this.renderer.setPixelRatio(window.devicePixelRatio);
-    this.camera = new THREE.OrthographicCamera(1, 1, 1, 1, -1000, 1000);
+    this.camera = new THREE.PerspectiveCamera();
+
     this.anchors = [];
     this.faceMeshes = [];
+    this.faceGroup = new THREE.Group();
+    this.faceGroup.matrixAutoUpdate = false;
+    this.cssFaceGroup = new THREE.Group();
+    this.cssFaceGroup.matrixAutoUpdate = false;
+
+    this.scene.add(this.faceGroup);
+    this.cssScene.add(this.cssFaceGroup);
 
     this.container.appendChild(this.renderer.domElement);
     this.container.appendChild(this.cssRenderer.domElement);
 
     this.shouldFaceUser = true;
-    this.faceVisible = false;
-    this.processingVideo = false;
 
     window.addEventListener('resize', this._resize.bind(this));
   }
@@ -45,7 +51,7 @@ class MindARThree {
       track.stop();
     });
     this.video.remove();
-    this.processingVideo = false;
+    this.controller.stopProcessVideo();
   }
 
   switchCamera() {
@@ -64,21 +70,17 @@ class MindARThree {
 
   addAnchor(landmarkIndex) {
     const group = new THREE.Group();
-    group.visible = false;
-    //group.matrixAutoUpdate = false;
     const anchor = {group, landmarkIndex, css: false};
     this.anchors.push(anchor);
-    this.scene.add(group);
+    this.faceGroup.add(group);
     return anchor;
   }
 
   addCSSAnchor(landmarkIndex) {
     const group = new THREE.Group();
-    group.visible = false;
-    //group.matrixAutoUpdate = false;
     const anchor = {group, landmarkIndex, css: true};
     this.anchors.push(anchor);
-    this.cssScene.add(group);
+    this.cssFaceGroup.add(group);
     return anchor;
   }
 
@@ -122,58 +124,64 @@ class MindARThree {
       const video = this.video;
       const container = this.container;
 
-      this.controller.setInputSize(this.video.videoWidth, this.video.videoHeight);
+      //this.controller.setInputSize(this.video.videoWidth, this.video.videoHeight);
+      this.controller.onUpdate = ({hasFace, estimateResult}) => {
+	this.faceGroup.visible = hasFace;
+	this.cssFaceGroup.visible = hasFace;
+
+	if (hasFace) {
+	  const {metricLandmarks, faceMatrix, faceScale} = estimateResult;
+	  const m = new THREE.Matrix4();
+	  m.set(
+	    faceMatrix[0],faceMatrix[1],faceMatrix[2],faceMatrix[3],
+	    faceMatrix[4],faceMatrix[5],faceMatrix[6],faceMatrix[7],
+	    faceMatrix[8],faceMatrix[9],faceMatrix[10],faceMatrix[11],
+	    faceMatrix[12],faceMatrix[13],faceMatrix[14],faceMatrix[15],
+	  )
+	  this.faceGroup.matrix = m;
+	  this.cssFaceGroup.matrix = m;
+
+	  for (let i = 0; i < this.anchors.length; i++) {
+	    const landmarkIndex = this.anchors[i].landmarkIndex;
+	    if (this.anchors[i].css) {
+	      //this.anchors[i].group.scale.set(faceScale/100, faceScale/100, faceScale/100);
+	      this.anchors[i].group.scale.set(faceScale/100, faceScale/100, faceScale/100);
+	      /*
+	      this.anchors[i].group.position.set(
+		metricLandmarks[landmarkIndex][0],
+		metricLandmarks[landmarkIndex][1],
+		metricLandmarks[landmarkIndex][2]);
+		*/
+
+	    } else {
+	      this.anchors[i].group.scale.set(faceScale, faceScale, faceScale);
+	      this.anchors[i].group.position.set(
+		metricLandmarks[landmarkIndex][0],
+		metricLandmarks[landmarkIndex][1],
+		metricLandmarks[landmarkIndex][2]);
+	    }
+	  }
+	}
+      }
       this._resize();
-      await this.controller.setup();
-      await this.controller.detect(this.video); // warm up the model
+      await this.controller.setup(video);
+
+      const {fov, aspect, near, far} = this.controller.getCameraParams();
+      this.camera.fov = fov;
+      this.camera.aspect = aspect;
+      this.camera.near = near;
+      this.camera.far = far;
+      this.camera.updateProjectionMatrix();
+
+      this.renderer.setSize(this.video.videoWidth, this.video.videoHeight);
+      this.cssRenderer.setSize(this.video.videoWidth, this.video.videoHeight);
+
+      await this.controller.dummyRun(video);
 
       this._resize();
-      this._startProcessing();
+      this.controller.processVideo(video);
       resolve();
     });
-  }
-
-  async _startProcessing() {
-    const sleep = () => { 
-      return new Promise(window.requestAnimationFrame); 
-    }
-
-    this.processingVideo = true;
-    while (true) {
-      if (!this.processingVideo) break;
-
-      const hasFace = await this.controller.detect(this.video);
-
-      if (this.onTargetFound && hasFace && !this.faceVisible) {
-	this.onTargetFound();
-      }
-      if (this.onTargetLost && !hasFace && this.faceVisible) {
-	this.onTargetLost();
-      }
-      this.faceVisible = hasFace;
-
-      for (let i = 0; i < this.anchors.length; i++) {
-	if (hasFace) {
-	  const {position, rotation, scale} = this.controller.getLandmarkProperties(this.anchors[i].landmarkIndex);
-	  this.anchors[i].group.visible = true;
-	  this.anchors[i].group.position.copy(position);
-	  this.anchors[i].group.scale.copy(scale);
-	  this.anchors[i].group.rotation.x = rotation.x;
-	  this.anchors[i].group.rotation.y = rotation.y;
-	  this.anchors[i].group.rotation.z = rotation.z;
-	} else {
-	  this.anchors[i].group.visible = false;
-	}
-      }
-      for (let i = 0; i < this.faceMeshes.length; i++) {
-	if (hasFace) {
-	  this.faceMeshes[i].visible = true;
-	} else {
-	  this.faceMeshes[i].visible = false;
-	}
-      }
-      await sleep();
-    }
   }
 
   _resize() {
@@ -191,16 +199,6 @@ class MindARThree {
       vh = vw / videoRatio;
     }
 
-    //camera.left = -0.5 * vw;
-    //camera.right = 0.5 * vw;
-    //camera.top = 0.5 * vh;
-    //camera.bottom = -0.5 * vh;
-    camera.left = -0.5 * container.clientWidth;
-    camera.right = 0.5 * container.clientWidth;
-    camera.top = 0.5 * container.clientHeight;
-    camera.bottom = -0.5 * container.clientHeight;
-    camera.updateProjectionMatrix();
-    
     video.style.top = (-(vh - container.clientHeight) / 2) + "px";
     video.style.left = (-(vw - container.clientWidth) / 2) + "px";
     video.style.width = vw + "px";
@@ -210,22 +208,23 @@ class MindARThree {
     const cssCanvas = cssRenderer.domElement;
 
     canvas.style.position = 'absolute';
-    canvas.style.left = 0;
-    canvas.style.top = 0;
-    canvas.style.width = container.clientWidth + 'px';
-    canvas.style.height = container.clientHeight + 'px';
+    canvas.style.left = video.style.left;
+    canvas.style.right = video.style.right;
+    canvas.style.width = video.style.width;
+    canvas.style.height = video.style.height;
 
     cssCanvas.style.position = 'absolute';
-    cssCanvas.style.left = 0;
-    cssCanvas.style.top = 0;
-    cssCanvas.style.width = container.clientWidth + 'px';
-    cssCanvas.style.height = container.clientHeight + 'px';
+    cssCanvas.style.left = video.style.left;
+    cssCanvas.style.right = video.style.right;
+    cssCanvas.style.width = video.style.width;
+    cssCanvas.style.height = video.style.height;
+    //cssCanvas.style.left = 0;
+    //cssCanvas.style.top = 0;
+    //cssCanvas.style.width = container.clientWidth + 'px';
+    //cssCanvas.style.height = container.clientHeight + 'px';
 
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    cssRenderer.setSize(container.clientWidth, container.clientHeight);
-
-    this.controller.setDisplaySize(vw, vh);
-    //this.controller.setDisplaySize(container.clientWidth, container.clientHeight);
+    //renderer.setSize(container.clientWidth, container.clientHeight);
+    //cssRenderer.setSize(container.clientWidth, container.clientHeight);
   }
 }
 

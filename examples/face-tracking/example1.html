@@ -24,10 +24,14 @@
   <body>
     <div class="example-container">
       <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        <a-assets>
+          <a-asset-item id="glassesModel" src="./assets/glasses/scene.gltf"></a-asset-item>
+        </a-assets>
+
         <a-camera active="false" position="0 0 0"></a-camera>
 
         <a-entity mindar-face-target="anchorIndex: 1">
-	  <a-sphere color="green" radius="0.1"></a-sphere>
+	  <a-sphere color="green" radius="0.5"></a-sphere>
         </a-entity>
       </a-scene>
     </div>

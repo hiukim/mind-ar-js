@@ -2,26 +2,92 @@ const THREE = require("three");
 const {FaceMeshFaceGeometry} = require('./face-mesh-face-geometry/face');
 const faceLandmarksDetection = require('@tensorflow-models/face-landmarks-detection');
 require('@tensorflow/tfjs-backend-webgl');
+const {Estimator} = require("./face-geometry/estimator.js");
+const {FaceMeshHelper} = require("./face-mesh-helper");
+const {cv, waitCV} = require("../libs/opencv-helper.js");
+const {FaceGeometry} = require("./face-geometry/face-geometry.js");
 
 class Controller {
-  constructor() {
+  constructor({onUpdate=null}) {
     this.inputSize = null;
     this.displaySize = null;
     this.rotation = null; // face rotation of last detection
     this.scale = null; // face scale of last detection
     this.faceGeometry = null; // for anchor positions
     this.customFaceGeometries = [];
+
+    this.estimator = null;
+    this.onUpdate = onUpdate;
   }
 
-  async setup() {
+  async setup(input) {
+    await waitCV();
     this.model = await faceLandmarksDetection.load(faceLandmarksDetection.SupportedPackages.mediapipeFacemesh);
-    this.faceGeometry = new FaceMeshFaceGeometry({ useVideoTexture: true });
+    //this.faceGeometry = new FaceMeshFaceGeometry({ useVideoTexture: true });
+    this.faceGeometry = new FaceGeometry();
+
+    this.faceMeshHelper = new FaceMeshHelper();
+
+    this.estimator = new Estimator(input);
+  }
+
+  getCameraParams() {
+    return {
+      fov: this.estimator.fov * 180 / Math.PI,
+      aspect: this.estimator.frameWidth / this.estimator.frameHeight,
+      near: this.estimator.near,
+      far: this.estimator.far
+    }
+  }
+  
+  async dummyRun(input) {
+    await this.faceMeshHelper.detect(input);
+  }
+
+  processVideo(input) {
+    if (this.processingVideo) return;
+
+    this.processingVideo = true;
+
+    const doProcess = async () => {
+      const results = await this.faceMeshHelper.detect(input);
+      if (results.multiFaceLandmarks.length === 0) {
+	this.onUpdate({hasFace: false});
+      } else {
+	const landmarks = results.multiFaceLandmarks[0].map((l) => {
+	  return [l.x, l.y, l.z];
+	});
+	const estimateResult = this.estimator.estimate(landmarks);
+	//console.log("resuts", results);
+	//console.log("estimateResult", estimateResult);
+	if (this.onUpdate) {
+	  this.onUpdate({hasFace: true, estimateResult});
+	}
+
+	for (let i = 0; i < this.customFaceGeometries.length; i++) {
+	  this.customFaceGeometries[i].updatePositions(estimateResult.metricLandmarks);
+	}
+      }
+      if (this.processingVideo) {
+	window.requestAnimationFrame(doProcess);
+      }
+    }
+    window.requestAnimationFrame(doProcess);
+  }
+
+  stopProcessVideo() {
+    this.processingVideo = false;
   }
 
   createFaceGeoemtry() {
-    const faceGeometry = new FaceMeshFaceGeometry({ useVideoTexture: false });
+    //const faceGeometry = new FaceMeshFaceGeometry({ useVideoTexture: false });
+    const faceGeometry = new FaceGeometry();
     this.customFaceGeometries.push(faceGeometry);
     return faceGeometry;
+  }
+
+  setInput(input) {
+    this.estimator = new Estimator(input);
   }
 
   setInputSize(w, h) {
@@ -32,15 +98,18 @@ class Controller {
     this.displaySize = {w, h};
 
     if (this.faceGeometry) {
-      this.faceGeometry.setSize(w, h);
+      //this.faceGeometry.setSize(w, h);
     }
     for (let i = 0; i < this.customFaceGeometries.length; i++) {
-      this.customFaceGeometries[i].setSize(w, h);
+      //this.customFaceGeometries[i].setSize(w, h);
     }
   }
 
   async detect(input) {
     const faces = await this.model.estimateFaces({input});
+
+    await this.faceMesh.send({image: input});
+    //console.log("faces", faces);
 
     if (faces.length > 0) {
       if (this.inputSize && this.displaySize) { // for video input, input dimension sent to model.estimate is different from the css style dimension
@@ -90,9 +159,9 @@ class Controller {
 
   getLandmarkProperties(landmarkIndex) {
     const position = {
-      x: this.faceGeometry.positions[landmarkIndex * 3], 
-      y: this.faceGeometry.positions[landmarkIndex * 3 + 1], 
-      z: this.faceGeometry.positions[landmarkIndex * 3 + 2], 
+      x: this.faceGeometry.positions[landmarkIndex * 3],
+      y: this.faceGeometry.positions[landmarkIndex * 3 + 1],
+      z: this.faceGeometry.positions[landmarkIndex * 3 + 2],
     }
     return {
       position,

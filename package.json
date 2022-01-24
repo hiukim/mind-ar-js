@@ -26,6 +26,7 @@
   "author": "hiukim",
   "license": "MIT",
   "dependencies": {
+    "@mediapipe/face_mesh": "^0.4.1633559619",
     "@msgpack/msgpack": "^1.12.2",
     "@tensorflow-models/face-landmarks-detection": "0.0.3",
     "@tensorflow/tfjs": "^3.9.0",
