@@ -127,33 +127,16 @@ AFRAME.registerSystem('mindar-face-system', {
       this.lastHasFace = hasFace;
 
       if (hasFace) {
-	const {metricLandmarks, faceMatrix, faceScale} = estimateResult;
-	const m = new THREE.Matrix4();
-	m.set(
-	  faceMatrix[0],faceMatrix[1],faceMatrix[2],faceMatrix[3],
-	  faceMatrix[4],faceMatrix[5],faceMatrix[6],faceMatrix[7],
-	  faceMatrix[8],faceMatrix[9],faceMatrix[10],faceMatrix[11],
-	  faceMatrix[12],faceMatrix[13],faceMatrix[14],faceMatrix[15],
-	)
-
+	const {faceMatrix} = estimateResult;
 	for (let i = 0; i < this.anchorEntities.length; i++) {
-	  const landmarkIndex = this.anchorEntities[i].anchorIndex;
+	  const landmarkMatrix = this.controller.getLandmarkMatrix(this.anchorEntities[i].anchorIndex);
 	  this.anchorEntities[i].el.updateVisibility(true);
-	  this.anchorEntities[i].el.updatePosition({
-	    position: {
-	      x: metricLandmarks[landmarkIndex][0],
-	      y: metricLandmarks[landmarkIndex][1],
-	      z: metricLandmarks[landmarkIndex][2]
-	    },
-	    rotation: {x: 0, y: 0, z: 0},
-	    scale: faceScale,
-	    faceMatrix: m,
-	  });
+	  this.anchorEntities[i].el.updateMatrix(landmarkMatrix);
 	}
 
 	for (let i = 0; i < this.faceMeshEntities.length; i++) {
 	  this.faceMeshEntities[i].el.updateVisibility(true);
-	  this.faceMeshEntities[i].el.updatePosition({faceMatrix: m});
+	  this.faceMeshEntities[i].el.updateMatrix(faceMatrix);
 	}
       } else {
 	for (let i = 0; i < this.anchorEntities.length; i++) {
@@ -218,8 +201,6 @@ AFRAME.registerSystem('mindar-face-system', {
     sceneEl.style.left = this.video.style.left;
     sceneEl.style.width = this.video.style.width;
     sceneEl.style.height = this.video.style.height;
-
-    this.controller.setDisplaySize(vw, vh);
   }
 });
 
@@ -277,19 +258,10 @@ AFRAME.registerComponent('mindar-face-target', {
     this.el.object3D.visible = visible;
   },
 
-  updatePosition({position, rotation, scale, faceMatrix}) {
+  updateMatrix(matrix) {
     const root = this.el.object3D;
-
-    const m = new THREE.Matrix4();
-    const _position = new AFRAME.THREE.Vector3(position.x, position.y, position.z);
-    const _quaternion = new AFRAME.THREE.Quaternion();
-    const _scale = new AFRAME.THREE.Vector3(scale, scale, scale);
-    m.compose(_position, _quaternion, _scale);
-
-    const finalMatrix = faceMatrix.clone();
-    finalMatrix.multiply(m);
-    root.matrix = finalMatrix;
-  },
+    root.matrix.set(...matrix);
+  }
 });
 
 AFRAME.registerComponent('mindar-face-occluder', {
@@ -298,7 +270,7 @@ AFRAME.registerComponent('mindar-face-occluder', {
     this.el.addEventListener('model-loaded', () => {
       this.el.getObject3D('mesh').traverse((o) => {
 	if (o.isMesh) {
-	  const material = new THREE.MeshPhongMaterial({
+	  const material = new THREE.MeshStandardMaterial({
 	    colorWrite: false,
 	  });
 	  o.material = material;
@@ -321,13 +293,14 @@ AFRAME.registerComponent('mindar-face-default-face-occluder', {
     this.el.object3D.visible = visible;
   },
 
-  updatePosition({faceMatrix}) {
+  updateMatrix(matrix) {
     const root = this.el.object3D;
-    root.matrix = faceMatrix;
+    root.matrix.set(...matrix);
   },
 
   addFaceMesh(faceGeometry) {
     const material = new THREE.MeshBasicMaterial({colorWrite: false});
+    //const material = new THREE.MeshBasicMaterial({colorWrite: '#CCCCCC'});
     const mesh = new THREE.Mesh(faceGeometry, material);
     this.el.setObject3D('mesh', mesh);
   },

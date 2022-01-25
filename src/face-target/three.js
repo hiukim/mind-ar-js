@@ -22,13 +22,6 @@ class MindARThree {
 
     this.anchors = [];
     this.faceMeshes = [];
-    this.faceGroup = new THREE.Group();
-    this.faceGroup.matrixAutoUpdate = false;
-    this.cssFaceGroup = new THREE.Group();
-    this.cssFaceGroup.matrixAutoUpdate = false;
-
-    this.scene.add(this.faceGroup);
-    this.cssScene.add(this.cssFaceGroup);
 
     this.container.appendChild(this.renderer.domElement);
     this.container.appendChild(this.cssRenderer.domElement);
@@ -62,25 +55,28 @@ class MindARThree {
 
   addFaceMesh() {
     const faceGeometry = this.controller.createFaceGeoemtry();
-    const faceMesh = new THREE.Mesh(faceGeometry, new THREE.MeshPhongMaterial({color: 0xffffff}));
+    const faceMesh = new THREE.Mesh(faceGeometry, new THREE.MeshStandardMaterial({color: 0xffffff}));
     faceMesh.visible = false;
+    faceMesh.matrixAutoUpdate = false;
     this.faceMeshes.push(faceMesh);
     return faceMesh;
   }
 
   addAnchor(landmarkIndex) {
     const group = new THREE.Group();
+    group.matrixAutoUpdate = false;
     const anchor = {group, landmarkIndex, css: false};
     this.anchors.push(anchor);
-    this.faceGroup.add(group);
+    this.scene.add(group);
     return anchor;
   }
 
   addCSSAnchor(landmarkIndex) {
     const group = new THREE.Group();
+    group.matrixAutoUpdate = false;
     const anchor = {group, landmarkIndex, css: true};
     this.anchors.push(anchor);
-    this.cssFaceGroup.add(group);
+    this.cssScene.add(group);
     return anchor;
   }
 
@@ -124,42 +120,41 @@ class MindARThree {
       const video = this.video;
       const container = this.container;
 
-      //this.controller.setInputSize(this.video.videoWidth, this.video.videoHeight);
       this.controller.onUpdate = ({hasFace, estimateResult}) => {
-	this.faceGroup.visible = hasFace;
-	this.cssFaceGroup.visible = hasFace;
+	for (let i = 0; i < this.anchors.length; i++) {
+	  if (this.anchors[i].css) {
+	    this.anchors[i].group.children.forEach((obj) => {
+	      obj.element.style.visibility = hasFace? "visible": "hidden";
+	    });
+	  } else {
+	    this.anchors[i].group.visible = hasFace;
+	  }
+	}
+	for (let i = 0; i < this.faceMeshes.length; i++) {
+	  this.faceMeshes[i].visible = hasFace;
+	}
 
 	if (hasFace) {
 	  const {metricLandmarks, faceMatrix, faceScale} = estimateResult;
-	  const m = new THREE.Matrix4();
-	  m.set(
-	    faceMatrix[0],faceMatrix[1],faceMatrix[2],faceMatrix[3],
-	    faceMatrix[4],faceMatrix[5],faceMatrix[6],faceMatrix[7],
-	    faceMatrix[8],faceMatrix[9],faceMatrix[10],faceMatrix[11],
-	    faceMatrix[12],faceMatrix[13],faceMatrix[14],faceMatrix[15],
-	  )
-	  this.faceGroup.matrix = m;
-	  this.cssFaceGroup.matrix = m;
-
 	  for (let i = 0; i < this.anchors.length; i++) {
 	    const landmarkIndex = this.anchors[i].landmarkIndex;
-	    if (this.anchors[i].css) {
-	      //this.anchors[i].group.scale.set(faceScale/100, faceScale/100, faceScale/100);
-	      this.anchors[i].group.scale.set(faceScale/100, faceScale/100, faceScale/100);
-	      /*
-	      this.anchors[i].group.position.set(
-		metricLandmarks[landmarkIndex][0],
-		metricLandmarks[landmarkIndex][1],
-		metricLandmarks[landmarkIndex][2]);
-		*/
+	    const landmarkMatrix = this.controller.getLandmarkMatrix(landmarkIndex);
 
+	    if (this.anchors[i].css) {
+	      const cssScale = 0.001;
+	      const scaledElements = [
+		cssScale * landmarkMatrix[0], cssScale * landmarkMatrix[1], landmarkMatrix[2], landmarkMatrix[3], 
+		cssScale * landmarkMatrix[4], cssScale * landmarkMatrix[5], landmarkMatrix[6], landmarkMatrix[7], 
+		cssScale * landmarkMatrix[8], cssScale * landmarkMatrix[9], landmarkMatrix[10], landmarkMatrix[11], 
+		cssScale * landmarkMatrix[12], cssScale * landmarkMatrix[13], landmarkMatrix[14], landmarkMatrix[15] 
+	      ]
+	      this.anchors[i].group.matrix.set(...scaledElements);
 	    } else {
-	      this.anchors[i].group.scale.set(faceScale, faceScale, faceScale);
-	      this.anchors[i].group.position.set(
-		metricLandmarks[landmarkIndex][0],
-		metricLandmarks[landmarkIndex][1],
-		metricLandmarks[landmarkIndex][2]);
+	      this.anchors[i].group.matrix.set(...landmarkMatrix);
 	    }
+	  }
+	  for (let i = 0; i < this.faceMeshes.length; i++) {
+	    this.faceMeshes[i].matrix.set(...faceMatrix);
 	  }
 	}
       }
@@ -216,15 +211,11 @@ class MindARThree {
     cssCanvas.style.position = 'absolute';
     cssCanvas.style.left = video.style.left;
     cssCanvas.style.right = video.style.right;
-    cssCanvas.style.width = video.style.width;
-    cssCanvas.style.height = video.style.height;
-    //cssCanvas.style.left = 0;
-    //cssCanvas.style.top = 0;
-    //cssCanvas.style.width = container.clientWidth + 'px';
-    //cssCanvas.style.height = container.clientHeight + 'px';
-
-    //renderer.setSize(container.clientWidth, container.clientHeight);
-    //cssRenderer.setSize(container.clientWidth, container.clientHeight);
+    // cannot set style width for cssCanvas, because that is also used as renderer size
+    //cssCanvas.style.width = video.style.width;
+    //cssCanvas.style.height = video.style.height;
+    cssCanvas.style.transformOrigin = "top left";
+    cssCanvas.style.transform = 'scale(' + (vw / parseFloat(cssCanvas.style.width)) + ',' + (vh / parseFloat(cssCanvas.style.height)) + ')';
   }
 }
 
