@@ -1,0 +1,60 @@
+<html>
+  <head>
+    <script src="../../dist-dev/mindar-face-three.js"></script>
+
+    <script type="module">
+      import { CSS3DObject } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/renderers/CSS3DRenderer.js';
+
+      const THREE = window.MINDAR.FACE.THREE;
+      const mindarThree = new window.MINDAR.FACE.MindARThree({
+	container: document.querySelector("#container"),
+      });
+      const {renderer, cssRenderer, cssScene, camera} = mindarThree;
+
+      const obj = new CSS3DObject(document.querySelector("#ar-div"));
+      const cssAnchor = mindarThree.addCSSAnchor(1);
+      cssAnchor.group.add(obj);
+
+      const start = async() => {
+	await mindarThree.start();
+	renderer.setAnimationLoop(() => {
+	  cssRenderer.render(cssScene, camera);
+	});
+      }
+      start();
+    </script>
+
+    <style>
+      body {
+	margin: 0;
+      }
+      #container {
+	width: 100vw;
+	height: 100vh;
+	position: relative;
+	overflow: hidden;
+      }
+      #ar-div {
+	width: 1000px;
+	height: 1000px;
+	visibility: hidden;
+	background: #0000ff;
+	opacity: 0.6;
+	font-size: 100px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+    </div>
+
+    <div id="ar-div">
+      This is a CSS div
+    </div>
+  </body>
+</html>
+
