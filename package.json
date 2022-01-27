@@ -33,7 +33,7 @@
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
     "terser-webpack-plugin": "^4.2.3",
-    "three": "^0.132.2",
+    "three": "^0.137.0",
     "tinyqueue": "^2.0.3"
   },
   "devDependencies": {
