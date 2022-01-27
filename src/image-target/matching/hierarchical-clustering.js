@@ -74,7 +74,7 @@ const _build = (options) => {
   return node;
 }
 
-_computeKMedoids = (options) => {
+const _computeKMedoids = (options) => {
   const {points, pointIndexes, randomizer} = options;
 
   const randomPointIndexes = [];
