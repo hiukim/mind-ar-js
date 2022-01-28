@@ -29,11 +29,11 @@
   "dependencies": {
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "@msgpack/msgpack": "^1.12.2",
-    "@tensorflow/tfjs": "^3.9.0",
+    "@tensorflow/tfjs": "^3.13.0",
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
     "terser-webpack-plugin": "^4.2.3",
-    "three": "^0.132.2",
+    "three": "^0.137.4",
     "tinyqueue": "^2.0.3"
   },
   "devDependencies": {
