@@ -170,7 +170,7 @@ AFRAME.registerSystem('mindar-face-system', {
     cameraEle.setAttribute('camera', 'active', true);
 
     for (let i = 0; i < this.faceMeshEntities.length; i++) {
-      this.faceMeshEntities[i].el.addFaceMesh(this.controller.createFaceGeoemtry());
+      this.faceMeshEntities[i].el.addFaceMesh(this.controller.createThreeFaceGeometry(THREE));
     }
 
     this._resize();

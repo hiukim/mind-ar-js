@@ -1,7 +1,7 @@
 const {FaceMeshHelper} = require("./face-mesh-helper");
 const {cv, waitCV} = require("../libs/opencv-helper.js");
 const {Estimator} = require("./face-geometry/estimator.js");
-const {FaceGeometry} = require("./face-geometry/face-geometry.js");
+const {createThreeFaceGeometry: _createThreeFaceGeometry} = require("./face-geometry/face-geometry");
 
 const INTERPOLATION_FACTOR = 5;
 
@@ -98,8 +98,8 @@ class Controller {
     this.processingVideo = false;
   }
 
-  createFaceGeoemtry() {
-    const faceGeometry = new FaceGeometry();
+  createThreeFaceGeometry(THREE) {
+    const faceGeometry = _createThreeFaceGeometry(THREE);
     this.customFaceGeometries.push(faceGeometry);
     return faceGeometry;
   }

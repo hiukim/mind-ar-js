@@ -3,9 +3,6 @@ const {CSS3DRenderer} = require('three/examples/jsm/renderers/CSS3DRenderer.js')
 const {Controller} = require("./controller");
 const {UI} = require("../ui/ui");
 
-const cssScaleDownMatrix = new THREE.Matrix4();
-cssScaleDownMatrix.compose(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(0.001, 0.001, 0.001));
-
 class MindARThree {
   constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes"}) {
     this.container = container;
@@ -54,7 +51,7 @@ class MindARThree {
   }
 
   addFaceMesh() {
-    const faceGeometry = this.controller.createFaceGeoemtry();
+    const faceGeometry = this.controller.createThreeFaceGeometry(THREE);
     const faceMesh = new THREE.Mesh(faceGeometry, new THREE.MeshStandardMaterial({color: 0xffffff}));
     faceMesh.visible = false;
     faceMesh.matrixAutoUpdate = false;
