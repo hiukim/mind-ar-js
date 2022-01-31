@@ -20,8 +20,6 @@ class Controller {
     this.onUpdate = onUpdate;
     this.debugMode = debugMode;
     this.processingVideo = false;
-    this.shouldCaptureRegion = false;
-    this.capturedRegion = null;
     this.interestedTargetIndex = -1;
     this.trackingStates = [];
 
@@ -153,8 +151,6 @@ class Controller {
 
 	const inputT = this.inputLoader.loadInput(input);
 
-	let shouldCapture = false;
-
 	const nTracking = this.trackingStates.reduce((acc, s) => {
 	  return acc + (!!s.isTracking? 1: 0);
 	}, 0);
@@ -176,10 +172,6 @@ class Controller {
 	  if (matchedTargetIndex !== -1) {
 	    this.trackingStates[matchedTargetIndex].isTracking = true;
 	    this.trackingStates[matchedTargetIndex].currentModelViewTransform = modelViewTransform;
-
-	    if (this.shouldCaptureRegion) {
-	      shouldCapture = true;
-	    }
 	  }
 	}
 
@@ -193,10 +185,6 @@ class Controller {
 	      trackingState.isTracking = false;
 	    } else {
 	      trackingState.currentModelViewTransform = modelViewTransform;
-
-	      if (shouldCapture) {
-		this.capturedRegion = this.captureRegion(input, modelViewTransform, i);
-	      }
 	    }
 	  }
 
@@ -276,16 +264,6 @@ class Controller {
     const result = this.tracker.track(inputT, modelViewTransform, targetIndex);
     inputT.dispose();
     return result;
-  }
-
-  captureRegion(input, modelViewTransform, targetIndex) {
-    const inputT = tf.browser.fromPixels(input);
-    const dimension = this.markerDimensions[targetIndex];
-    const captureWidth = 800;
-    const captureHeight = Math.floor(captureWidth * dimension[1] / dimension[0]);
-    const image = this.tracker.captureRegion(inputT, modelViewTransform, targetIndex, captureWidth, captureHeight);
-    inputT.dispose();
-    return image;
   }
 
   async trackUpdate(modelViewTransform, trackFeatures) {

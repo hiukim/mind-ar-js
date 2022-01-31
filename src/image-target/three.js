@@ -8,11 +8,10 @@ const cssScaleDownMatrix = new THREE.Matrix4();
 cssScaleDownMatrix.compose(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(0.001, 0.001, 0.001));
 
 class MindARThree {
-  constructor({container, imageTargetSrc, maxTrack, captureRegion=false, uiLoading="yes", uiScanning="yes", uiError="yes"}) {
+  constructor({container, imageTargetSrc, maxTrack, uiLoading="yes", uiScanning="yes", uiError="yes"}) {
     this.container = container;
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
-    this.captureRegion = captureRegion;
     this.ui = new UI({uiLoading, uiScanning, uiError});
 
     this.scene = new THREE.Scene();
@@ -117,19 +116,6 @@ class MindARThree {
 
 	    for (let i = 0; i < this.anchors.length; i++) {
 	      if (this.anchors[i].targetIndex === targetIndex) {
-		if (this.anchors[i].onTargetLost && this.anchors[i].visible && worldMatrix === null) {
-		  this.anchors[i].onTargetLost();
-		  this.anchors[i].visible = false;
-		}
-		if (this.anchors[i].onTargetFound && !this.anchors[i].visible && worldMatrix !== null) {
-		  let capturedImage = null; 
-		  if (this.captureRegion) {
-		    capturedImage = this._pixels3DToImage(this.controller.capturedRegion);
-		  }
-		  this.anchors[i].onTargetFound({capturedImage});
-		  this.anchors[i].visible = true;
-		}
-
 		if (this.anchors[i].css) {
 		  this.anchors[i].group.children.forEach((obj) => {
 		    obj.element.style.visibility = worldMatrix === null? "hidden": "visible";
@@ -148,6 +134,15 @@ class MindARThree {
 		  this.anchors[i].group.matrix = m;
 		}
 
+		if (this.anchors[i].onTargetLost && this.anchors[i].visible && worldMatrix === null) {
+		  this.anchors[i].onTargetLost();
+		  this.anchors[i].visible = false;
+		}
+		if (this.anchors[i].onTargetFound && !this.anchors[i].visible && worldMatrix !== null) {
+		  this.anchors[i].onTargetFound();
+		  this.anchors[i].visible = true;
+		}
+
 		if (worldMatrix !== null) {
 		  this.ui.hideScanning();
 		}
@@ -156,9 +151,6 @@ class MindARThree {
 	  }
 	}
       });
-      if (this.captureRegion) {
-	this.controller.shouldCaptureRegion = true;
-      }
 
       this.resize();
 
@@ -237,30 +229,6 @@ class MindARThree {
 
     renderer.setSize(container.clientWidth, container.clientHeight);
     cssRenderer.setSize(container.clientWidth, container.clientHeight);
-  }
-
-  _pixels3DToImage(pixels) {
-    const height = pixels.length;
-    const width = pixels[0].length;
-    const data = new Uint8ClampedArray(height * width * 4);
-    for (let j = 0; j < height; j++) {
-      for (let i = 0; i < width; i++) {
-	const pos = j * width + i;
-	data[pos*4 + 0] = pixels[j][i][0];
-	data[pos*4 + 1] = pixels[j][i][1];
-	data[pos*4 + 2] = pixels[j][i][2];
-	data[pos*4 + 3] = 255; 
-      }
-    }
-    const imageData = new ImageData(data, width, height);
-    const canvas = document.createElement("canvas");
-    canvas.height = height;
-    canvas.width = width;
-
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.putImageData(imageData, 0, 0);
-    return canvas.toDataURL("image/png");
   }
 }
 
