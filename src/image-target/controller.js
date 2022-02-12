@@ -5,15 +5,20 @@ const {CropDetector} = require('./detector/crop-detector.js');
 const {Compiler} = require('./compiler.js');
 const {InputLoader} = require('./input-loader.js');
 
-const INTERPOLATION_FACTOR = 5;
-const WARMUP_COUNT_TOLERANCE = 10;
-const MISS_COUNT_TOLERANCE = 15;
+const DEFAULT_INTERPOLATION_FACTOR = 5;
+const DEFAULT_WARMUP_TOLERANCE = 5;
+const DEFAULT_MISS_TOLERANCE = 5;
 
 class Controller {
-  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1}) {
+  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1, 
+    interpolationFactor=null, warmupTolerance=null, missTolerance=null}) {
+
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.maxTrack = maxTrack;
+    this.interpolationFactor = interpolationFactor === null? DEFAULT_INTERPOLATION_FACTOR: interpolationFactor;
+    this.warmupTolerance = warmupTolerance === null? DEFAULT_WARMUP_TOLERANCE: warmupTolerance;
+    this.missTolerance = missTolerance === null? DEFAULT_MISS_TOLERANCE: missTolerance;
     this.cropDetector = new CropDetector(this.inputWidth, this.inputHeight, debugMode);
     this.inputLoader = new InputLoader(this.inputWidth, this.inputHeight);
     this.markerDimensions = null;
@@ -193,7 +198,7 @@ class Controller {
 	    if (trackingState.isTracking) {
 	      trackingState.trackMiss = 0;
 	      trackingState.trackCount += 1;
-	      if (trackingState.trackCount > WARMUP_COUNT_TOLERANCE) {
+	      if (trackingState.trackCount > this.warmupTolerance) {
 		trackingState.showing = true;
 		trackingState.trackingMatrix = null;
 	      }
@@ -206,7 +211,7 @@ class Controller {
 	      trackingState.trackCount = 0;
 	      trackingState.trackMiss += 1;
 
-	      if (trackingState.trackMiss > MISS_COUNT_TOLERANCE) {
+	      if (trackingState.trackMiss > this.missTolerance) {
 		trackingState.showing = false;
 		trackingState.trackingMatrix = null;
 		this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
@@ -223,8 +228,12 @@ class Controller {
 	    if (trackingState.trackingMatrix === null) {
 	      trackingState.trackingMatrix = worldMatrix;
 	    } else {
-	      for (let j = 0; j < worldMatrix.length; j++) {
-		trackingState.trackingMatrix[j] = trackingState.trackingMatrix[j] + (worldMatrix[j] - trackingState.trackingMatrix[j]) / INTERPOLATION_FACTOR;
+	      if (this.interpolationFactor > 0) {
+		for (let j = 0; j < worldMatrix.length; j++) {
+		  trackingState.trackingMatrix[j] = trackingState.trackingMatrix[j] + (worldMatrix[j] - trackingState.trackingMatrix[j]) / this.interpolationFactor;
+		}
+	      } else {
+		trackingState.trackingMatrix = worldMatrix;
 	      }
 	    }
 	    const clone = [];

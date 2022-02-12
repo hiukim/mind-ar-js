@@ -8,10 +8,16 @@ const cssScaleDownMatrix = new THREE.Matrix4();
 cssScaleDownMatrix.compose(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(0.001, 0.001, 0.001));
 
 class MindARThree {
-  constructor({container, imageTargetSrc, maxTrack, uiLoading="yes", uiScanning="yes", uiError="yes"}) {
+  constructor({
+      container, imageTargetSrc, maxTrack, uiLoading="yes", uiScanning="yes", uiError="yes",
+      interpolationFactor=null, warmupTolerance=null, missTolerance=null
+    }) {
     this.container = container;
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
+    this.interpolationFactor = interpolationFactor;
+    this.warmupTolerance = warmupTolerance;
+    this.missTolerance = missTolerance;
     this.ui = new UI({uiLoading, uiScanning, uiError});
 
     this.scene = new THREE.Scene();
@@ -109,6 +115,9 @@ class MindARThree {
       this.controller = new Controller({
 	inputWidth: video.videoWidth,
 	inputHeight: video.videoHeight,
+	interpolationFactor: this.interpolationFactor,
+	warmupTolerance: this.warmupTolerance,
+	missTolerance: this.missTolerance,
 	maxTrack: this.maxTrack, 
 	onUpdate: (data) => {
 	  if (data.type === 'updateMatrix') {
@@ -134,13 +143,18 @@ class MindARThree {
 		  this.anchors[i].group.matrix = m;
 		}
 
-		if (this.anchors[i].onTargetLost && this.anchors[i].visible && worldMatrix === null) {
-		  this.anchors[i].onTargetLost();
+		if (this.anchors[i].visible && worldMatrix === null) {
 		  this.anchors[i].visible = false;
+		  if (this.anchors[i].onTargetLost) {
+		    this.anchors[i].onTargetLost();
+		  }
 		}
-		if (this.anchors[i].onTargetFound && !this.anchors[i].visible && worldMatrix !== null) {
-		  this.anchors[i].onTargetFound();
+
+		if (!this.anchors[i].visible && worldMatrix !== null) {
 		  this.anchors[i].visible = true;
+		  if (this.anchors[i].onTargetFound) {
+		    this.anchors[i].onTargetFound();
+		  }
 		}
 
 		if (worldMatrix !== null) {

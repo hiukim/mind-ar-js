@@ -12,9 +12,12 @@ AFRAME.registerSystem('mindar-image-system', {
   tick: function() {
   },
 
-  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError}) {
+  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError, missTolerance, warmupTolerance, interpolationFactor}) {
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
+    this.interpolationFactor = interpolationFactor;
+    this.missTolerance = missTolerance;
+    this.warmupTolerance = warmupTolerance;
     this.showStats = showStats;
     this.ui = new UI({uiLoading, uiScanning, uiError});
   },
@@ -105,6 +108,9 @@ AFRAME.registerSystem('mindar-image-system', {
       inputWidth: video.videoWidth,
       inputHeight: video.videoHeight,
       maxTrack: this.maxTrack, 
+      interpolationFactor: this.interpolationFactor,
+      missTolerance: this.missTolerance,
+      warmupTolerance: this.warmupTolerance,
       onUpdate: (data) => {
 	if (data.type === 'processDone') {
 	  if (this.mainStats) this.mainStats.update();
@@ -189,6 +195,9 @@ AFRAME.registerComponent('mindar-image', {
   schema: {
     imageTargetSrc: {type: 'string'},
     maxTrack: {type: 'int', default: 1},
+    interpolationFactor: {type: 'int', default: -1},
+    missTolerance: {type: 'int', default: -1},
+    warmupTolerance: {type: 'int', default: -1},
     showStats: {type: 'boolean', default: false},
     autoStart: {type: 'boolean', default: true},
     uiLoading: {type: 'string', default: 'yes'},
@@ -202,6 +211,9 @@ AFRAME.registerComponent('mindar-image', {
     arSystem.setup({
       imageTargetSrc: this.data.imageTargetSrc, 
       maxTrack: this.data.maxTrack,
+      interpolationFactor: this.data.interpolationFactor === -1? null: this.data.interpolationFactor,
+      missTolerance: this.data.missTolerance === -1? null: this.data.missTolerance,
+      warmupTolerance: this.data.warmupTolerance === -1? null: this.data.warmupTolerance,
       showStats: this.data.showStats,
       uiLoading: this.data.uiLoading,
       uiScanning: this.data.uiScanning,
