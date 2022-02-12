@@ -249,7 +249,7 @@ class Tracker {
     const markerWidth = this.trackingKeyframeList[targetIndex].width;
     const markerHeight = this.trackingKeyframeList[targetIndex].height;
     const markerScale = this.trackingKeyframeList[targetIndex].scale;
-    const kernelKey = markerWidth + "-" + markerHeight;
+    const kernelKey = markerWidth + "-" + markerHeight + "-" + markerScale;
 
     if (!this.kernelCaches.computeProjection) {
       this.kernelCaches.computeProjection = {};
