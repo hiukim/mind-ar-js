@@ -32,7 +32,6 @@
     "@tensorflow/tfjs": "^3.13.0",
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
-    "terser-webpack-plugin": "^4.2.3",
     "three": "^0.136.0",
     "tinyqueue": "^2.0.3"
   },
@@ -42,6 +41,7 @@
     "node-sass": "^5.0.0",
     "sass-loader": "^11.0.1",
     "style-loader": "^2.0.0",
+    "terser-webpack-plugin": "^5.3.1",
     "webpack": "^5.24.3",
     "webpack-cli": "^4.5.0",
     "worker-loader": "^2.0.0"
