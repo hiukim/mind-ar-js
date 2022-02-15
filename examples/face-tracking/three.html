@@ -6,6 +6,8 @@
       const THREE = window.MINDAR.FACE.THREE;
       const mindarThree = new window.MINDAR.FACE.MindARThree({
 	container: document.querySelector("#container"),
+	filterMinCF: 0.001,
+	filterBeta: 10,
       });
       const {renderer, scene, camera} = mindarThree;
 

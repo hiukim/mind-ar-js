@@ -4,11 +4,14 @@ const {Controller} = require("./controller");
 const {UI} = require("../ui/ui");
 
 class MindARThree {
-  constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes"}) {
+  constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null}) {
     this.container = container;
     this.ui = new UI({uiLoading, uiScanning, uiError});
 
-    this.controller = new Controller({});
+    this.controller = new Controller({
+      filterMinCF: filterMinCF,
+      filterBeta: filterBeta,
+    });
     this.scene = new THREE.Scene();
     this.cssScene = new THREE.Scene();
     this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});

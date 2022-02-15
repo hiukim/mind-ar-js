@@ -13,8 +13,10 @@ AFRAME.registerSystem('mindar-face-system', {
     this.faceMeshEntities = [];
   },
 
-  setup: function({uiLoading, uiScanning, uiError}) {
+  setup: function({uiLoading, uiScanning, uiError, filterMinCF, filterBeta}) {
     this.ui = new UI({uiLoading, uiScanning, uiError});
+    this.filterMinCF = filterMinCF;
+    this.filterBeta = filterBeta;
   },
 
   registerFaceMesh: function(el) {
@@ -151,7 +153,10 @@ AFRAME.registerSystem('mindar-face-system', {
   },
 
   _setupAR: async function() {
-    this.controller = new Controller({});
+    this.controller = new Controller({
+      filterMinCF: this.filterMinCF,
+      filterBeta: this.filterBeta,
+    });
     this._resize();
 
     await this.controller.setup(this.video);
@@ -213,6 +218,8 @@ AFRAME.registerComponent('mindar-face', {
     uiLoading: {type: 'string', default: 'yes'},
     uiScanning: {type: 'string', default: 'yes'},
     uiError: {type: 'string', default: 'yes'},
+    filterMinCF: {type: 'number', default: -1},
+    filterBeta: {type: 'number', default: -1},
   },
 
   init: function() {
@@ -228,6 +235,8 @@ AFRAME.registerComponent('mindar-face', {
       uiLoading: this.data.uiLoading,
       uiScanning: this.data.uiScanning,
       uiError: this.data.uiError,
+      filterMinCF: this.data.filterMinCF === -1? null: this.data.filterMinCF,
+      filterBeta: this.data.filterBeta === -1? null: this.data.filterBeta,
     });
 
     if (this.data.autoStart) {

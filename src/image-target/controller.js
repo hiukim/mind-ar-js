@@ -4,7 +4,7 @@ const {Tracker} = require('./tracker/tracker.js');
 const {CropDetector} = require('./detector/crop-detector.js');
 const {Compiler} = require('./compiler.js');
 const {InputLoader} = require('./input-loader.js');
-const {OneEuroFilter} = require('./utils/one-euro-filter.js');
+const {OneEuroFilter} = require('../libs/one-euro-filter.js');
 
 const DEFAULT_FILTER_CUTOFF = 0.001; // 1Hz. time period in milliseconds
 const DEFAULT_FILTER_BETA = 1000;

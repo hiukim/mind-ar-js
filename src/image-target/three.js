@@ -10,13 +10,13 @@ cssScaleDownMatrix.compose(new THREE.Vector3(), new THREE.Quaternion(), new THRE
 class MindARThree {
   constructor({
       container, imageTargetSrc, maxTrack, uiLoading="yes", uiScanning="yes", uiError="yes",
-      filterMinCF=null, filterMinBeta=null, warmupTolerance=null, missTolerance=null
+      filterMinCF=null, filterBeta=null, warmupTolerance=null, missTolerance=null
     }) {
     this.container = container;
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
     this.filterMinCF = filterMinCF;
-    this.filterMinBeta = filterMinBeta;
+    this.filterBeta = filterBeta;
     this.warmupTolerance = warmupTolerance;
     this.missTolerance = missTolerance;
     this.ui = new UI({uiLoading, uiScanning, uiError});
@@ -117,7 +117,7 @@ class MindARThree {
 	inputWidth: video.videoWidth,
 	inputHeight: video.videoHeight,
 	filterMinCF: this.filterMinCF,
-	filterMinBeta: this.filterMinBeta,
+	filterBeta: this.filterBeta,
 	warmupTolerance: this.warmupTolerance,
 	missTolerance: this.missTolerance,
 	maxTrack: this.maxTrack, 

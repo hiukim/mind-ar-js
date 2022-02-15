@@ -2,15 +2,29 @@ const {FaceMeshHelper} = require("./face-mesh-helper");
 const {cv, waitCV} = require("../libs/opencv-helper.js");
 const {Estimator} = require("./face-geometry/estimator.js");
 const {createThreeFaceGeometry: _createThreeFaceGeometry} = require("./face-geometry/face-geometry");
+const {positions: canonicalMetricLandmarks} = require("./face-geometry/face-data.js");
+const {OneEuroFilter} = require('../libs/one-euro-filter.js');
 
-const INTERPOLATION_FACTOR = 5;
+const DEFAULT_FILTER_CUTOFF = 0.001; // 1Hz. time period in milliseconds
+const DEFAULT_FILTER_BETA = 1;
 
 class Controller {
-  constructor({onUpdate=null}) {
+  constructor({onUpdate=null, filterMinCF=null, filterBeta=null}) {
     this.customFaceGeometries = [];
     this.estimator = null;
     this.lastEstimateResult = null;
+    this.filterMinCF = filterMinCF === null? DEFAULT_FILTER_CUTOFF: filterMinCF;
+    this.filterBeta = filterBeta === null? DEFAULT_FILTER_BETA: filterBeta;
     this.onUpdate = onUpdate;
+
+    //console.log("filter", this.filterMinCF, this.filterBeta);
+
+    this.landmarkFilters = [];
+    for (let i = 0; i < canonicalMetricLandmarks.length; i++) {
+      this.landmarkFilters[i] = new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
+    }
+    this.faceMatrixFilter = new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
+    this.faceScaleFilter = new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
   }
 
   async setup(input) {
@@ -43,6 +57,12 @@ class Controller {
       if (results.multiFaceLandmarks.length === 0) {
 	this.lastEstimateResult = null;
 	this.onUpdate({hasFace: false});
+
+	for (let i = 0; i < this.landmarkFilters.length; i++) {
+	  this.landmarkFilters[i].reset();
+	}
+	this.faceMatrixFilter.reset();
+	this.faceScaleFilter.reset();
       } else {
 	const landmarks = results.multiFaceLandmarks[0].map((l) => {
 	  return [l.x, l.y, l.z];
@@ -58,22 +78,17 @@ class Controller {
 
 	  const newMetricLandmarks = [];
 	  for (let i = 0; i < lastMetricLandmarks.length; i++) {
-	    newMetricLandmarks[i] = [];
-	    for (let j = 0; j < 3; j++) {
-	      newMetricLandmarks[i][j] = lastMetricLandmarks[i][j] + (estimateResult.metricLandmarks[i][j] - lastMetricLandmarks[i][j]) / INTERPOLATION_FACTOR; 
-	    }
+	    newMetricLandmarks[i] = this.landmarkFilters[i].filter(Date.now(), estimateResult.metricLandmarks[i]);
 	  }
 
-	  const newFaceMatrix = [];
-	  for (let i = 0; i < lastFaceMatrix.length; i++) {
-	    newFaceMatrix[i] = lastFaceMatrix[i] + (estimateResult.faceMatrix[i] - lastFaceMatrix[i]) / INTERPOLATION_FACTOR; 
-	  }
-	  const newFaceScale = lastFaceScale + (estimateResult.faceScale - lastFaceScale) / INTERPOLATION_FACTOR;
+	  const newFaceMatrix = this.faceMatrixFilter.filter(Date.now(), estimateResult.faceMatrix);
+
+	  const newFaceScale = this.faceScaleFilter.filter(Date.now(), [estimateResult.faceScale]);
 
 	  this.lastEstimateResult = {
 	    metricLandmarks: newMetricLandmarks,
 	    faceMatrix: newFaceMatrix,
-	    faceScale: newFaceScale,
+	    faceScale: newFaceScale[0],
 	  }
 	}
 
