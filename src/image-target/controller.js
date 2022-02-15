@@ -4,19 +4,22 @@ const {Tracker} = require('./tracker/tracker.js');
 const {CropDetector} = require('./detector/crop-detector.js');
 const {Compiler} = require('./compiler.js');
 const {InputLoader} = require('./input-loader.js');
+const {OneEuroFilter} = require('./utils/one-euro-filter.js');
 
-const DEFAULT_INTERPOLATION_FACTOR = 5;
+const DEFAULT_FILTER_CUTOFF = 0.001; // 1Hz. time period in milliseconds
+const DEFAULT_FILTER_BETA = 1000;
 const DEFAULT_WARMUP_TOLERANCE = 5;
 const DEFAULT_MISS_TOLERANCE = 5;
 
 class Controller {
   constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1, 
-    interpolationFactor=null, warmupTolerance=null, missTolerance=null}) {
+    warmupTolerance=null, missTolerance=null, filterMinCF=null, filterBeta=null}) {
 
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.maxTrack = maxTrack;
-    this.interpolationFactor = interpolationFactor === null? DEFAULT_INTERPOLATION_FACTOR: interpolationFactor;
+    this.filterMinCF = filterMinCF === null? DEFAULT_FILTER_CUTOFF: filterMinCF;
+    this.filterBeta = filterBeta === null? DEFAULT_FILTER_BETA: filterBeta;
     this.warmupTolerance = warmupTolerance === null? DEFAULT_WARMUP_TOLERANCE: warmupTolerance;
     this.missTolerance = missTolerance === null? DEFAULT_MISS_TOLERANCE: missTolerance;
     this.cropDetector = new CropDetector(this.inputWidth, this.inputHeight, debugMode);
@@ -146,8 +149,10 @@ class Controller {
 	isTracking: false,
 	currentModelViewTransform: null,
 	trackCount: 0,
-	trackMiss: 0
+	trackMiss: 0,
+	filter: new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta})
       });
+      //console.log("filterMinCF", this.filterMinCF, this.filterBeta);
     }
 
     const startProcessing = async() => {
@@ -201,6 +206,7 @@ class Controller {
 	      if (trackingState.trackCount > this.warmupTolerance) {
 		trackingState.showing = true;
 		trackingState.trackingMatrix = null;
+		trackingState.filter.reset();
 	      }
 	    }
 	  }
@@ -224,20 +230,10 @@ class Controller {
 	  // if showing, then call onUpdate, with world matrix
 	  if (trackingState.showing) {
 	    const worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
+	    trackingState.trackingMatrix = trackingState.filter.filter(Date.now(), worldMatrix);
 
-	    if (trackingState.trackingMatrix === null) {
-	      trackingState.trackingMatrix = worldMatrix;
-	    } else {
-	      if (this.interpolationFactor > 0) {
-		for (let j = 0; j < worldMatrix.length; j++) {
-		  trackingState.trackingMatrix[j] = trackingState.trackingMatrix[j] + (worldMatrix[j] - trackingState.trackingMatrix[j]) / this.interpolationFactor;
-		}
-	      } else {
-		trackingState.trackingMatrix = worldMatrix;
-	      }
-	    }
 	    const clone = [];
-	    for (let j = 0; j < worldMatrix.length; j++) {
+	    for (let j = 0; j < trackingState.trackingMatrix.length; j++) {
 	      clone[j] = trackingState.trackingMatrix[j];
 	    }
 	    this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});

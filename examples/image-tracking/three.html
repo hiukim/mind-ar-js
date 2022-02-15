@@ -9,7 +9,8 @@
       const mindarThree = new window.MINDAR.IMAGE.MindARThree({
 	container: document.querySelector("#container"),
 	imageTargetSrc: './assets/card-example/card.mind',
-	interpolationFactor: 0,
+	filterMinCF: 1,
+	filterBeta: 10000,
 	missTolerance: 0,
 	warmupTolerance: 0,
       });

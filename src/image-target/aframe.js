@@ -12,10 +12,11 @@ AFRAME.registerSystem('mindar-image-system', {
   tick: function() {
   },
 
-  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError, missTolerance, warmupTolerance, interpolationFactor}) {
+  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError, missTolerance, warmupTolerance, filterMinCF, filterBeta}) {
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
-    this.interpolationFactor = interpolationFactor;
+    this.filterMinCF = filterMinCF;
+    this.filterBeta = filterBeta;
     this.missTolerance = missTolerance;
     this.warmupTolerance = warmupTolerance;
     this.showStats = showStats;
@@ -108,7 +109,8 @@ AFRAME.registerSystem('mindar-image-system', {
       inputWidth: video.videoWidth,
       inputHeight: video.videoHeight,
       maxTrack: this.maxTrack, 
-      interpolationFactor: this.interpolationFactor,
+      filterMinCF: this.filterMinCF,
+      filterBeta: this.filterBeta,
       missTolerance: this.missTolerance,
       warmupTolerance: this.warmupTolerance,
       onUpdate: (data) => {
@@ -195,7 +197,8 @@ AFRAME.registerComponent('mindar-image', {
   schema: {
     imageTargetSrc: {type: 'string'},
     maxTrack: {type: 'int', default: 1},
-    interpolationFactor: {type: 'int', default: -1},
+    filterMinCF: {type: 'number', default: -1},
+    filterBeta: {type: 'number', default: -1},
     missTolerance: {type: 'int', default: -1},
     warmupTolerance: {type: 'int', default: -1},
     showStats: {type: 'boolean', default: false},
@@ -211,7 +214,8 @@ AFRAME.registerComponent('mindar-image', {
     arSystem.setup({
       imageTargetSrc: this.data.imageTargetSrc, 
       maxTrack: this.data.maxTrack,
-      interpolationFactor: this.data.interpolationFactor === -1? null: this.data.interpolationFactor,
+      filterMinCF: this.data.filterMinCF === -1? null: this.data.filterMinCF,
+      filterBeta: this.data.filterBeta === -1? null: this.data.filterBeta,
       missTolerance: this.data.missTolerance === -1? null: this.data.missTolerance,
       warmupTolerance: this.data.warmupTolerance === -1? null: this.data.warmupTolerance,
       showStats: this.data.showStats,
