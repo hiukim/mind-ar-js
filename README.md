@@ -1,34 +1,70 @@
 # MindAR
 
-For location-based AR and marker-based AR, checkout AR.js https://github.com/AR-js-org/AR.js
-
 <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" height="250"><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" height="250"><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-tryon-demo-1e3433ff1dd89795d5c1b385778a9da8.gif" height="250">
 
-MindAR is a lightweight library for web augmented reality. Highlighted features include:
+MindAR is a web augmented reality library. Highlighted features include:
 
-:star: Support Image tracking and Face tracking
+:star: Support Image tracking and Face tracking. For Location or Fiducial-Markers Tracking, checkout [AR.js](https://github.com/AR-js-org/AR.js)
 
 :star: Written in pure javascript, end-to-end from the underlying computer vision engine to frontend
 
 :star: Utilize gpu (through webgl) and web worker for performance
 
-:star: Developer friendly. Easy to setup. With AFRAME extension, you can get your app starts with only 10 lines of codes
+:star: Developer friendly. Easy to setup. With AFRAME extension, you can create an app with only 10 lines of codes
 
-# Web AR Development Course - Fund Raising
+# Fund Raising
 
-To raise fund for the continuous development and support of the MindAR Library, I've created a WebAR development course. It's a very comprehensive guide to Web AR development, not limited to MindAR. Check it out if you are interested:
+MindAR is the only actively maintained web AR SDK which offer comparable features to commercial alternatives. This library is currently maintained by me as an individual developer. To raise fund for continuous development and to provide timely supports and responses to issues, here is a list of paid services and sponsorship options:
 
-https://www.udemy.com/course/introduction-to-web-ar-development/?referralCode=D2565F4CA6D767F30D61
-
-![course-banner](https://user-images.githubusercontent.com/459126/141425015-f5fe2912-b26d-4366-8952-5866a072fb34.jpg)
-
-# Managed Solution - Pictarize
-
-This opensource project is under MIT, so you are free to use however you want. There is also a hosted platform built on top of this library called Pictarize, which allows you to build and publish apps directly online. Check it out if you are interested!
-
-https://pictarize.com
-
-<img src="https://drive.google.com/uc?export=view&id=1ygYyPpyvnxyofrIsRQP5oU-iFLu_xABa" border="10"/>
+<table>
+  <tbody>
+    <tr>
+      <td valign="top">
+        <h2>Web AR Development Course</h2>
+        <p>I'm offering a WebAR development course in Udemy. It's a very comprehensive guide to Web AR development, not limited to MindAR.</p>
+        <p>Check it out if you are interested: <a target="_blank" href="https://www.udemy.com/course/introduction-to-web-ar-development/?referralCode=D2565F4CA6D767F30D61">https://www.udemy.com/course/introduction-to-web-ar-development/?referralCode=D2565F4CA6D767F30D61</a></p>
+      </td>
+      <td width="50%">
+        <img src="https://user-images.githubusercontent.com/459126/141425015-f5fe2912-b26d-4366-8952-5866a072fb34.jpg"/>
+      </td>
+    </tr>
+    <tr>
+      <td valign="top">
+        <h2>Application Templates</h2>
+        <p>I'm offering some web AR application templates (not limited to MindAR) to help you kickstart projects quickly. You can easily modify them to fit your project needs. If necessary, I can also offer further customizations.</p>
+        <p>Check out my shop on Ko-Fi if interested: <a href="https://ko-fi.com/hiukim/shop" target="_blank">https://ko-fi.com/hiukim/shop</a></p>
+        <p>If you can't find what you need, please let me know. If demand justify, I will create a new template.</p>
+      </td>          
+      <td><img src="https://cdn.ko-fi.com/cdn/useruploads/display/db6b3386-9f23-4a7b-925a-f4f9157a973b_sample5.png"></img></td>      
+    </tr>
+    <tr>
+      <td valign="top">
+        <h2>Managed Solution</h2>
+        <p>
+          This opensource project is under MIT, so you are free to use however you want. There is also a hosted platform built on top of this library called Pictarize, which allows you to build and publish apps directly online.</p>
+        <p>
+          Check it out if you are interested! <a href="https://pictarize.com" target="_blank">https://pictarize.com</a>
+        </p>
+      </td>
+      <td><img src="https://drive.google.com/uc?export=view&id=1ygYyPpyvnxyofrIsRQP5oU-iFLu_xABa" border="10"/></td>
+    </tr>
+    <tr>
+      <td valign="top">
+        <h2>Sponsorships</h2>
+        <p>
+          If you are agencies or startups that utilize MindAR as part of your solutions, you can consider sponsoring the project with a fixed monthly donation.
+        </p>
+        <p>
+          I'm happy to join your workspace discussion group to exchange ideas from time to time. You can also sponsor specific features or bug fixes to make sure your solutions can keep up with the latest release.
+        </p>
+      </td>
+      <td valign="top">
+        <h2>List of current sponsors:</h2>
+        <a target="_blank" href="https://wonderlandengine.com/"><img src="https://avatars.githubusercontent.com/u/75369823?s=200&v=4" height="50"></img></a>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 # Documentation
 
@@ -36,31 +72,51 @@ Official Documentation: https://hiukim.github.io/mind-ar-js-doc
 
 # Demo - Try it yourself
 
-### Image Tracking - Basic Example
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/basic-demo-fde07aa7567bf213e61b37dbaa192fec.gif" width="300">
-
-Demo video: https://youtu.be/hgVB9HpQpqY, 
-
-Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/basic/
-
-### Image Tracking - Multiple Targets Example
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" width="300">
-
-Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/multi-tracks
-
-### Image Tracking - Interactive Example
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" width="300"/>
-
-Demo video: https://youtu.be/gm57gL1NGoQ
-
-Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/interative
-
-### Face Tracking - Virtual Try-On Example
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-tryon-demo-1e3433ff1dd89795d5c1b385778a9da8.gif" width="300"/>
-
-Try it yourself: https://hiukim.github.io/mind-ar-js-doc/face-tracking-examples/tryon
+<table>
+  <tbody>
+    <tr>
+      <td valign="top" width="50%">
+        <h2>Image Tracking - Basic Example</h2>
+        <p>Demo video: https://youtu.be/hgVB9HpQpqY </p>
+        <p>Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/basic/</p>
+      </td>
+      <td>
+        <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/basic-demo-fde07aa7567bf213e61b37dbaa192fec.gif" width="300px">
+      </td>
+    </tr>
+    <tr>
+      <td valign="top">
+        <h2>Image Tracking - Multiple Targets Example</h2>
+        <p>Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/multi-tracks</p>
+      </td>
+      <td>
+        <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" width="300px">
+      </td>
+    </tr>
+    <tr>
+      <td valign="top">
+        <h2>Image Tracking - Interactive Example</h2>
+        <p>Demo video: https://youtu.be/gm57gL1NGoQ</p>
+        <p>Try it yourself: https://hiukim.github.io/mind-ar-js-doc/examples/interative</p>
+      </td>
+      <td>
+        <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" width="300px"/>
+      </td>
+    </tr>
+    <tr>
+      <td valign="top">
+        <h2>Face Tracking - Virtual Try-On Example</h2>
+        <p>Try it yourself: https://hiukim.github.io/mind-ar-js-doc/face-tracking-examples/tryon</p>
+      </td>
+      <td>
+        <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-tryon-demo-1e3433ff1dd89795d5c1b385778a9da8.gif"  width="300px"/>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ### More examples
+
 More examples can be found here: https://hiukim.github.io/mind-ar-js-doc/examples/summary
 
 
@@ -75,20 +131,18 @@ To give you a quick idea, this is the complete source code for the Basic example
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.0.0/dist/mindar-image.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/dist/mindar-image.prod.js"></script>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.0.0/dist/mindar-image.aframe.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/dist/mindar-image-aframe.prod.js"></script>
   </head>
   <body>
-    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.0.0/examples/image-tracking/assets/card-example/card.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/examples/image-tracking/assets/card-example/card.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
       <a-assets>
-        <img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.0.0/examples/image-tracking/assets/card-example/card.png" />
-        <a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.0.0/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
+        <img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/examples/image-tracking/assets/card-example/card.png" />
+        <a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.1.4/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
       <a-entity mindar-image-target="targetIndex: 0">
         <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
         <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#avatarModel" animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate">
@@ -106,7 +160,7 @@ https://hiukim.github.io/mind-ar-js-doc/tools/compile
 <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/step2-9f3c4dcb8a2e60766d86f950d06929ea.png" width="300"/>
 
 # Roadmaps
-1. Supports more augmented reality features, like Plane Tracking
+1. Supports more augmented reality features, like Hand Tracking, Body Tracking and Plane Tracking
 
 2. Research on different state-of-the-arts algorithms to improve tracking accuracy and performance
 
@@ -151,5 +205,5 @@ The core detection and tracking algorithm is written with custom operations in t
 # Credits
 The computer vision idea is borrowed from artoolkit (i.e. https://github.com/artoolkitx/artoolkit5). Unfortunately, the library doesn't seems to be maintained anymore.
 
-Face Tracking is based on tensorflowjs face landmark detection mode (i.e. https://github.com/tensorflow/tfjs-models/tree/master/face-landmarks-detection). It also utilize this face geometry library: https://github.com/spite/FaceMeshFaceGeometry
+Face Tracking is based on mediapipe face mesh model (i.e. https://google.github.io/mediapipe/solutions/face_mesh.html)
 
