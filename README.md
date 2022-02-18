@@ -30,10 +30,8 @@ MindAR is the only actively maintained web AR SDK which offer comparable feature
     </tr>
     <tr>
       <td valign="top">
-        <h2>Application Templates</h2>
-        <p>I'm offering some web AR application templates (not limited to MindAR) to help you kickstart projects quickly. You can easily modify them to fit your project needs. If necessary, I can also offer further customizations.</p>
-        <p>Check out my shop on Ko-Fi if interested: <a href="https://ko-fi.com/hiukim/shop" target="_blank">https://ko-fi.com/hiukim/shop</a></p>
-        <p>If you can't find what you need, please let me know. If demand justify, I will create a new template.</p>
+        <h2>Freelancing Work</h2>
+        <p>I offer custom AR development services. Check out my shop on Ko-Fi for some interesting demos: <a href="https://ko-fi.com/hiukim/shop" target="_blank">https://ko-fi.com/hiukim/shop</a></p>
       </td>          
       <td><img src="https://cdn.ko-fi.com/cdn/useruploads/display/db6b3386-9f23-4a7b-925a-f4f9157a973b_sample5.png"></img></td>      
     </tr>
