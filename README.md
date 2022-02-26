@@ -1,6 +1,7 @@
 # MindAR
 
-<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" height="250"><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" height="250"><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-tryon-demo-1e3433ff1dd89795d5c1b385778a9da8.gif" height="250">
+<img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/multi-targets-demo-8b5fc868f6b0847a9818e8bf0ba2c1c3.gif" height="250"><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/interactive-demo-1ab348a381cbd808f4d52c8750524d11.gif" height="250"><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-tryon-demo-369c4ba701f1df2099ecf05c27f0c944.gif" height="250">
+
 
 MindAR is a web augmented reality library. Highlighted features include:
 
@@ -44,7 +45,7 @@ MindAR is the only actively maintained web AR SDK which offer comparable feature
           Check it out if you are interested! <a href="https://pictarize.com" target="_blank">https://pictarize.com</a>
         </p>
       </td>
-      <td><img src="https://drive.google.com/uc?export=view&id=1ygYyPpyvnxyofrIsRQP5oU-iFLu_xABa" border="10"/></td>
+      <td><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/pictarize-studio-98ea8d35d963ebcd7d31ca7695c3f984.png" border="10"/></td>
     </tr>
     <tr>
       <td valign="top">
@@ -107,7 +108,16 @@ Official Documentation: https://hiukim.github.io/mind-ar-js-doc
         <p>Try it yourself: https://hiukim.github.io/mind-ar-js-doc/face-tracking-examples/tryon</p>
       </td>
       <td>
-        <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-tryon-demo-1e3433ff1dd89795d5c1b385778a9da8.gif"  width="300px"/>
+        <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-tryon-demo-369c4ba701f1df2099ecf05c27f0c944.gif"  width="300px"/>
+      </td>
+    </tr>
+    <tr>
+      <td valign="top">
+        <h2>Face Tracking - Face Mesh Effect</h2>
+        <p>Try it yourself: https://hiukim.github.io/mind-ar-js-doc/more-examples/threejs-face-facemesh</p>
+      </td>
+      <td>
+        <img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/face-mesh-demo-8f5bd8d1bcbffbdb76896b58171ecc8a.gif"  width="300px"/>
       </td>
     </tr>
   </tbody>
