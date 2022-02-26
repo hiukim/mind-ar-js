@@ -11,7 +11,7 @@
     <script>
       document.addEventListener("DOMContentLoaded", function() {
 	const list = ["glasses1", "glasses2", "hat1", "hat2", "earring"];
-	const visibles = [true, false, false, true, true];
+	const visibles = [true, false, false, true, false];
 
 	const setVisible = (button, entities, visible) => {
 	  if (visible) {
@@ -47,8 +47,10 @@
       }
       .options-panel {
 	position: fixed;
-	left: 0;
 	top: 0;
+	left: 50%;
+	display: flex;
+	transform: translateX(-50%);
 	z-index: 2;
       }
       .options-panel img {
@@ -92,10 +94,10 @@
         </a-entity>
 
         <a-entity mindar-face-target="anchorIndex: 10">
-	  <a-gltf-model rotation="0 -0 0" position="0 1.0 -0.5" scale="0.35 0.35 0.35" src="#hatModel" class="hat1-entity" visible="false"></a-gltf-model>
+	  <a-gltf-model rotation="0 -0 0" position="0 1.0 -0.5" scale="0.5 0.5 0.5" src="#hatModel" class="hat1-entity" visible="false"></a-gltf-model>
         </a-entity>
         <a-entity mindar-face-target="anchorIndex: 10">
-	  <a-gltf-model rotation="0 -0 0" position="0 -0.2 -0.5" scale="0.008 0.008 0.008" src="#hatModel2" class="hat2-entity" visible="false"></a-gltf-model>
+	  <a-gltf-model rotation="15 -0 0" position="0 -0.22 -0.7" scale="0.01 0.01 0.01" src="#hatModel2" class="hat2-entity" visible="false"></a-gltf-model>
         </a-entity>
 
         <a-entity mindar-face-target="anchorIndex: 168">
@@ -103,15 +105,15 @@
         </a-entity>
 
         <a-entity mindar-face-target="anchorIndex: 168">
-	  <a-gltf-model rotation="0 -90 0" position="0 -0.4 -0.25" scale="0.7 0.7 0.7" src="#glassesModel2" class="glasses2-entity" visible="false"></a-gltf-model>
+	  <a-gltf-model rotation="0 -90 0" position="0 -0.4 -0.25" scale="0.6 0.6 0.6" src="#glassesModel2" class="glasses2-entity" visible="false"></a-gltf-model>
         </a-entity>
 	
         <a-entity mindar-face-target="anchorIndex: 127">
-	  <a-gltf-model rotation="-0.1 -0 0" position="0 -0.3 -0.3" scale="0.05 0.05 0.05" src="#earringModel" class="earring-entity" visible="false"></a-gltf-model>
+	  <a-gltf-model rotation="-0.1 -50 0" position="-0.05 -0.4 -0.3" scale="0.07 0.07 0.07" src="#earringModel" class="earring-entity" visible="false"></a-gltf-model>
         </a-entity>
 
         <a-entity mindar-face-target="anchorIndex: 356">
-	  <a-gltf-model rotation="0.1 -0 0" position="0 -0.3 -0.3" scale="0.05 0.05 0.05" src="#earringModel" class="earring-entity" visible="false"></a-gltf-model>
+	  <a-gltf-model rotation="0.1 50 0" position="0.05 -0.4 -0.3" scale="0.07 0.07 0.07" src="#earringModel" class="earring-entity" visible="false"></a-gltf-model>
         </a-entity>
       </a-scene>
     </div>
