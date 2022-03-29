@@ -120,7 +120,7 @@ class MindARThree {
 	filterBeta: this.filterBeta,
 	warmupTolerance: this.warmupTolerance,
 	missTolerance: this.missTolerance,
-	maxTrack: this.maxTrack, 
+	maxTrack: this.maxTrack,
 	onUpdate: (data) => {
 	  if (data.type === 'updateMatrix') {
 	    const {targetIndex, worldMatrix} = data;
@@ -173,7 +173,7 @@ class MindARThree {
       const {dimensions: imageTargetDimensions} = await this.controller.addImageTargets(this.imageTargetSrc);
 
       this.postMatrixs = [];
-      for (let i = 0; i < imageTargetDimensions.length; i++) { 
+      for (let i = 0; i < imageTargetDimensions.length; i++) {
 	const position = new THREE.Vector3();
 	const quaternion = new THREE.Quaternion();
 	const scale = new THREE.Vector3();
@@ -222,7 +222,7 @@ class MindARThree {
     camera.far = far;
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
-    
+
     video.style.top = (-(vh - container.clientHeight) / 2) + "px";
     video.style.left = (-(vw - container.clientWidth) / 2) + "px";
     video.style.width = vw + "px";

@@ -1,5 +1,4 @@
 const tf = require('@tensorflow/tfjs');
-const Worker = require("./controller.worker.js");
 const {Tracker} = require('./tracker/tracker.js');
 const {CropDetector} = require('./detector/crop-detector.js');
 const {Compiler} = require('./compiler.js');
@@ -12,7 +11,7 @@ const DEFAULT_WARMUP_TOLERANCE = 5;
 const DEFAULT_MISS_TOLERANCE = 5;
 
 class Controller {
-  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1, 
+  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1,
     warmupTolerance=null, missTolerance=null, filterMinCF=null, filterBeta=null}) {
 
     this.inputWidth = inputWidth;
@@ -52,7 +51,7 @@ class Controller {
       far: far,
     });
 
-    this.worker = new Worker();
+    this.worker = new Worker(new URL('controller.worker.js', import.meta.url));
     this.workerMatchDone = null;
     this.workerTrackDone = null;
     this.worker.onmessage = (e) => {
@@ -210,7 +209,7 @@ class Controller {
 	      }
 	    }
 	  }
-	  
+
 	  // if showing, then count miss, and hide it when reaches tolerance
 	  if (trackingState.showing) {
 	    if (!trackingState.isTracking) {
@@ -226,7 +225,7 @@ class Controller {
 	      trackingState.trackMiss = 0;
 	    }
 	  }
-	  
+
 	  // if showing, then call onUpdate, with world matrix
 	  if (trackingState.showing) {
 	    const worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
@@ -299,7 +298,7 @@ class Controller {
   _glModelViewMatrix(modelViewTransform, targetIndex) {
     const height = this.markerDimensions[targetIndex][1];
 
-    // Question: can someone verify this interpreation is correct? 
+    // Question: can someone verify this interpreation is correct?
     // I'm not very convinced, but more like trial and error and works......
     //
     // First, opengl has y coordinate system go from bottom to top, while the marker corrdinate goes from top to bottom,
@@ -310,7 +309,7 @@ class Controller {
     //    [0 -1  0  h]
     //    [0  0 -1  0]
     //    [0  0  0  1]
-    //    
+    //
     //    This is tested that if we reverse marker coordinate from bottom to top and estimate the modelViewTransform,
     //    then the above matrix is not necessary.
     //
