@@ -47,21 +47,6 @@ MindAR is the only actively maintained web AR SDK which offer comparable feature
       </td>
       <td><img src="https://hiukim.github.io/mind-ar-js-doc/assets/images/pictarize-studio-98ea8d35d963ebcd7d31ca7695c3f984.png" border="10"/></td>
     </tr>
-    <tr>
-      <td valign="top">
-        <h2>Sponsorships</h2>
-        <p>
-          If you are agencies or startups that utilize MindAR as part of your solutions, you can consider sponsoring the project with a fixed monthly donation.
-        </p>
-        <p>
-          I'm happy to join your workspace discussion group to exchange ideas from time to time. You can also sponsor specific features or bug fixes to make sure your solutions can keep up with the latest release.
-        </p>
-      </td>
-      <td valign="top">
-        <h2>List of current sponsors:</h2>
-        <a target="_blank" href="https://wonderlandengine.com/"><img src="https://avatars.githubusercontent.com/u/75369823?s=200&v=4" height="50"></img></a>
-      </td>
-    </tr>
   </tbody>
 </table>
 
