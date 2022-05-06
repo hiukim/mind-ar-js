@@ -7,16 +7,19 @@ AFRAME.registerSystem('mindar-face-system', {
   video: null,
   shouldFaceUser: true,
   lastHasFace: false,
+  shouldFaceUser: true,
 
   init: function() {
     this.anchorEntities = [];
     this.faceMeshEntities = [];
   },
 
-  setup: function({uiLoading, uiScanning, uiError, filterMinCF, filterBeta}) {
+  setup: function({uiLoading, uiScanning, uiError, filterMinCF, filterBeta, shouldFaceUser}) {
     this.ui = new UI({uiLoading, uiScanning, uiError});
     this.filterMinCF = filterMinCF;
     this.filterBeta = filterBeta;
+    
+    if (shouldFaceUser !== undefined) this.shouldFaceUser = shouldFaceUser;
   },
 
   registerFaceMesh: function(el) {
@@ -82,7 +85,7 @@ AFRAME.registerSystem('mindar-face-system', {
     this.container.appendChild(this.video);
   },
 
-  _startVideo: function() {
+  _startVideo: async function() {
     this.video = document.createElement('video');
 
     this.video.setAttribute('autoplay', '');
@@ -100,21 +103,40 @@ AFRAME.registerSystem('mindar-face-system', {
       return;
     }
 
-    navigator.mediaDevices.getUserMedia({audio: false, video: {
-      facingMode: (this.shouldFaceUser? 'face': 'environment'),
-    }}).then((stream) => {
-      this.video.addEventListener( 'loadedmetadata', async () => {
-        this.video.setAttribute('width', this.video.videoWidth);
-        this.video.setAttribute('height', this.video.videoHeight);
-        await this._setupAR();
-	this._processVideo();
-	this.ui.hideLoading();
+    try {
+      // Get all user devices that possible to use for video input
+      const DEVICES = await navigator.mediaDevices.enumerateDevices();
+      const devices = DEVICES.filter((device) => device.kind === 'videoinput');
+
+      // Default camera
+      let facingMode = 'environment';
+
+      // Will only change if there is more than one camera that can be used
+      if (devices.length > 1)
+        facingMode = this.shouldFaceUser ? 'user' : 'environment';
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode,
+        },
       });
+
+      this.video.addEventListener('loadedmetadata', async () => {
+        this.video.setAttribute('width', this.video.videoWidth.toString());
+        this.video.setAttribute('height', this.video.videoHeight.toString());
+
+        await this._setupAR();
+
+        this._processVideo();
+        this.ui.hideLoading();
+      });
+
       this.video.srcObject = stream;
-    }).catch((err) => {
-      console.log("getUserMedia error", err);
-      this.el.emit("arError", {error: 'VIDEO_FAIL'});
-    });
+    } catch (err) {
+      console.log('getUserMedia error', err);
+      this.el.emit('arError', { error: 'VIDEO_FAIL' });
+    }
   },
 
   _processVideo: function() {
@@ -220,6 +242,7 @@ AFRAME.registerComponent('mindar-face', {
     uiError: {type: 'string', default: 'yes'},
     filterMinCF: {type: 'number', default: -1},
     filterBeta: {type: 'number', default: -1},
+    shouldFaceUser: { type: 'boolean', default: true },
   },
 
   init: function() {
@@ -237,6 +260,7 @@ AFRAME.registerComponent('mindar-face', {
       uiError: this.data.uiError,
       filterMinCF: this.data.filterMinCF === -1? null: this.data.filterMinCF,
       filterBeta: this.data.filterBeta === -1? null: this.data.filterBeta,
+      shouldFaceUser: this.data.shouldFaceUser,
     });
 
     if (this.data.autoStart) {
