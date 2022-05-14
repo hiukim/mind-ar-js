@@ -38,7 +38,7 @@
   "devDependencies": {
     "css-loader": "^5.1.1",
     "html-loader": "^2.1.1",
-    "node-sass": "^5.0.0",
+    "sass": "^1.51.0",
     "sass-loader": "^11.0.1",
     "style-loader": "^2.0.0",
     "terser-webpack-plugin": "^5.3.1",
