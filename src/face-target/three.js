@@ -203,14 +203,14 @@ class MindARThree {
     const cssCanvas = cssRenderer.domElement;
 
     canvas.style.position = 'absolute';
+    canvas.style.top = video.style.top;
     canvas.style.left = video.style.left;
-    canvas.style.right = video.style.right;
     canvas.style.width = video.style.width;
     canvas.style.height = video.style.height;
 
     cssCanvas.style.position = 'absolute';
+    cssCanvas.style.top = video.style.top;
     cssCanvas.style.left = video.style.left;
-    cssCanvas.style.right = video.style.right;
     // cannot set style width for cssCanvas, because that is also used as renderer size
     //cssCanvas.style.width = video.style.width;
     //cssCanvas.style.height = video.style.height;
