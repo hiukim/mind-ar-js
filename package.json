@@ -13,7 +13,7 @@
   "type": "commonjs",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hiukim/mind-ar-js"
+    "url": "https://github.com/mateusmb/mind-ar-js"
   },
   "keywords": [
     "web AR",
@@ -32,13 +32,13 @@
     "@tensorflow/tfjs": "^3.13.0",
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
-    "three": "^0.136.0",
+    "three": "^0.132.0",
     "tinyqueue": "^2.0.3"
   },
   "devDependencies": {
     "css-loader": "^5.1.1",
     "html-loader": "^2.1.1",
-    "node-sass": "^5.0.0",
+    "node-sass": "^7.0.1",
     "sass-loader": "^11.0.1",
     "style-loader": "^2.0.0",
     "terser-webpack-plugin": "^5.3.1",
