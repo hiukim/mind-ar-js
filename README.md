@@ -39,7 +39,7 @@ MindAR is the only actively maintained web AR SDK which offer comparable feature
           Check it out if you are interested! <a href="https://studio.mindar.org" target="_blank">https://studio.mindar.org</a>
         </p>
       </td>
-      <td><img src="https://www.mindar.org/content/images/2022/07/Screen-Shot-2022-07-01-at-12.26.38-PM-1.png" border="10"/></td>
+      <td><img src="https://www.mindar.org/content/images/2022/07/screenshot.png" border="10"/></td>
     </tr>
     <tr>
       <td valign="top">
