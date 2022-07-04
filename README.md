@@ -15,7 +15,7 @@ MindAR is a web augmented reality library. Highlighted features include:
 
 # Fund Raising
 
-MindAR is the only actively maintained web AR SDK which offer comparable features to commercial alternatives. This library is currently maintained by me as an individual developer. To raise fund for continuous development and to provide timely supports and responses to issues, here is a list of paid services and sponsorship options:
+MindAR is the only actively maintained web AR SDK which offer comparable features to commercial alternatives. This library is currently maintained by me as an individual developer. To raise fund for continuous development and to provide timely supports and responses to issues, here is a list of related projects/ services that you can support.
 
 <table>
   <tbody>
@@ -31,16 +31,22 @@ MindAR is the only actively maintained web AR SDK which offer comparable feature
     </tr>
     <tr>
       <td valign="top">
-        <h2>Freelancing Work</h2>
-        <p>I offer custom AR development services. Check out my shop on Ko-Fi for some interesting demos: <a href="https://ko-fi.com/hiukim/shop" target="_blank">https://ko-fi.com/hiukim/shop</a></p>
-      </td>          
-      <td><img src="https://cdn.ko-fi.com/cdn/useruploads/display/db6b3386-9f23-4a7b-925a-f4f9157a973b_sample5.png"></img></td>      
+        <h2>MindAR Studio</h2>
+        <p>
+          MindAR Studio allows you to build Face Tracking AR without coding. You can build AR effects through a drag-n-drop editor and export static webpages for self-host. Free to use!
+        </p>
+        <p>
+          Check it out if you are interested! <a href="https://studio.mindar.org" target="_blank">https://studio.mindar.org</a>
+        </p>
+      </td>
+      <td><img src="https://www.mindar.org/content/images/2022/07/Screen-Shot-2022-07-01-at-12.26.38-PM-1.png" border="10"/></td>
     </tr>
     <tr>
       <td valign="top">
-        <h2>Managed Solution</h2>
+        <h2>Pictarize</h2>
         <p>
-          This opensource project is under MIT, so you are free to use however you want. There is also a hosted platform built on top of this library called Pictarize, which allows you to build and publish apps directly online.</p>
+          Pictarize is a hosted platform for creating and publishing Image Tracking AR applications. Free to use!
+        </p>
         <p>
           Check it out if you are interested! <a href="https://pictarize.com" target="_blank">https://pictarize.com</a>
         </p>
