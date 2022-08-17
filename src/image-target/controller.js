@@ -249,7 +249,21 @@ class Controller {
   }
 
   stopProcessVideo() {
-    this.processingVideo = false;
+      this.processingVideo = false;
+
+      setTimeout( () => {
+          if (!this.processingVideo) {
+              for (let i = 0; i < this.trackingStates.length; i++) {
+                  const trackingState = this.trackingStates[i];
+
+                  if (trackingState.showing) {
+                      trackingState.showing = false;
+                      trackingState.trackingMatrix = null;
+                      this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
+                  }
+              }
+          }
+      }, 10)
   }
 
   async detect(input) {
