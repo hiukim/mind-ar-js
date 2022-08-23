@@ -4,7 +4,7 @@ const {Controller} = require("./controller");
 const {UI} = require("../ui/ui");
 
 class MindARThree {
-  constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null}) {
+  constructor({container, preserveDrawingBuffer, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null}) {
     this.container = container;
     this.ui = new UI({uiLoading, uiScanning, uiError});
 
@@ -14,7 +14,7 @@ class MindARThree {
     });
     this.scene = new THREE.Scene();
     this.cssScene = new THREE.Scene();
-    this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true, preserveDrawingBuffer});
     this.cssRenderer = new CSS3DRenderer({antialias: true });
     this.renderer.outputEncoding = THREE.sRGBEncoding;
     this.renderer.setPixelRatio(window.devicePixelRatio);
