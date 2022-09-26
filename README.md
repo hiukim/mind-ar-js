@@ -188,6 +188,8 @@ run `> npm run build`. `mindar-XXX.prod.js` and `mindar-XXX-aframe.propd.js will
 
 #### For development
 
+Install dependencies by running `npm install --legacy-peer-deps`
+
 run `> npm run watch`. This will observe the file changes in `src` folder and continuously build a `mindar-XXX.js` and `mindar-XXX-aframe` inside the `dist-dev` folder. The examples inside the `examples` folder is using this development build. You can open this examples in browser to start debug/development. 
 
 The examples should run in desktop browser and they are just html files, so it's easy to start development. However, because it requires camera access, so you need a webcam. Also, you need to run the html file with some localhost web server. Simply opening the files won't work.
