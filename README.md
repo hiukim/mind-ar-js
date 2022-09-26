@@ -190,9 +190,7 @@ run `> npm run build`. `mindar-XXX.prod.js` and `mindar-XXX-aframe.propd.js will
 
 run `> npm run watch`. This will observe the file changes in `src` folder and continuously build a `mindar-XXX.js` and `mindar-XXX-aframe` inside the `dist-dev` folder. The examples inside the `examples` folder is using this development build. You can open this examples in browser to start debug/development. 
 
-The examples should run in desktop browser and they are just html files, so it's easy to start development. However, because it requires camera access, so you need a webcam. Also, you need to run the html file with some localhost web server. Simply opening the files won't work.
-
-For example, you can install this chrome plugin to start a local server: `https://chrome.google.com/webstore/detail/web-server-for-chrome/ofhbbkphhbklhfoeikjpcbhemlocgigb?hl=en`
+Start the development server by running `npm start`. This will start a local server and open your browser to the project root. You can navigate to the examples folder to see the live demos.
 
 You most likely would want to test on mobile device as well. In that case, it's better if you could setup your development environment to be able to share your localhost webserver to your mobile devices. If you have difficulties doing that, perhaps behind a firewall, then you could use something like `ngrok` (https://ngrok.com/) to tunnel the request. But this is not an ideal solution, because the development build of MindAR is not small (>10Mb), and tunneling with free version of `ngrok` could be slow.
 
