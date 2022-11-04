@@ -33,6 +33,7 @@
       startButton.addEventListener("click", () => {
 	start();
       });
+      const stopButton = document.querySelector("#stopButton");
       stopButton.addEventListener("click", () => {
 	mindarThree.stop();
 	mindarThree.renderer.setAnimationLoop(null);
