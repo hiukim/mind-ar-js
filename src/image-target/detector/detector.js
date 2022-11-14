@@ -1,7 +1,8 @@
 // result should be similar to previou
 // improve freka descriptors computation 
 const tf = require('@tensorflow/tfjs');
-const {FREAKPOINTS} = require('./freak');
+const { FREAKPOINTS } = require('./freak');
+require('./ops');
 
 const PYRAMID_MIN_SIZE = 8;
 const PYRAMID_MAX_OCTAVE = 5;
@@ -9,7 +10,7 @@ const PYRAMID_MAX_OCTAVE = 5;
 const LAPLACIAN_THRESHOLD = 3.0;
 const LAPLACIAN_SQR_THRESHOLD = LAPLACIAN_THRESHOLD * LAPLACIAN_THRESHOLD;
 const EDGE_THRESHOLD = 4.0;
-const EDGE_HESSIAN_THRESHOLD = ((EDGE_THRESHOLD+1) * (EDGE_THRESHOLD+1) / EDGE_THRESHOLD);
+const EDGE_HESSIAN_THRESHOLD = ((EDGE_THRESHOLD + 1) * (EDGE_THRESHOLD + 1) / EDGE_THRESHOLD);
 
 const NUM_BUCKETS_PER_DIMENSION = 10;
 const MAX_FEATURES_PER_BUCKET = 5;
@@ -23,181 +24,194 @@ const ORIENTATION_GAUSSIAN_EXPANSION_FACTOR = 3.0;
 const ORIENTATION_REGION_EXPANSION_FACTOR = 1.5;
 const FREAK_EXPANSION_FACTOR = 7.0;
 
-const FREAK_CONPARISON_COUNT = (FREAKPOINTS.length-1) * (FREAKPOINTS.length) / 2; // 666
+const FREAK_CONPARISON_COUNT = (FREAKPOINTS.length - 1) * (FREAKPOINTS.length) / 2; // 666
 
 class Detector {
-  constructor(width, height, debugMode=false) {
-    this.debugMode = debugMode;
-    this.width = width;
-    this.height = height;
+	constructor(width, height, debugMode = false) {
+		this.debugMode = debugMode;
+		this.width = width;
+		this.height = height;
+		let numOctaves = 0;
+		while (width >= PYRAMID_MIN_SIZE && height >= PYRAMID_MIN_SIZE) {
+			width /= 2;
+			height /= 2;
+			numOctaves++;
+			if (numOctaves === PYRAMID_MAX_OCTAVE) break;
+		}
+		this.numOctaves = numOctaves;
 
-    let numOctaves = 0;
-    while (width >= PYRAMID_MIN_SIZE && height >= PYRAMID_MIN_SIZE) {
-      width /= 2;
-      height /= 2;
-      numOctaves++;
-      if (numOctaves === PYRAMID_MAX_OCTAVE) break;
-    }
-    this.numOctaves = numOctaves;
-
-    this.tensorCaches = {};
-    this.kernelCaches = {};
-  }
-
-  // used in compiler
-  detectImageData(imageData) {
-    const arr = new Uint8ClampedArray(4 * imageData.length);
-    for (let i = 0; i < imageData.length; i++) {
-      arr[4*i] = imageData[i];
-      arr[4*i+1] = imageData[i];
-      arr[4*i+2] = imageData[i];
-      arr[4*i+3] = 255;
-    }
-    const img = new ImageData(arr, this.width, this.height);
-    return this.detect(img);
-  }
-
-  detect(inputImageT) {
-    let debugExtra = null;
-
-    // Build gaussian pyramid images, two images per octave
-    const pyramidImagesT = [];
-    for (let i = 0; i < this.numOctaves; i++) {
-      let image1T;
-      let image2T;
-      if (i === 0) {
-	image1T = this._applyFilter(inputImageT);
-      } else {
-        image1T = this._downsampleBilinear(pyramidImagesT[i-1][pyramidImagesT[i-1].length-1]);
-      }
-      image2T = this._applyFilter(image1T);
-      pyramidImagesT.push([image1T, image2T]);
-    }
-
-    // Build difference-of-gaussian (dog) pyramid
-    const dogPyramidImagesT = [];
-    for (let i = 0; i < this.numOctaves; i++) {
-      let dogImageT = this._differenceImageBinomial(pyramidImagesT[i][0], pyramidImagesT[i][1]);
-      dogPyramidImagesT.push(dogImageT);
-    }
-
-    // find local maximum/minimum
-    const extremasResultsT = [];
-    for (let i = 1; i < this.numOctaves-1; i++) {
-      const extremasResultT = this._buildExtremas(dogPyramidImagesT[i-1], dogPyramidImagesT[i], dogPyramidImagesT[i+1]);
-      extremasResultsT.push(extremasResultT);
-    }
-
-    // divide the input into N by N buckets, and for each bucket,
-    // collect the top 5 most significant extrema across extremas in all scale level
-    // result would be NUM_BUCKETS x NUM_FEATURES_PER_BUCKET extremas
-    const prunedExtremasList = this._applyPrune(extremasResultsT);
-
-    const prunedExtremasT = this._computeLocalization(prunedExtremasList, dogPyramidImagesT);
-
-    // compute the orientation angle for each pruned extremas
-    const extremaHistogramsT = this._computeOrientationHistograms(prunedExtremasT, pyramidImagesT);
-    const smoothedHistogramsT = this._smoothHistograms(extremaHistogramsT);
-    const extremaAnglesT = this._computeExtremaAngles(smoothedHistogramsT);
-
-    // to compute freak descriptors, we first find the pixel value of 37 freak points for each extrema 
-    const extremaFreaksT = this._computeExtremaFreak(pyramidImagesT, prunedExtremasT, extremaAnglesT);
-
-    // compute the binary descriptors
-    const freakDescriptorsT = this._computeFreakDescriptors(extremaFreaksT);
-
-    const prunedExtremasArr = prunedExtremasT.arraySync();
-    const extremaAnglesArr = extremaAnglesT.arraySync();
-    const freakDescriptorsArr = freakDescriptorsT.arraySync();
-
-    if (this.debugMode) {
-      debugExtra = {
-	pyramidImages: pyramidImagesT.map((ts) => ts.map((t) => t.arraySync())),
-	dogPyramidImages: dogPyramidImagesT.map((t) => t? t.arraySync(): null),
-	extremasResults: extremasResultsT.map((t) => t.arraySync()),
-	extremaAngles: extremaAnglesT.arraySync(),
-	prunedExtremas: prunedExtremasList,
-	localizedExtremas: prunedExtremasT.arraySync(),
-      }
-    }
-
-    pyramidImagesT.forEach((ts) => ts.forEach((t) => t.dispose()));
-    dogPyramidImagesT.forEach((t) => t && t.dispose());
-    extremasResultsT.forEach((t) => t.dispose());
-    prunedExtremasT.dispose();
-    extremaHistogramsT.dispose();
-    smoothedHistogramsT.dispose();
-    extremaAnglesT.dispose();
-    extremaFreaksT.dispose();
-    freakDescriptorsT.dispose();
-
-    const featurePoints = [];
-
-    for (let i = 0; i < prunedExtremasArr.length; i++) {
-      if (prunedExtremasArr[i][0] == 0) continue; 
-
-      const descriptors = [];
-      for (let m = 0; m < freakDescriptorsArr[i].length; m+=4) {
-	const v1 = freakDescriptorsArr[i][m];
-	const v2 = freakDescriptorsArr[i][m+1];
-	const v3 = freakDescriptorsArr[i][m+2];
-	const v4 = freakDescriptorsArr[i][m+3];
-
-	let combined = v1 * 16777216 + v2 * 65536 + v3 * 256 + v4;
-	//if (m === freakDescriptorsArr[i].length-4) { // last one, legacy reason
-	//  combined /= 32;
-	//}
-	descriptors.push(combined);
-      }
-
-      const octave = prunedExtremasArr[i][1];
-      const y = prunedExtremasArr[i][2];
-      const x = prunedExtremasArr[i][3];
-      const originalX = x * Math.pow(2, octave) + Math.pow(2, (octave-1)) - 0.5;
-      const originalY = y * Math.pow(2, octave) + Math.pow(2, (octave-1)) - 0.5;
-      const scale = Math.pow(2, octave);
-
-      featurePoints.push({
-	maxima: prunedExtremasArr[i][0] > 0,
-	x: originalX,
-	y: originalY,
-	scale: scale,
-	angle: extremaAnglesArr[i],
-	descriptors: descriptors
-      });
-    }
-    //console.log("feature points", featurePoints);
-    //console.table(tf.memory());
-    return {featurePoints, debugExtra};
-  }
-
-  _computeFreakDescriptors(extremaFreaks) {
-    if (!this.tensorCaches.computeFreakDescriptors) {
-      const in1Arr = [];
-      const in2Arr = [];
-      for (let k1 = 0; k1 < extremaFreaks.shape[1]; k1++) {
-	for (let k2 = k1+1; k2 < extremaFreaks.shape[1]; k2++) {
-	  in1Arr.push(k1);
-	  in2Arr.push(k2);
+		this.tensorCaches = {};
+		this.kernelCaches = {};
 	}
-      }
-      const in1 = tf.tensor(in1Arr, [in1Arr.length]).cast('int32');
-      const in2 = tf.tensor(in2Arr, [in2Arr.length]).cast('int32');
 
-      this.tensorCaches.computeFreakDescriptors = {
-	positionT: tf.keep(tf.stack([in1, in2], 1))
-      }
-    }
-    const {positionT} = this.tensorCaches.computeFreakDescriptors;
+	// used in compiler
+	detectImageData(imageData) {
+		const arr = new Uint8ClampedArray(4 * imageData.length);
+		for (let i = 0; i < imageData.length; i++) {
+			arr[4 * i] = imageData[i];
+			arr[4 * i + 1] = imageData[i];
+			arr[4 * i + 2] = imageData[i];
+			arr[4 * i + 3] = 255;
+		}
+		const img = new ImageData(arr, this.width, this.height);
+		return this.detect(img);
+	}
+	/**
+	 * 
+	 * @param {tf.Tensor<tf.Rank>} inputImageT 
+	 * @returns 
+	 */
+	detect(inputImageT) {
+		let debugExtra = null;
 
-    // encode 8 bits into one number
-    // trying to encode 16 bits give wrong result in iOS. may integer precision issue
-    const descriptorCount = Math.ceil(FREAK_CONPARISON_COUNT / 8);
-    if (!this.kernelCaches.computeFreakDescriptors) {
-      const kernel =  {
-	variableNames: ['freak', 'p'],
-	outputShape: [extremaFreaks.shape[0], descriptorCount],
-	userCode: `
+		// Build gaussian pyramid images, two images per octave
+		/** @type {Array<Array<tf.Tensor<tf.Rank>>} */
+		const pyramidImagesT = [];
+		console.log("Detector::Building pyramid Images...");
+		for (let i = 0; i < this.numOctaves; i++) {
+			let image1T;
+			let image2T;
+
+
+			if (i === 0) {
+				image1T = tf.tidy(()=>{ return tf.engine().runKernel('BinomialFilter', { image: inputImageT });});//this._applyFilter(inputImageT);
+			} else {
+				image1T = tf.tidy(()=>{ return tf.engine().runKernel('DownsampleBilinear', { image: pyramidImagesT[i - 1][pyramidImagesT[i - 1].length - 1] });});//this._downsampleBilinear(pyramidImagesT[i-1][pyramidImagesT[i-1].length-1]);
+			}
+			image2T = tf.tidy(()=>{return tf.engine().runKernel('BinomialFilter', { image: image1T });});//this._applyFilter(image1T);
+			pyramidImagesT.push([image1T, image2T]);
+		}
+		console.log("Detector::Building dog images...");
+		// Build difference-of-gaussian (dog) pyramid
+		/** @type {tf.Tensor<tf.Rank>[]} */
+		const dogPyramidImagesT = [];
+		for (let i = 0; i < this.numOctaves; i++) {
+			let dogImageT = this._differenceImageBinomial(pyramidImagesT[i][0], pyramidImagesT[i][1]);
+			dogPyramidImagesT.push(dogImageT);
+		}
+
+		// find local maximum/minimum
+		/** @type {tf.Tensor<tf.Rank>[]} */
+		const extremasResultsT = [];
+		for (let i = 1; i < this.numOctaves - 1; i++) {
+			const extremasResultT =tf.tidy(()=>{return tf.engine().runKernel('BuildExtremas', { image0: dogPyramidImagesT[i - 1], image1: dogPyramidImagesT[i], image2: dogPyramidImagesT[i + 1] });});//this._buildExtremas(dogPyramidImagesT[i-1], dogPyramidImagesT[i], dogPyramidImagesT[i+1]);
+			extremasResultsT.push(extremasResultT);
+		}
+
+		// divide the input into N by N buckets, and for each bucket,
+		// collect the top 5 most significant extrema across extremas in all scale level
+		// result would be NUM_BUCKETS x NUM_FEATURES_PER_BUCKET extremas
+		const prunedExtremasList = this._applyPrune(extremasResultsT);
+
+		const prunedExtremasT = this._computeLocalization(prunedExtremasList, dogPyramidImagesT);
+
+		// compute the orientation angle for each pruned extremas
+		const extremaHistogramsT = this._computeOrientationHistograms(prunedExtremasT, pyramidImagesT);
+		
+		const extremaAnglesT =tf.tidy(()=>{ 
+			const smoothedHistogramsT =tf.engine().runKernel("SmoothHistograms",{histograms:extremaHistogramsT});//this._smoothHistograms(extremaHistogramsT);
+			return tf.engine().runKernel("ComputeExtremaAngles",{histograms:smoothedHistogramsT});//this._computeExtremaAngles(smoothedHistogramsT);
+		});
+
+		// to compute freak descriptors, we first find the pixel value of 37 freak points for each extrema 
+		const extremaFreaksT = this._computeExtremaFreak(pyramidImagesT, prunedExtremasT, extremaAnglesT);
+
+		// compute the binary descriptors
+		const freakDescriptorsT = this._computeFreakDescriptors(extremaFreaksT);
+
+		const prunedExtremasArr = prunedExtremasT.arraySync();
+		const extremaAnglesArr = extremaAnglesT.arraySync();
+		const freakDescriptorsArr = freakDescriptorsT.arraySync();
+
+		if (this.debugMode) {
+			debugExtra = {
+				pyramidImages: pyramidImagesT.map((ts) => ts.map((t) => t.arraySync())),
+				dogPyramidImages: dogPyramidImagesT.map((t) => t ? t.arraySync() : null),
+				extremasResults: extremasResultsT.map((t) => t.arraySync()),
+				extremaAngles: extremaAnglesT.arraySync(),
+				prunedExtremas: prunedExtremasList,
+				localizedExtremas: prunedExtremasT.arraySync(),
+			}
+		}
+
+		pyramidImagesT.forEach((ts) => ts.forEach((t) => t.dispose()));
+		dogPyramidImagesT.forEach((t) => t && t.dispose());
+		extremasResultsT.forEach((t) => t.dispose());
+		prunedExtremasT.dispose();
+		extremaHistogramsT.dispose();
+		//smoothedHistogramsT.dispose();
+		extremaAnglesT.dispose();
+		extremaFreaksT.dispose();
+		freakDescriptorsT.dispose();
+
+		const featurePoints = [];
+
+		for (let i = 0; i < prunedExtremasArr.length; i++) {
+			if (prunedExtremasArr[i][0] == 0) continue;
+
+			const descriptors = [];
+			for (let m = 0; m < freakDescriptorsArr[i].length; m += 4) {
+				const v1 = freakDescriptorsArr[i][m];
+				const v2 = freakDescriptorsArr[i][m + 1];
+				const v3 = freakDescriptorsArr[i][m + 2];
+				const v4 = freakDescriptorsArr[i][m + 3];
+
+				let combined = v1 * 16777216 + v2 * 65536 + v3 * 256 + v4;
+				//if (m === freakDescriptorsArr[i].length-4) { // last one, legacy reason
+				//  combined /= 32;
+				//}
+				descriptors.push(combined);
+			}
+
+			const octave = prunedExtremasArr[i][1];
+			const y = prunedExtremasArr[i][2];
+			const x = prunedExtremasArr[i][3];
+			const originalX = x * Math.pow(2, octave) + Math.pow(2, (octave - 1)) - 0.5;
+			const originalY = y * Math.pow(2, octave) + Math.pow(2, (octave - 1)) - 0.5;
+			const scale = Math.pow(2, octave);
+
+			featurePoints.push({
+				maxima: prunedExtremasArr[i][0] > 0,
+				x: originalX,
+				y: originalY,
+				scale: scale,
+				angle: extremaAnglesArr[i],
+				descriptors: descriptors
+			});
+		}
+		//console.log("feature points", featurePoints);
+		//console.table(tf.memory());
+		return { featurePoints, debugExtra };
+	}
+
+	_computeFreakDescriptors(extremaFreaks) {
+		if (!this.tensorCaches.computeFreakDescriptors) {
+			const in1Arr = [];
+			const in2Arr = [];
+			for (let k1 = 0; k1 < extremaFreaks.shape[1]; k1++) {
+				for (let k2 = k1 + 1; k2 < extremaFreaks.shape[1]; k2++) {
+					in1Arr.push(k1);
+					in2Arr.push(k2);
+				}
+			}
+			const in1 = tf.tensor(in1Arr, [in1Arr.length]).cast('int32');
+			const in2 = tf.tensor(in2Arr, [in2Arr.length]).cast('int32');
+
+			this.tensorCaches.computeFreakDescriptors = {
+				positionT: tf.keep(tf.stack([in1, in2], 1))
+			}
+		}
+		const { positionT } = this.tensorCaches.computeFreakDescriptors;
+
+		// encode 8 bits into one number
+		// trying to encode 16 bits give wrong result in iOS. may integer precision issue
+		const descriptorCount = Math.ceil(FREAK_CONPARISON_COUNT / 8);
+		/*
+		if (!this.kernelCaches.computeFreakDescriptors) {
+			const kernel = {
+				variableNames: ['freak', 'p'],
+				outputShape: [extremaFreaks.shape[0], descriptorCount],
+				userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 	    int featureIndex = coords[0];
@@ -222,53 +236,54 @@ class Detector {
 	    setOutput(float(sum));
 	  }
 	`
-      }
-      this.kernelCaches.computeFreakDescriptors = [kernel];
-    }
+			}
+			this.kernelCaches.computeFreakDescriptors = [kernel];
+		}
+		*/
+		return tf.tidy(() => {
+			//const [program] = this.kernelCaches.computeFreakDescriptors;
+			//return this._runWebGLProgram(program, [extremaFreaks, positionT], 'int32');
+			return tf.engine().runKernel('ComputeFreakDescriptors',{extremaFreaks, positionT});
+		});
+	}
 
-    return tf.tidy(() => {
-      const [program] = this.kernelCaches.computeFreakDescriptors;
-      return this._runWebGLProgram(program, [extremaFreaks, positionT], 'int32');
-    });
-  }
+	_computeExtremaFreak(pyramidImagesT, prunedExtremas, prunedExtremasAngles) {
+		if (!this.tensorCaches._computeExtremaFreak) {
+			tf.tidy(() => {
+				const freakPoints = tf.tensor(FREAKPOINTS);
+				this.tensorCaches._computeExtremaFreak = {
+					freakPointsT: tf.keep(freakPoints),
+				};
+			});
+		}
+		const { freakPointsT } = this.tensorCaches._computeExtremaFreak;
 
-  _computeExtremaFreak(pyramidImagesT, prunedExtremas, prunedExtremasAngles) {
-    if (!this.tensorCaches._computeExtremaFreak) {
-      tf.tidy(() => {
-	const freakPoints = tf.tensor(FREAKPOINTS);
-	this.tensorCaches._computeExtremaFreak = {
-	  freakPointsT: tf.keep(freakPoints),
-	};
-      });
-    }
-    const {freakPointsT} = this.tensorCaches._computeExtremaFreak;
+		const gaussianImagesT = [];
+		for (let i = 1; i < pyramidImagesT.length; i++) {
+			//gaussianImagesT.push(pyramidImagesT[i][0]);
+			gaussianImagesT.push(pyramidImagesT[i][1]); // better
+		}
+		/*
+		if (!this.kernelCaches._computeExtremaFreak) {
+			const imageVariableNames = [];
+			for (let i = 1; i < pyramidImagesT.length; i++) {
+				imageVariableNames.push('image' + i);
+			}
 
-    const gaussianImagesT = [];
-    for (let i = 1; i < pyramidImagesT.length; i++) {
-      //gaussianImagesT.push(pyramidImagesT[i][0]);
-      gaussianImagesT.push(pyramidImagesT[i][1]); // better
-    }
-
-    if (!this.kernelCaches._computeExtremaFreak) {
-      const imageVariableNames = [];
-      for (let i = 1; i < pyramidImagesT.length; i++) {
-	imageVariableNames.push('image' + i);
-      }
-
-      let pixelsSubCodes = `float getPixel(int octave, int y, int x) {`;
-      for (let i = 1; i < pyramidImagesT.length; i++) {
-	pixelsSubCodes += `
+			let pixelsSubCodes = `float getPixel(int octave, int y, int x) {`;
+			for (let i = 1; i < pyramidImagesT.length; i++) {
+				pixelsSubCodes += `
 	  if (octave == ${i}) {
 	    return getImage${i}(y, x);
 	  }
 	`
-      }
-      pixelsSubCodes += `}`;
+			}
+			pixelsSubCodes += `}`;
 
-      const kernel = {
-	variableNames: [...imageVariableNames, 'extrema', 'angles', 'freakPoints'],
-	outputShape: [prunedExtremas.shape[0], FREAKPOINTS.length],
-	userCode: `
+			const kernel = {
+				variableNames: [...imageVariableNames, 'extrema', 'angles', 'freakPoints'],
+				outputShape: [prunedExtremas.shape[0], FREAKPOINTS.length],
+				userCode: `
 	  ${pixelsSubCodes}
 	  void main() {
 	    ivec2 coords = getOutputCoords();
@@ -313,24 +328,28 @@ class Detector {
 	    setOutput(value);
 	  }
 	`
-      }
+			}
 
-      this.kernelCaches._computeExtremaFreak = [kernel];
-    }
-
-    return tf.tidy(() => {
-      const [program] = this.kernelCaches._computeExtremaFreak;
-      const result = this._compileAndRun(program, [...gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT]);
-      return result;
-    });
-  }
-
-  _computeExtremaAngles(histograms) {
-    if (!this.kernelCaches.computeExtremaAngles) {
-      const kernel = {
-	variableNames: ['histogram'],
-	outputShape: [histograms.shape[0]],
-	userCode: `
+			this.kernelCaches._computeExtremaFreak = [kernel];
+		}
+		*/
+		return tf.tidy(() => {
+			//const [program] = this.kernelCaches._computeExtremaFreak;
+			//const result = this._compileAndRun(program, [...gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT]);
+			return tf.engine().runKernel('ComputeExtremaFreak',{gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT});
+		});
+	}
+	/**
+	 * 
+	 * @param {tf.Tensor<tf.Rank>} histograms 
+	 * @returns 
+	 */
+	/* _computeExtremaAngles(histograms) {
+		if (!this.kernelCaches.computeExtremaAngles) {
+			const kernel = {
+				variableNames: ['histogram'],
+				outputShape: [histograms.shape[0]],
+				userCode: `
 	  void main() {
 	    int featureIndex = getOutputCoords();
 
@@ -344,7 +363,7 @@ class Detector {
 	    int prev = imod(maxIndex - 1 + ${ORIENTATION_NUM_BINS}, ${ORIENTATION_NUM_BINS});
 	    int next = imod(maxIndex + 1, ${ORIENTATION_NUM_BINS});
 
-	    /**
+	    **
 	     * Fit a quatratic to 3 points. The system of equations is:
 	     *
 	     * y0 = A*x0^2 + B*x0 + C
@@ -352,7 +371,7 @@ class Detector {
 	     * y2 = A*x2^2 + B*x2 + C
 	     *
 	     * This system of equations is solved for A,B,C.
-	     */
+	     *
 	    float p10 = float(maxIndex - 1);
 	    float p11 = getHistogram(featureIndex, prev); 
 	    float p20 = float(maxIndex);
@@ -381,72 +400,78 @@ class Detector {
 	    setOutput(an);
 	  }
 	`
-      }
-      this.kernelCaches.computeExtremaAngles = kernel;
-    }
-    return tf.tidy(() => {
-      const program = this.kernelCaches.computeExtremaAngles; 
-      return this._compileAndRun(program, [histograms]);
-    });
-  }
+			}
+			this.kernelCaches.computeExtremaAngles = kernel;
+		}
+		return tf.tidy(() => {
+			const program = this.kernelCaches.computeExtremaAngles;
+			return this._compileAndRun(program, [histograms]);
+		});
+	} */
 
-  // TODO: maybe can try just using average momentum, instead of histogram method. histogram might be overcomplicated
-  _computeOrientationHistograms(prunedExtremasT, pyramidImagesT) {
-    const oneOver2PI = 0.159154943091895;
+	// TODO: maybe can try just using average momentum, instead of histogram method. histogram might be overcomplicated
+	/**
+	 * 
+	 * @param {tf.Tensor<tf.Rank>} prunedExtremasT 
+	 * @param {tf.Tensor<tf.Rank>[]} pyramidImagesT 
+	 * @returns 
+	 */
+	_computeOrientationHistograms(prunedExtremasT, pyramidImagesT) {
+		const oneOver2PI = 0.159154943091895;
 
-    const gaussianImagesT = [];
-    for (let i = 1; i < pyramidImagesT.length; i++) {
-      gaussianImagesT.push(pyramidImagesT[i][1]);
-    }
+		const gaussianImagesT = [];
+		for (let i = 1; i < pyramidImagesT.length; i++) {
+			gaussianImagesT.push(pyramidImagesT[i][1]);
+		}
 
-    if (!this.tensorCaches.orientationHistograms) {
-      tf.tidy(() => {
-        const gwScale = -1.0 / (2 * ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * ORIENTATION_GAUSSIAN_EXPANSION_FACTOR);
-        const radius = ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * ORIENTATION_REGION_EXPANSION_FACTOR;
-        const radiusCeil = Math.ceil(radius);
+		if (!this.tensorCaches.orientationHistograms) {
+			tf.tidy(() => {
+				const gwScale = -1.0 / (2 * ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * ORIENTATION_GAUSSIAN_EXPANSION_FACTOR);
+				const radius = ORIENTATION_GAUSSIAN_EXPANSION_FACTOR * ORIENTATION_REGION_EXPANSION_FACTOR;
+				const radiusCeil = Math.ceil(radius);
 
-	const radialProperties = [];
-        for (let y = -radiusCeil; y <= radiusCeil; y++) {
-          for (let x = -radiusCeil; x <= radiusCeil; x++) {
-	    const distanceSquare = x * x + y * y;
+				const radialProperties = [];
+				for (let y = -radiusCeil; y <= radiusCeil; y++) {
+					for (let x = -radiusCeil; x <= radiusCeil; x++) {
+						const distanceSquare = x * x + y * y;
 
-	    // may just assign w = 1 will do, this could be over complicated.
-            if (distanceSquare <= radius * radius) {
-	      const _x = distanceSquare * gwScale; 
-	      // fast expontenial approx
-	      let w = (720+_x*(720+_x*(360+_x*(120+_x*(30+_x*(6+_x))))))*0.0013888888;
-	      radialProperties.push([y, x, w]);
-            }
-          }
-        }
+						// may just assign w = 1 will do, this could be over complicated.
+						if (distanceSquare <= radius * radius) {
+							const _x = distanceSquare * gwScale;
+							// fast expontenial approx
+							let w = (720 + _x * (720 + _x * (360 + _x * (120 + _x * (30 + _x * (6 + _x)))))) * 0.0013888888;
+							radialProperties.push([y, x, w]);
+						}
+					}
+				}
 
-        this.tensorCaches.orientationHistograms = {
-          radialPropertiesT: tf.keep(tf.tensor(radialProperties, [radialProperties.length, 3])),
-        }
-      });
-    }
-    const {radialPropertiesT} = this.tensorCaches.orientationHistograms;
+				this.tensorCaches.orientationHistograms = {
+					radialPropertiesT: tf.keep(tf.tensor(radialProperties, [radialProperties.length, 3])),
+				}
+			});
+		}
+		const { radialPropertiesT } = this.tensorCaches.orientationHistograms;
 
-    if (!this.kernelCaches.computeOrientationHistograms) {
-      const imageVariableNames = [];
-      for (let i = 1; i < pyramidImagesT.length; i++) {
-	imageVariableNames.push('image' + i);
-      }
+		/* if (!this.kernelCaches.computeOrientationHistograms) {
+			const imageVariableNames = [];
+			for (let i = 1; i < pyramidImagesT.length; i++) {
+				imageVariableNames.push('image' + i);
+			}
 
-      let kernel1SubCodes = `float getPixel(int octave, int y, int x) {`;
-      for (let i = 1; i < pyramidImagesT.length; i++) {
-	kernel1SubCodes += `
+			let kernel1SubCodes = `float getPixel(int octave, int y, int x) {`;
+			for (let i = 1; i < pyramidImagesT.length; i++) {
+				kernel1SubCodes += `
 	  if (octave == ${i}) {
 	    return getImage${i}(y, x);
 	  }
 	`
-      }
-      kernel1SubCodes += `}`;
+			}
+			kernel1SubCodes += `}`;
 
-      const kernel1 = {
-	variableNames: [...imageVariableNames, 'extrema', 'radial'],
-	outputShape: [prunedExtremasT.shape[0], radialPropertiesT.shape[0], 2], // last dimension: [fbin, magnitude]
-	userCode: `
+			const kernel1 = {
+				variableNames: [...imageVariableNames, 'extrema', 'radial'],
+				outputShape: [prunedExtremasT.shape[0], radialPropertiesT.shape[0], 2], // last dimension: [fbin, magnitude]
+				userCode: `
 	  ${kernel1SubCodes}
 
 	  void main() {
@@ -487,12 +512,12 @@ class Detector {
 	  }
 
 	`
-      }
+			}
 
-      const kernel2 = {
-	variableNames: ['fbinMag'],
-	outputShape: [prunedExtremasT.shape[0], ORIENTATION_NUM_BINS],
-	userCode: `
+			const kernel2 = {
+				variableNames: ['fbinMag'],
+				outputShape: [prunedExtremasT.shape[0], ORIENTATION_NUM_BINS],
+				userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 	    int featureIndex = coords[0];
@@ -521,26 +546,27 @@ class Detector {
 	    setOutput(sum);
 	  }
 	`
-      }
+			}
 
-      this.kernelCaches.computeOrientationHistograms = [kernel1, kernel2];
-    }
+			this.kernelCaches.computeOrientationHistograms = [kernel1, kernel2];
+		} */
 
-    return tf.tidy(() => {
-      const [program1, program2] = this.kernelCaches.computeOrientationHistograms;
-      const result1 = this._compileAndRun(program1, [...gaussianImagesT, prunedExtremasT, radialPropertiesT]);
-      const result2 = this._compileAndRun(program2, [result1]);
-      return result2;
-    });
-  }
+		return tf.tidy(() => {
+			/* const [program1, program2] = this.kernelCaches.computeOrientationHistograms;
+			const result1 = this._compileAndRun(program1, [...gaussianImagesT, prunedExtremasT, radialPropertiesT]);
+			const result2 = this._compileAndRun(program2, [result1]); 
+			return result2;*/
+			return tf.engine().runKernel('ComputeOrientationHistograms',{gaussianImagesT, prunedExtremasT, radialPropertiesT});
+		});
+	}
 
-  // The histogram is smoothed with a Gaussian, with sigma = 1
-  _smoothHistograms(histograms) {
-    if (!this.kernelCaches.smoothHistograms) {
-      const kernel = {
-	variableNames: ['histogram'],
-	outputShape: [histograms.shape[0], ORIENTATION_NUM_BINS],
-	userCode: `
+	// The histogram is smoothed with a Gaussian, with sigma = 1
+	/* _smoothHistograms(histograms) {
+		if (!this.kernelCaches.smoothHistograms) {
+			const kernel = {
+				variableNames: ['histogram'],
+				outputShape: [histograms.shape[0], ORIENTATION_NUM_BINS],
+				userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 
@@ -555,263 +581,273 @@ class Detector {
 	    setOutput(result);
 	  }
 	`
-      }
-      this.kernelCaches.smoothHistograms = kernel;
-    }
-    return tf.tidy(() => {
-      const program = this.kernelCaches.smoothHistograms; 
-      for (let i = 0; i < ORIENTATION_SMOOTHING_ITERATIONS; i++) {
-	histograms = this._compileAndRun(program, [histograms]);
-      }
-      return histograms;
-    });
-  }
+			}
+			this.kernelCaches.smoothHistograms = kernel;
+		}
+		return tf.tidy(() => {
+			const program = this.kernelCaches.smoothHistograms;
+			for (let i = 0; i < ORIENTATION_SMOOTHING_ITERATIONS; i++) {
+				histograms = this._compileAndRun(program, [histograms]);
+			}
+			return histograms;
+		});
+	} */
+	/**
+	 * 
+	 * @param {number[][]} prunedExtremasList 
+	 * @param {tf.Tensor<tf.Rank>[]} dogPyramidImagesT 
+	 * @returns 
+	 */
+	_computeLocalization(prunedExtremasList, dogPyramidImagesT) {
+		/*  if (!this.kernelCaches.computeLocalization) {
+		   const dogVariableNames = [];
+	 
+		   let dogSubCodes = `float getPixel(int octave, int y, int x) {`;
+		   for (let i = 1; i < dogPyramidImagesT.length; i++) {  // extrema starts from second octave
+		 dogVariableNames.push('image' + i);
+		 dogSubCodes += `
+		   if (octave == ${i}) {
+			 return getImage${i}(y, x);
+		   }
+		   `;
+		   }
+		   dogSubCodes += `}`;
+	 
+		   const kernel = {
+		 variableNames: [...dogVariableNames, 'extrema'],
+		 outputShape: [prunedExtremasList.length, 3, 3], // 3x3 pixels around the extrema
+		 userCode: `
+		   ${dogSubCodes}
+	 
+		   void main() {
+			 ivec3 coords = getOutputCoords();
+			 int featureIndex = coords[0];
+			 float score = getExtrema(featureIndex, 0);
+			 if (score == 0.0) {
+			   return;
+			 }
+	 
+			 int dy = coords[1]-1;
+			 int dx = coords[2]-1;
+			 int octave = int(getExtrema(featureIndex, 1));
+			 int y = int(getExtrema(featureIndex, 2));
+			 int x = int(getExtrema(featureIndex, 3));
+			 setOutput(getPixel(octave, y+dy, x+dx));
+		   }
+		 `
+		   }
+	 
+		   this.kernelCaches.computeLocalization = [kernel];
+		 } */
 
-  _computeLocalization(prunedExtremasList, dogPyramidImagesT) {
-    if (!this.kernelCaches.computeLocalization) {
-      const dogVariableNames = [];
+		return tf.tidy(() => {
+			//const program = this.kernelCaches.computeLocalization[0];
+			//const prunedExtremasT = tf.tensor(prunedExtremasList, [prunedExtremasList.length, prunedExtremasList[0].length], 'int32');
 
-      let dogSubCodes = `float getPixel(int octave, int y, int x) {`;
-      for (let i = 1; i < dogPyramidImagesT.length; i++) {  // extrema starts from second octave
-	dogVariableNames.push('image' + i);
-	dogSubCodes += `
-	  if (octave == ${i}) {
-	    return getImage${i}(y, x);
-	  }
- 	`;
-      }
-      dogSubCodes += `}`;
+			const pixelsT = tf.engine().runKernel('ComputeLocalization', { prunedExtremasList, dogPyramidImagesT });//this._compileAndRun(program, [...dogPyramidImagesT.slice(1), prunedExtremasT]);
+			const pixels = pixelsT.arraySync();
 
-      const kernel = {
-	variableNames: [...dogVariableNames, 'extrema'],
-	outputShape: [prunedExtremasList.length, 3, 3], // 3x3 pixels around the extrema
-	userCode: `
-	  ${dogSubCodes}
+			const result = [];
+			for (let i = 0; i < pixels.length; i++) {
+				result.push([]);
+				for (let j = 0; j < pixels[i].length; j++) {
+					result[i].push([]);
+				}
+			}
 
-	  void main() {
-	    ivec3 coords = getOutputCoords();
-	    int featureIndex = coords[0];
-	    float score = getExtrema(featureIndex, 0);
-	    if (score == 0.0) {
-	      return;
-	    }
+			const localizedExtremas = [];
+			for (let i = 0; i < prunedExtremasList.length; i++) {
+				localizedExtremas[i] = [
+					prunedExtremasList[i][0],
+					prunedExtremasList[i][1],
+					prunedExtremasList[i][2],
+					prunedExtremasList[i][3],
+				];
+			}
 
-	    int dy = coords[1]-1;
-	    int dx = coords[2]-1;
-	    int octave = int(getExtrema(featureIndex, 1));
-	    int y = int(getExtrema(featureIndex, 2));
-	    int x = int(getExtrema(featureIndex, 3));
-	    setOutput(getPixel(octave, y+dy, x+dx));
-	  }
-	`
-      }
+			for (let i = 0; i < localizedExtremas.length; i++) {
+				if (localizedExtremas[i][0] === 0) {
+					continue;
+				}
+				const pixel = pixels[i];
+				const dx = 0.5 * (pixel[1][2] - pixel[1][0]);
+				const dy = 0.5 * (pixel[2][1] - pixel[0][1]);
+				const dxx = pixel[1][2] + pixel[1][0] - 2 * pixel[1][1];
+				const dyy = pixel[2][1] + pixel[0][1] - 2 * pixel[1][1];
+				const dxy = 0.25 * (pixel[0][0] + pixel[2][2] - pixel[0][2] - pixel[2][0]);
 
-      this.kernelCaches.computeLocalization = [kernel];
-    }
+				const det = dxx * dyy - dxy * dxy;
+				const ux = (dyy * -dx + -dxy * -dy) / det;
+				const uy = (-dxy * -dx + dxx * -dy) / det;
 
-    return tf.tidy(() => {
-      const program = this.kernelCaches.computeLocalization[0];
-      const prunedExtremasT = tf.tensor(prunedExtremasList, [prunedExtremasList.length, prunedExtremasList[0].length], 'int32');
+				const newY = localizedExtremas[i][2] + uy;
+				const newX = localizedExtremas[i][3] + ux;
 
-      const pixelsT = this._compileAndRun(program, [...dogPyramidImagesT.slice(1), prunedExtremasT]);
-      const pixels = pixelsT.arraySync();
+				if (Math.abs(det) < 0.0001) {
+					continue;
+				}
 
-      const result = [];
-      for (let i = 0; i < pixels.length; i++) {
-	result.push([]);
-	for (let j = 0; j < pixels[i].length; j++) {
-	  result[i].push([]);
+				localizedExtremas[i][2] = newY;
+				localizedExtremas[i][3] = newX;
+			}
+			return tf.tensor(localizedExtremas, [localizedExtremas.length, localizedExtremas[0].length], 'float32');
+		});
 	}
-      }
 
-      const localizedExtremas = [];
-      for (let i = 0; i < prunedExtremasList.length; i++) {
-	localizedExtremas[i] = [
-	  prunedExtremasList[i][0],
-	  prunedExtremasList[i][1],
-	  prunedExtremasList[i][2],
-	  prunedExtremasList[i][3],
-	];
-      }
+	// faster to do it in CPU
+	// if we do in gpu, we probably need to use tf.topk(), which seems to be run in CPU anyway (no gpu operation for that)
+	//  TODO: research adapative maximum supression method
+	/**
+	 * 
+	 * @param {tf.Tensor<tf.Rank>[]} extremasResultsT 
+	 * @returns 
+	 */
+	_applyPrune(extremasResultsT) {
+		const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
+		const nFeatures = MAX_FEATURES_PER_BUCKET;
+		/*
+		if (!this.kernelCaches.applyPrune) {
+		  const reductionKernels = [];
+	
+		  // to reduce to amount of data that need to sync back to CPU by 4 times, we apply this trick:
+		  // the fact that there is not possible to have consecutive maximum/minimum, we can safe combine 4 pixels into 1
+		  for (let k = 0; k < extremasResultsT.length; k++) {
+			const extremaHeight = extremasResultsT[k].shape[0];
+			const extremaWidth = extremasResultsT[k].shape[1];
+	
+			const kernel = {
+				variableNames: ['extrema'],
+				outputShape: [Math.floor(extremaHeight/2), Math.floor(extremaWidth/2)],
+				userCode: `
+					void main() {
+						ivec2 coords = getOutputCoords();
+						int y = coords[0] * 2;
+						int x = coords[1] * 2;
+	
+						float location = 0.0;
+						float values = getExtrema(y, x);
+	
+						if (getExtrema(y+1, x) != 0.0) {
+							location = 1.0;
+						values = getExtrema(y+1, x);
+						}
+						else if (getExtrema(y, x+1) != 0.0) {
+							location = 2.0;
+						values = getExtrema(y, x+1);
+						}
+						else if (getExtrema(y+1, x+1) != 0.0) {
+							location = 3.0;
+						values = getExtrema(y+1, x+1);
+						}
+	
+						if (values < 0.0) {
+							setOutput(location * -1000.0 + values);
+						} else {
+							setOutput(location * 1000.0 + values);
+						}
+					}
+				`
+			}
+			reductionKernels.push(kernel);
+		  }
+		  this.kernelCaches.applyPrune = {reductionKernels};
+		}
+		*/
+		// combine results into a tensor of:
+		//   nBuckets x nFeatures x [score, octave, y, x]
+		const curAbsScores = [];
+		/** @type {number[][][]} */
+		const result = [];
+		for (let i = 0; i < nBuckets; i++) {
+			result.push([]);
+			curAbsScores.push([]);
+			for (let j = 0; j < nFeatures; j++) {
+				result[i].push([0, 0, 0, 0]);
+				curAbsScores[i].push(0);
+			}
+		}
 
-      for (let i = 0; i < localizedExtremas.length; i++) {
-	if (localizedExtremas[i][0] === 0) {
-	  continue;
+		tf.tidy(() => {
+			//const {reductionKernels} = this.kernelCaches.applyPrune;
+
+			for (let k = 0; k < extremasResultsT.length; k++) {
+				//const program = reductionKernels[k];
+				//const reducedT = this._compileAndRun(program, [extremasResultsT[k]]);
+				const reducedT = tf.engine().runKernel('ExtremaReduction', { extremasResultT: extremasResultsT[k] });
+				const octave = k + 1; // extrema starts from second octave
+
+				const reduced = reducedT.arraySync();
+				const height = reducedT.shape[0];
+				const width = reducedT.shape[1];
+
+				const bucketWidth = width * 2 / NUM_BUCKETS_PER_DIMENSION;
+				const bucketHeight = height * 2 / NUM_BUCKETS_PER_DIMENSION;
+
+				for (let j = 0; j < height; j++) {
+					for (let i = 0; i < width; i++) {
+						const encoded = reduced[j][i];
+						if (encoded == 0) continue;
+
+
+						const score = encoded % 1000;
+						const loc = Math.floor(Math.abs(encoded) / 1000);
+						const x = i * 2 + (loc === 2 || loc === 3 ? 1 : 0);
+						const y = j * 2 + (loc === 1 || loc === 3 ? 1 : 0);
+
+						const bucketX = Math.floor(x / bucketWidth);
+						const bucketY = Math.floor(y / bucketHeight);
+						const bucket = bucketY * NUM_BUCKETS_PER_DIMENSION + bucketX;
+
+						const absScore = Math.abs(score);
+
+						let tIndex = nFeatures;
+						while (tIndex >= 1 && absScore > curAbsScores[bucket][tIndex - 1]) {
+							tIndex -= 1;
+						}
+
+						if (tIndex < nFeatures) {
+							for (let t = nFeatures - 1; t >= tIndex + 1; t--) {
+								curAbsScores[bucket][t] = curAbsScores[bucket][t - 1];
+								result[bucket][t][0] = result[bucket][t - 1][0];
+								result[bucket][t][1] = result[bucket][t - 1][1];
+								result[bucket][t][2] = result[bucket][t - 1][2];
+								result[bucket][t][3] = result[bucket][t - 1][3];
+							}
+							curAbsScores[bucket][tIndex] = absScore;
+							result[bucket][tIndex][0] = score;
+							result[bucket][tIndex][1] = octave;
+							result[bucket][tIndex][2] = y;
+							result[bucket][tIndex][3] = x;
+						}
+					}//for j<height
+				}//for i<width
+			}
+		});
+
+		// combine all buckets into a single list
+		const list = [];
+		for (let i = 0; i < nBuckets; i++) {
+			for (let j = 0; j < nFeatures; j++) {
+				list.push(result[i][j]);
+			}
+		}
+		return list;
 	}
-	const pixel = pixels[i];
-	const dx = 0.5 * (pixel[1][2] - pixel[1][0]);
-	const dy = 0.5 * (pixel[2][1] - pixel[0][1]);
-	const dxx = pixel[1][2] + pixel[1][0] - 2 * pixel[1][1];
-	const dyy = pixel[2][1] + pixel[0][1] - 2 * pixel[1][1];
-	const dxy = 0.25 * (pixel[0][0] + pixel[2][2] - pixel[0][2] - pixel[2][0]);
 
-	const det = dxx * dyy - dxy * dxy;
-	const ux = (dyy * -dx + -dxy * -dy) / det;
-	const uy = (-dxy * -dx + dxx * -dy) / det;
+	/* _buildExtremas(image0, image1, image2) {
+		const imageHeight = image1.shape[0];
+		const imageWidth = image1.shape[1];
 
-	const newY = localizedExtremas[i][2] + uy;
-	const newX = localizedExtremas[i][3] + ux;
+		const kernelKey = 'w' + imageWidth;
 
-	if (Math.abs(det) < 0.0001) {
-	  continue;
-	}
-
-	localizedExtremas[i][2] = newY;
-	localizedExtremas[i][3] = newX;
-      }
-      return tf.tensor(localizedExtremas, [localizedExtremas.length, localizedExtremas[0].length], 'float32');
-    });
-  }
-
-  // faster to do it in CPU
-  // if we do in gpu, we probably need to use tf.topk(), which seems to be run in CPU anyway (no gpu operation for that)
-  //  TODO: research adapative maximum supression method
-  _applyPrune(extremasResultsT) {
-    const nBuckets = NUM_BUCKETS_PER_DIMENSION * NUM_BUCKETS_PER_DIMENSION;
-    const nFeatures = MAX_FEATURES_PER_BUCKET;
-
-    if (!this.kernelCaches.applyPrune) {
-      const reductionKernels = [];
-
-      // to reduce to amount of data that need to sync back to CPU by 4 times, we apply this trick:
-      // the fact that there is not possible to have consecutive maximum/minimum, we can safe combine 4 pixels into 1
-      for (let k = 0; k < extremasResultsT.length; k++) {
-	const extremaHeight = extremasResultsT[k].shape[0];
-	const extremaWidth = extremasResultsT[k].shape[1];
-
-	const kernel = {
-	  variableNames: ['extrema'],
-	  outputShape: [Math.floor(extremaHeight/2), Math.floor(extremaWidth/2)],
-	  userCode: `
-	    void main() {
-	      ivec2 coords = getOutputCoords();
-	      int y = coords[0] * 2;
-	      int x = coords[1] * 2;
-
-	      float location = 0.0;
-	      float values = getExtrema(y, x);
-
-	      if (getExtrema(y+1, x) != 0.0) {
-	        location = 1.0;
-		values = getExtrema(y+1, x);
-	      }
-	      else if (getExtrema(y, x+1) != 0.0) {
-	        location = 2.0;
-		values = getExtrema(y, x+1);
-	      }
-	      else if (getExtrema(y+1, x+1) != 0.0) {
-	        location = 3.0;
-		values = getExtrema(y+1, x+1);
-	      }
-
-	      if (values < 0.0) {
-	        setOutput(location * -1000.0 + values);
-	      } else {
-	        setOutput(location * 1000.0 + values);
-	      }
-	    }
-	  `
-	}
-	reductionKernels.push(kernel);
-      }
-      this.kernelCaches.applyPrune = {reductionKernels};
-    }
-
-    // combine results into a tensor of:
-    //   nBuckets x nFeatures x [score, octave, y, x]
-    const curAbsScores = [];
-    const result = [];
-    for (let i = 0; i < nBuckets; i++) {
-      result.push([]);
-      curAbsScores.push([]);
-      for (let j = 0; j < nFeatures; j++) {
-	result[i].push([0,0,0,0]);
-	curAbsScores[i].push(0);
-      }
-    }
-
-    tf.tidy(() => {
-      const {reductionKernels} = this.kernelCaches.applyPrune;
-
-      for (let k = 0; k < extremasResultsT.length; k++) {
-	const program = reductionKernels[k];
-	const reducedT = this._compileAndRun(program, [extremasResultsT[k]]);
-
-	const octave = k + 1; // extrema starts from second octave
-
-	const reduced = reducedT.arraySync();
-	const height = reducedT.shape[0];
-	const width = reducedT.shape[1];
-
-	const bucketWidth = width * 2 / NUM_BUCKETS_PER_DIMENSION;
-	const bucketHeight = height * 2/ NUM_BUCKETS_PER_DIMENSION;
-
-	for (let j = 0; j < height; j++) {
-	  for (let i = 0; i < width; i++) {
-	    const encoded = reduced[j][i];
-	    if (encoded == 0) {
-	      continue;
-	    }
-
-	    const score = encoded % 1000;
-	    const loc = Math.floor(Math.abs(encoded) / 1000);
-	    const x = i * 2 + (loc === 2 || loc === 3? 1: 0);
-	    const y = j * 2 + (loc === 1 || loc === 3? 1: 0);
-
-	    const bucketX = Math.floor(x / bucketWidth);
-	    const bucketY = Math.floor(y / bucketHeight);
-	    const bucket = bucketY * NUM_BUCKETS_PER_DIMENSION + bucketX;
-
-	    const absScore = Math.abs(score);
-
-	    let tIndex = nFeatures;
-	    while (tIndex >= 1 && absScore > curAbsScores[bucket][tIndex-1]) {
-	      tIndex -= 1;
-	    }
-
-	    if (tIndex < nFeatures) {
-	      for (let t = nFeatures - 1; t >= tIndex+1; t--) {
-		curAbsScores[bucket][t] = curAbsScores[bucket][t-1];
-		result[bucket][t][0] = result[bucket][t-1][0];
-		result[bucket][t][1] = result[bucket][t-1][1];
-		result[bucket][t][2] = result[bucket][t-1][2];
-		result[bucket][t][3] = result[bucket][t-1][3];
-	      }
-	      curAbsScores[bucket][tIndex] = absScore;
-	      result[bucket][tIndex][0] = score;
-	      result[bucket][tIndex][1] = octave;
-	      result[bucket][tIndex][2] = y; 
-	      result[bucket][tIndex][3] = x; 
-	    }
-	  }
-	}
-      }
-    });
-
-    // combine all buckets into a single list
-    const list = [];
-    for (let i = 0; i < nBuckets; i++) {
-      for (let j = 0; j < nFeatures; j++) {
-	list.push(result[i][j]);
-      }
-    }
-    return list;
-  }
-
-  _buildExtremas(image0, image1, image2) {
-    const imageHeight = image1.shape[0];
-    const imageWidth = image1.shape[1];
-
-    const kernelKey = 'w' + imageWidth;
-
-    if (!this.kernelCaches.buildExtremas) {
-      this.kernelCaches.buildExtremas = {};
-    }
-    if (!this.kernelCaches.buildExtremas[kernelKey]) {
-      const kernel = {
-	variableNames: ['image0', 'image1', 'image2'],
-	outputShape: [imageHeight, imageWidth],
-	userCode: `
+		if (!this.kernelCaches.buildExtremas) {
+			this.kernelCaches.buildExtremas = {};
+		}
+		if (!this.kernelCaches.buildExtremas[kernelKey]) {
+			const kernel = {
+				variableNames: ['image0', 'image1', 'image2'],
+				outputShape: [imageHeight, imageWidth],
+				userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 
@@ -877,40 +913,45 @@ class Detector {
 	    setOutput(getImage1(y,x));
 	  }
 	`
-      };
-      this.kernelCaches.buildExtremas[kernelKey] = kernel;
-    }
+			};
+			this.kernelCaches.buildExtremas[kernelKey] = kernel;
+		}
 
-    return tf.tidy(() => {
-      const program = this.kernelCaches.buildExtremas[kernelKey];
-      image0 = this._downsampleBilinear(image0);
-      image2 = this._upsampleBilinear(image2, image1);
-      return this._compileAndRun(program, [image0, image1, image2]);
-      //return this._runWebGLProgram(program, [image0, image1, image2], 'float32');
-    });
-  }
+		return tf.tidy(() => {
+			const program = this.kernelCaches.buildExtremas[kernelKey];
+			image0 = this._downsampleBilinear(image0);
+			image2 = this._upsampleBilinear(image2, image1);
+			return tf.engine().runKernel("BuildExtremas", { image0, image1, image2 });//this._compileAndRun(program, [image0, image1, image2]);
+			//return this._runWebGLProgram(program, [image0, image1, image2], 'float32');
+		});
+	} */
+	/**
+	 * 
+	 * @param {tf.Tensor<tf.Rank>} image1 
+	 * @param {tf.Tensor<tf.Rank>} image2 
+	 * @returns 
+	 */
+	_differenceImageBinomial(image1, image2) {
+		return tf.tidy(() => {
+			return image1.sub(image2);
+		});
+	}
 
-  _differenceImageBinomial(image1, image2) {
-    return tf.tidy(() => {
-      return image1.sub(image2);
-    });
-  }
+	// 4th order binomail filter [1,4,6,4,1] X [1,4,6,4,1]
+	/* _applyFilter(image) {
+		const imageHeight = image.shape[0];
+		const imageWidth = image.shape[1];
 
-  // 4th order binomail filter [1,4,6,4,1] X [1,4,6,4,1]
-  _applyFilter(image) {
-    const imageHeight = image.shape[0];
-    const imageWidth = image.shape[1];
+		const kernelKey = 'w' + imageWidth;
+		if (!this.kernelCaches.applyFilter) {
+			this.kernelCaches.applyFilter = {};
+		}
 
-    const kernelKey = 'w' + imageWidth;
-    if (!this.kernelCaches.applyFilter) {
-      this.kernelCaches.applyFilter = {};
-    }
-
-    if (!this.kernelCaches.applyFilter[kernelKey]) {
-      const kernel1 = {
-	variableNames: ['p'],
-	outputShape: [imageHeight, imageWidth],
-	userCode: `
+		if (!this.kernelCaches.applyFilter[kernelKey]) {
+			const kernel1 = {
+				variableNames: ['p'],
+				outputShape: [imageHeight, imageWidth],
+				userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 
@@ -922,12 +963,12 @@ class Detector {
 	    setOutput(sum);
 	  }
 	`
-      };
+			};
 
-      const kernel2 = {
-	variableNames: ['p'],
-	outputShape: [imageHeight, imageWidth],
-	userCode: `
+			const kernel2 = {
+				variableNames: ['p'],
+				outputShape: [imageHeight, imageWidth],
+				userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 
@@ -940,33 +981,34 @@ class Detector {
 	    setOutput(sum);
 	  }
 	`
-      };
-      this.kernelCaches.applyFilter[kernelKey] = [kernel1, kernel2];
-    }
+			};
+			this.kernelCaches.applyFilter[kernelKey] = [kernel1, kernel2];
+		}
 
-    return tf.tidy(() => {
-      const [program1, program2] = this.kernelCaches.applyFilter[kernelKey];
+		return tf.tidy(() => {
+			const [program1, program2] = this.kernelCaches.applyFilter[kernelKey];
 
-      const result1 = this._compileAndRun(program1, [image]);
-      const result2 = this._compileAndRun(program2, [result1]);
-      return result2;
-    });
-  }
+			 const result1 = this._compileAndRun(program1, [image]);
+			const result2 = this._compileAndRun(program2, [result1]); 
+			return result2;
+			
+		});
+	} */
 
-  _upsampleBilinear(image, targetImage) {
-    const imageHeight = image.shape[0];
-    const imageWidth = image.shape[1];
+	/* _upsampleBilinear(image, targetImage) {
+		const imageHeight = image.shape[0];
+		const imageWidth = image.shape[1];
 
-    const kernelKey = 'w' + imageWidth;
-    if (!this.kernelCaches.upsampleBilinear) {
-      this.kernelCaches.upsampleBilinear = {};
-    }
+		const kernelKey = 'w' + imageWidth;
+		if (!this.kernelCaches.upsampleBilinear) {
+			this.kernelCaches.upsampleBilinear = {};
+		}
 
-    if (!this.kernelCaches.upsampleBilinear[kernelKey]) {
-      const kernel = {
-	variableNames: ['p'],
-	outputShape: [targetImage.shape[0], targetImage.shape[1]],
-	userCode: `
+		if (!this.kernelCaches.upsampleBilinear[kernelKey]) {
+			const kernel = {
+				variableNames: ['p'],
+				outputShape: [targetImage.shape[0], targetImage.shape[1]],
+				userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 	    int j = coords[0];
@@ -993,30 +1035,30 @@ class Detector {
 	    setOutput(sum);
 	  }
 	`
-      };
-      this.kernelCaches.upsampleBilinear[kernelKey] = kernel;
-    }
+			};
+			this.kernelCaches.upsampleBilinear[kernelKey] = kernel;
+		}
 
-    return tf.tidy(() => {
-      const program = this.kernelCaches.upsampleBilinear[kernelKey];
-      return this._compileAndRun(program, [image]);
-    });
-  }
+		return tf.tidy(() => {
+			const program = this.kernelCaches.upsampleBilinear[kernelKey];
+			return tf.engine().runKernel("UpsampleBilinear", { x: image, width: image.shape[1], height: image.shape[0] });//this._compileAndRun(program, [image]);
+		});
+	} */
 
-  _downsampleBilinear(image) {
-    const imageHeight = image.shape[0];
-    const imageWidth = image.shape[1];
+	/* _downsampleBilinear(image) {
+		const imageHeight = image.shape[0];
+		const imageWidth = image.shape[1];
 
-    const kernelKey = 'w' + imageWidth;
-    if (!this.kernelCaches.downsampleBilinear) {
-      this.kernelCaches.downsampleBilinear = {};
-    }
+		const kernelKey = 'w' + imageWidth;
+		if (!this.kernelCaches.downsampleBilinear) {
+			this.kernelCaches.downsampleBilinear = {};
+		}
 
-    if (!this.kernelCaches.downsampleBilinear[kernelKey]) {
-      const kernel = {
-	variableNames: ['p'],
-	outputShape: [Math.floor(imageHeight/2), Math.floor(imageWidth/2)],
-	userCode: `
+		if (!this.kernelCaches.downsampleBilinear[kernelKey]) {
+			const kernel = {
+				variableNames: ['p'],
+				outputShape: [Math.floor(imageHeight / 2), Math.floor(imageWidth / 2)],
+				userCode: `
 	  void main() {
 	    ivec2 coords = getOutputCoords();
 	    int y = coords[0] * 2;
@@ -1029,27 +1071,32 @@ class Detector {
 	    setOutput(sum);
 	  }
 	`
-      };
-      this.kernelCaches.downsampleBilinear[kernelKey] = kernel;
-    }
+			};
+			this.kernelCaches.downsampleBilinear[kernelKey] = kernel;
+		}
 
-    return tf.tidy(() => {
-      const program = this.kernelCaches.downsampleBilinear[kernelKey];
-      return this._compileAndRun(program, [image]);
-    });
-  }
- 
-  _compileAndRun(program, inputs) {
-    const outInfo = tf.backend().compileAndRun(program, inputs);
-    return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
-  }
+		return tf.tidy(() => {
+			const program = this.kernelCaches.downsampleBilinear[kernelKey];
+			return tf.engine().runKernel("DownsampleBilinear", { x: image });//this._compileAndRun(program, [image]);
+		});
+	} */
+	/**
+	 * 
+	 * @param {tf.MathBackendWebGL.GPGPUProgram} program 
+	 * @param {*} inputs 
+	 * @returns 
+	 */
+	_compileAndRun(program, inputs) {
+		const outInfo = tf.backend().compileAndRun(program, inputs);
+		return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
+	}
 
-  _runWebGLProgram(program, inputs, outputType) {
-    const outInfo = tf.backend().runWebGLProgram(program, inputs, outputType);
-    return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
-  }
+	_runWebGLProgram(program, inputs, outputType) {
+		const outInfo = tf.backend().runWebGLProgram(program, inputs, outputType);
+		return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
+	}
 }
 
 module.exports = {
-  Detector
+	Detector
 };
