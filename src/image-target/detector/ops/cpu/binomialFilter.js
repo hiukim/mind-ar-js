@@ -79,8 +79,8 @@ function binomialFilterImpl(vals,width,height){
     result[y*width+x]=o;
   }
   //step1
-  for(let x=0;x<width;x++){
-    for(let y=0;y<height;y++){
+  for(let y=0;y<height;y++){
+    for(let x=0;x<width;x++){
       let sum=getP(x,(y-2)%height);
       sum+=getP(x,(y-1)%height)*4;
       sum+=getP(x,y)*6;
@@ -94,8 +94,8 @@ function binomialFilterImpl(vals,width,height){
   p=resultValues1;
   result=resultValues2;
   //step2
-  for(let x=0;x<width;x++){
-    for(let y=0;y<height;y++){
+  for(let y=0;y<height;y++){
+    for(let x=0;x<width;x++){
       let sum = getP((x-2)%width, y);
       sum += getP((x-1)%width, y) * 4;
       sum += getP(x, y) * 6;
@@ -112,17 +112,17 @@ function binomialFilterImpl(vals,width,height){
 
 const binomialFilter = (args) =>{//{inputs: UnaryInputs, backend: MathBackendCPU}
   /** @type {import('@tensorflow/tfjs').TensorInfo} */
-  const x = args.inputs.x;
+  const image = args.inputs.image;
   /** @type {MathBackendCPU} */
-  const cpuBackend = args.backend;
+  const backend = args.backend;
   //assertNotComplex(x, 'abs');
   //let resultValues = new Float32Array(util.sizeFromShape(x.shape));
   /** @type {TypedArray} */
-  const values = cpuBackend.data.get(x.dataId).values;// as TypedArray;
+  const values = backend.data.get(image.dataId).values;// as TypedArray;
   
-  const resultValues = binomialFilterImpl(values,args.inputs.width,args.inputs.height);
+  const resultValues = binomialFilterImpl(values,image.shape[1],image.shape[0]);
 
-  return cpuBackend.makeOutput(resultValues, x.shape, 'float32');
+  return backend.makeOutput(resultValues, image.shape, image.dtype);
 }
 
 

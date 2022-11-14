@@ -1,6 +1,6 @@
 const {TypedArray,KernelConfig} = require('@tensorflow/tfjs-core');
 const {MathBackendCPU} =require('@tensorflow/tfjs-backend-cpu');
-
+const tf = require('@tensorflow/tfjs');
 const FREAK_EXPANSION_FACTOR = 7.0;
 
 const LAPLACIAN_THRESHOLD = 3.0;
@@ -98,8 +98,8 @@ const buildExtremasImpl=(image0,image1,image2,width,height)=>{
         resultValues[y*width+x]=o;
     }
 
-    for(let x=0;x<width;x++){
-        for(let y=0;y<height;y++){
+    for(let y=0;y<height;y++){
+      for(let x=0;x<width;x++){  
             const value = getImage1(x, y);
 
             // Step 1: find local maxima/minima
@@ -163,22 +163,24 @@ const buildExtremasImpl=(image0,image1,image2,width,height)=>{
 }
 
 const buildExtremas=(args)=>{
-    const {image0,image1,image2}=args.inputs;
+    let {image0,image1,image2}=args.inputs;
+    /** @type {MathBackendCPU} */
+    const backend = args.backend;
+
     const imageHeight = image1.shape[0];
     const imageWidth = image1.shape[1];
-    /** @type {MathBackendCPU} */
-    const cpuBackend = args.backend;
+
+    image0=tf.engine().runKernel('DownsampleBilinear',{image:image0});
+    image2=tf.engine().runKernel('UpsampleBilinear',{image:image2,targetImage:image1});
 
     /** @type {TypedArray} */
-    const vals0 = cpuBackend.data.get(image0.dataId).values;
-    const vals1 = cpuBackend.data.get(image1.dataId).values;
-    const vals2 = cpuBackend.data.get(image2.dataId).values;
-
-    
+    const vals0 = backend.data.get(image0.dataId).values;
+    const vals1 = backend.data.get(image1.dataId).values;
+    const vals2 = backend.data.get(image2.dataId).values;
 
     const resultValues = buildExtremasImpl(vals0,vals1,vals2,imageWidth,imageHeight);
 
-    return cpuBackend.makeOutput(resultValues, [imageHeight, imageWidth], 'float32');
+    return backend.makeOutput(resultValues, [imageHeight, imageWidth], image1.dtype);
 }
 
 const buildExtremasConfig = {//: KernelConfig
