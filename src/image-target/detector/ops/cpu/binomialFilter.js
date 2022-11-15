@@ -68,21 +68,21 @@ function binomialFilterImpl(vals,width,height){
   const resultValues1 = new Float32Array(vals.length);
   let p=vals;
   let result=resultValues1;
-  function getP(x,y){
+  function getP(y,x){
     return p[y*width+x];
   }
-  function setOutput(x,y,o){
+  function setOutput(y,x,o){
     result[y*width+x]=o;
   }
   //step1
   for(let y=0;y<height;y++){
     for(let x=0;x<width;x++){
-      let sum=getP(x,(y-2)%height);
-      sum+=getP(x,(y-1)%height)*4;
-      sum+=getP(x,y)*6;
-      sum+=getP(x,(y+1)%height)*4;
-      sum+=getP(x,(y+2)%height);
-      setOutput(x,y,sum);
+      let sum = getP(y, x-2);
+      sum += getP(y, x-1) * 4.;
+      sum += getP(y, x) * 6.;
+      sum += getP(y, x+1) * 4.;
+      sum += getP(y, x+2);
+      setOutput(y,x,sum);
     }
   }
 
@@ -92,11 +92,11 @@ function binomialFilterImpl(vals,width,height){
   //step2
   for(let y=0;y<height;y++){
     for(let x=0;x<width;x++){
-      let sum = getP((x-2)%width, y);
-      sum += getP((x-1)%width, y) * 4;
-      sum += getP(x, y) * 6;
-      sum += getP((x+1)%width, y) * 4;
-      sum += getP((x+2)%width, y);
+      let sum = getP(y-2, x);
+	    sum += getP(y-1, x) * 4.;
+	    sum += getP(y, x) * 6.;
+	    sum += getP(y+1, x) * 4.;
+	    sum += getP(y+2, x);
       sum /= 256;
       setOutput(sum);
     }
@@ -111,8 +111,7 @@ const binomialFilter = (args) =>{//{inputs: UnaryInputs, backend: MathBackendCPU
   const image = args.inputs.image;
   /** @type {MathBackendCPU} */
   const backend = args.backend;
-  //assertNotComplex(x, 'abs');
-  //let resultValues = new Float32Array(util.sizeFromShape(x.shape));
+  
   /** @type {TypedArray} */
   const values = backend.data.get(image.dataId).values;// as TypedArray;
   

@@ -12,7 +12,7 @@ function smoothHistogramsImpl(histograms) {
         resultValues[y * ORIENTATION_NUM_BINS + x] = o;
     }
     function imod(x,y){
-        return x - y * Math.floor(x/y)
+        return Math.trunc(x - y * Math.floor(x/y));
     }
     for (let featureIndex = 0; featureIndex < histograms.height; featureIndex++) {
         for (let binIndex = 0; binIndex < ORIENTATION_NUM_BINS; binIndex++) {

@@ -41,7 +41,7 @@ const kernel = {
 function computeLocalizationImpl(images, extrema) {
 	const resultValues=new Float32Array(extrema.height*3*3);
 	function getPixel(octave, y, x) {
-        const temp = images[octave - 1];
+        const temp = images[octave];
         return temp.values[y * temp.width + x];
     }
 	function getExtrema(y, x) {

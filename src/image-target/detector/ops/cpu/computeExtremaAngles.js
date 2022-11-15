@@ -1,17 +1,22 @@
 const ORIENTATION_NUM_BINS = 36;
 
 
-function computeExtremaAnglesImpl(histogram, length) {
-    const resultValues = new Float32Array(length);
+function computeExtremaAnglesImpl(histogram) {
+    const resultValues = new Float32Array(histogram.height);
 
-    function getHistogram(featureIndex, prev) { return histogram[featureIndex * length + prev] };
-    function setOutput(featureIndex, an) { resultValues[featureIndex] = an; }
-
-    function imod(x, y) {
-        return x - y * Math.floor(x / y)
+    function getHistogram(featureIndex, prev) { 
+        return histogram.values[featureIndex * histogram.width + prev] 
+    };
+    function setOutput(featureIndex, an) { 
+        
+        resultValues[featureIndex] = an; 
     }
 
-    for (let featureIndex = 0; featureIndex < histogram.length; featureIndex++) {
+    function imod(x, y) {
+        return Math.trunc(x - y * Math.floor(x / y));
+    }
+
+    for (let featureIndex = 0; featureIndex < histogram.height; featureIndex++) {
         let maxIndex = 0;
         for (let i = 1; i < ORIENTATION_NUM_BINS; i++) {
             if (getHistogram(featureIndex, i) > getHistogram(featureIndex, maxIndex)) {
@@ -29,11 +34,11 @@ function computeExtremaAnglesImpl(histogram, length) {
          *
          * This system of equations is solved for A,B,C.
          */
-        const p10 = (maxIndex - 1);
+        const p10 = maxIndex - 1;
         const p11 = getHistogram(featureIndex, prev);
-        const p20 = (maxIndex);
+        const p20 = maxIndex;
         const p21 = getHistogram(featureIndex, maxIndex);
-        const p30 = (maxIndex + 1);
+        const p30 = maxIndex + 1;
         const p31 = getHistogram(featureIndex, next);
 
         const d1 = (p30 - p20) * (p30 - p10);
@@ -41,7 +46,7 @@ function computeExtremaAnglesImpl(histogram, length) {
         const d3 = p10 - p20;
 
         // If any of the denominators are zero then, just use maxIndex.
-        let fbin = (maxIndex);
+        let fbin = maxIndex;
         if (Math.abs(d1) > 0.00001 && Math.abs(d2) > 0.00001 && Math.abs(d3) > 0.00001) {
             const a = p10 * p10;
             const b = p20 * p20;
@@ -51,10 +56,12 @@ function computeExtremaAnglesImpl(histogram, length) {
             const B = ((p11 - p21) + (A * (b - a))) / d3;
             //const C = p11 - (A * a) - (B * p10);
             fbin = -B / (2.0 * A);
+            //if(Number.isNaN(fbin)) console.warn(`computeExtremaAngles::NaN! fbin=${fbin} maxIndex=${maxIndex} A=${A} B=${B} p31=${p31} p21=${p21} p11=${p11}`);
         }
 
         const an = 2.0 * Math.PI * (fbin + 0.5) / ORIENTATION_NUM_BINS - Math.PI;
-        setOutput(an);
+        
+        setOutput(featureIndex,an);
     }
     return resultValues;
 }
@@ -66,9 +73,9 @@ const computeExtremaAngles = (args) => {
     const backend = args.backend;
 
     /** @type {TypedArray} */
-    const vals0 = backend.data.get(histograms.dataId).values;
+    const histogramValues ={values: backend.data.get(histograms.dataId).values,width:histograms.shape[1],height:histograms.shape[0]};
 
-    const resultValues = computeExtremaAnglesImpl(vals0, histograms.shape[0]);
+    const resultValues = computeExtremaAnglesImpl(histogramValues);
 
     return backend.makeOutput(resultValues, [histograms.shape[0]], histograms.dtype);
 }
