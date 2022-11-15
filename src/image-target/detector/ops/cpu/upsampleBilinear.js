@@ -1,5 +1,3 @@
-const {TypedArray,KernelConfig} = require('@tensorflow/tfjs-core');
-const {MathBackendCPU} =require('@tensorflow/tfjs-backend-cpu');
 
 /*
 const kernel = {
@@ -85,16 +83,16 @@ const upsampleBilinearImpl=(vals,width,height,targetWidth,targetHeight)=>{
 
 const upsampleBilinear =(args)=>{
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
-    const x = args.inputs.x;
-    const targetHeight=args.inputs.height;
-    const targetWidth=args.inputs.width;
+    const {image,targetImage} = args.inputs;
+    const targetHeight=targetImage.shape[0];
+    const targetWidth=targetImage.shape[1];
     
     /** @type {MathBackendCPU} */
     const cpuBackend = args.backend;
-    const imageHeight = x.shape[0];
-    const imageWidth = x.shape[1];
+    const imageHeight = image.shape[0];
+    const imageWidth = image.shape[1];
     /** @type {TypedArray} */
-    const values = cpuBackend.data.get(x.dataId).values;
+    const values = cpuBackend.data.get(image.dataId).values;
 
     const resultValues = upsampleBilinearImpl(values,imageWidth,imageHeight,targetWidth,targetHeight);
 

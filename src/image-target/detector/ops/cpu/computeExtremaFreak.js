@@ -6,7 +6,7 @@ const FREAK_EXPANSION_FACTOR = 7.0;
 function computeExtremaFreakImpl(gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT) {
     const resultValues = new Float32Array(prunedExtremas.height * FREAKPOINTS.length);
     function getPixel(octave, y, x) {
-        const temp = gaussianImagesT[octave - 1];
+        const temp = gaussianImagesT[octave];
         return temp.values[y * temp.width + x];
     }
     function getExtrema(featureIndex, num) {
@@ -33,8 +33,8 @@ function computeExtremaFreakImpl(gaussianImagesT, prunedExtremas, prunedExtremas
             const inputY = getExtrema(featureIndex, 2);
             const inputX = getExtrema(featureIndex, 3);
             const inputAngle = getAngles(featureIndex);
-            const cos = FREAK_EXPANSION_FACTOR * cos(inputAngle);
-            const sin = FREAK_EXPANSION_FACTOR * sin(inputAngle);
+            const cos = FREAK_EXPANSION_FACTOR * Math.cos(inputAngle);
+            const sin = FREAK_EXPANSION_FACTOR * Math.sin(inputAngle);
 
             const yp = inputY + freakX * sin + freakY * cos;
             const xp = inputX + freakX * cos + freakY * -sin;

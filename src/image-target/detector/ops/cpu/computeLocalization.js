@@ -1,5 +1,4 @@
-const { TypedArray, KernelConfig } = require('@tensorflow/tfjs-core');
-const { MathBackendCPU } = require('@tensorflow/tfjs-backend-cpu');
+const tf = require('@tensorflow/tfjs');
 
 /*
 let dogSubCodes = `float getPixel(int octave, int y, int x) {`;
@@ -82,7 +81,7 @@ const computeLocalization = (args) => {
 	const prunedExtremasData = { values: backend.data.get(prunedExtremasT.dataId).values, height: prunedExtremasT.shape[0], width: prunedExtremasT.shape[1] };
 	const resultValues=computeLocalizationImpl(dogPyramidImagesTData, prunedExtremasData)
 
-	return backend.makeOutput(resultValues, [extrema.height, 3,3], dogPyramidImagesT[0].dtype);
+	return backend.makeOutput(resultValues, [prunedExtremasData.height, 3,3], dogPyramidImagesT[0].dtype);
 }
 
 const computeLocalizationConfig = {//: KernelConfig

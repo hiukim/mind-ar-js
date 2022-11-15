@@ -8,7 +8,8 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
 
     const resultValues1 = new Float32Array(prunedExtremasT.height * radialPropertiesT.height * 2);
     function getPixel(octave, y, x) {
-        const temp = gaussianImagesT[octave - 1];
+        const temp = gaussianImagesT[octave];
+        //console.log("getPixel::",octave,y,x,temp);
         return temp.values[y * temp.width + x];
     }
     function getExtrema(y, x) {
@@ -44,14 +45,14 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
 
                     const angle = Math.atan(dy, dx) + Math.PI;
                     const fbin = angle * ORIENTATION_NUM_BINS * oneOver2PI;
-                    setOutput(fbin);
+                    setOutput(featureIndex,radialIndex,propertyIndex,fbin);
                     continue;
                 }
 
                 if (propertyIndex == 1) {
-                    const mag = sqrt(dx * dx + dy * dy);
+                    const mag = Math.sqrt(dx * dx + dy * dy);
                     const magnitude = radialW * mag;
-                    setOutput(magnitude);
+                    setOutput(featureIndex,radialIndex,propertyIndex,magnitude);
                     continue;
                 }
             }
@@ -62,14 +63,17 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
     function getFbinMag(z,y,x){
         return resultValues1[z*radialPropertiesT.height*2+y*2+x];
     }
-    function setOutput(y,x,o){
+    function setOutput2(y,x,o){
         resultValues2[y*ORIENTATION_NUM_BINS+x]=o;
+    }
+    function imod(x,y){
+        return x - y * Math.floor(x/y)
     }
     //program 2
     for(let featureIndex=0;featureIndex<prunedExtremasT.height;featureIndex++){
         for(let binIndex=0;binIndex<ORIENTATION_NUM_BINS;binIndex++){
-            const sum = 0.0;
-                for (const i = 0; i < radialPropertiesT.height; i++) {
+            let sum = 0.0;
+                for (let i = 0; i < radialPropertiesT.height; i++) {
                     const fbin = getFbinMag(featureIndex, i, 0);
                     const bin = Math.trunc(Math.floor(fbin - 0.5));
                     const b1 = imod(bin + ORIENTATION_NUM_BINS, ORIENTATION_NUM_BINS);
@@ -88,7 +92,7 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
                         }
                     }
                 }
-                setOutput(featureIndex,binIndex,sum);
+                setOutput2(featureIndex,binIndex,sum);
         }
     }
     return resultValues2;
@@ -99,9 +103,11 @@ const computeOrientationHistograms = (args) => {
     /** @type {MathBackendCPU} */
     const backend = args.backend;
     //const [program1,program2]=GetPrograms(gaussianImagesT, prunedExtremasT, radialPropertiesT);
+    
     const gaussianImagesTData = gaussianImagesT.map((tensorInfo) => { return { height: tensorInfo.shape[0], width: tensorInfo.shape[1], values: backend.data.get(tensorInfo.dataId).values, } });
+    //console.log("computeOrientationHistograms::",gaussianImagesT,gaussianImagesTData);
     const prunedExtremasData = {values:backend.data.get(prunedExtremasT.dataId).values,height:prunedExtremasT.shape[0],width:prunedExtremasT.shape[1]};
-    const radialPropertiesData={values:backend.data.get(radialPropertiesT.dataId).value,height:radialPropertiesT.shape[0],width:radialPropertiesT.shape[1]}
+    const radialPropertiesData={values:backend.data.get(radialPropertiesT.dataId).values,height:radialPropertiesT.shape[0],width:radialPropertiesT.shape[1]}
     //const result1 = backend.runWebGLProgram(program1, [...gaussianImagesT, prunedExtremasT, radialPropertiesT],radialPropertiesT.dtype);
     //return backend.runWebGLProgram(program2, [result1],radialPropertiesT.dtype);
 

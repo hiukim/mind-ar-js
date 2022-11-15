@@ -1,5 +1,4 @@
-const {TypedArray,KernelConfig} = require('@tensorflow/tfjs-core');
-const {MathBackendCPU} =require('@tensorflow/tfjs-backend-cpu');
+
 const tf = require('@tensorflow/tfjs');
 const FREAK_EXPANSION_FACTOR = 7.0;
 

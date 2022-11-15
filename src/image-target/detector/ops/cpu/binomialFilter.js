@@ -1,7 +1,3 @@
-const {TypedArray,KernelConfig} = require('@tensorflow/tfjs-core');
-const {MathBackendCPU} =require('@tensorflow/tfjs-backend-cpu');
-//import {assertNotComplex} from '@tensorflow/tfjs-backend-cpu';
-
 
 
 // 4th order binomail filter [1,4,6,4,1] X [1,4,6,4,1]

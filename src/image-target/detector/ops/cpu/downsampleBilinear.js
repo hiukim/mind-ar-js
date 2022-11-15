@@ -1,5 +1,3 @@
-const {TypedArray,KernelConfig} = require('@tensorflow/tfjs-core');
-const {MathBackendCPU} =require('@tensorflow/tfjs-backend-cpu');
 
 /*
 const kernel = {
@@ -46,7 +44,7 @@ const downsampleBilinearImpl=(vals,width,height)=>{
 
 const downsampleBilinear =(args)=>{
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
-    const x = args.inputs.x;
+    const x = args.inputs.image;
     /** @type {MathBackendCPU} */
     const cpuBackend = args.backend;
     const imageHeight = x.shape[0];

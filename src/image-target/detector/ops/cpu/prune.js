@@ -1,5 +1,3 @@
-const {TypedArray,KernelConfig} = require('@tensorflow/tfjs-core');
-const {MathBackendCPU} =require('@tensorflow/tfjs-backend-cpu');
 
 /*
 const kernel = {

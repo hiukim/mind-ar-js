@@ -1,11 +1,15 @@
 const ORIENTATION_NUM_BINS = 36;
 
 
-function computeExtremaAnglesImpl(histogram,length) {
+function computeExtremaAnglesImpl(histogram, length) {
     const resultValues = new Float32Array(length);
 
-    function getHistogram(featureIndex, prev) {return histogram[featureIndex*length+prev]};
-    function setOutput(featureIndex,an) {resultValues[featureIndex]=an;}
+    function getHistogram(featureIndex, prev) { return histogram[featureIndex * length + prev] };
+    function setOutput(featureIndex, an) { resultValues[featureIndex] = an; }
+
+    function imod(x, y) {
+        return x - y * Math.floor(x / y)
+    }
 
     for (let featureIndex = 0; featureIndex < histogram.length; featureIndex++) {
         let maxIndex = 0;
@@ -25,11 +29,11 @@ function computeExtremaAnglesImpl(histogram,length) {
          *
          * This system of equations is solved for A,B,C.
          */
-        const p10 = Math.truncate(maxIndex - 1);
+        const p10 = (maxIndex - 1);
         const p11 = getHistogram(featureIndex, prev);
-        const p20 = Math.truncate(maxIndex);
+        const p20 = (maxIndex);
         const p21 = getHistogram(featureIndex, maxIndex);
-        const p30 = Math.truncate(maxIndex + 1);
+        const p30 = (maxIndex + 1);
         const p31 = getHistogram(featureIndex, next);
 
         const d1 = (p30 - p20) * (p30 - p10);
@@ -37,7 +41,7 @@ function computeExtremaAnglesImpl(histogram,length) {
         const d3 = p10 - p20;
 
         // If any of the denominators are zero then, just use maxIndex.
-        const fbin = Math.truncate(maxIndex);
+        let fbin = (maxIndex);
         if (Math.abs(d1) > 0.00001 && Math.abs(d2) > 0.00001 && Math.abs(d3) > 0.00001) {
             const a = p10 * p10;
             const b = p20 * p20;
@@ -64,7 +68,7 @@ const computeExtremaAngles = (args) => {
     /** @type {TypedArray} */
     const vals0 = backend.data.get(histograms.dataId).values;
 
-    const resultValues=computeExtremaAnglesImpl(vals0,histograms.shape[0]);
+    const resultValues = computeExtremaAnglesImpl(vals0, histograms.shape[0]);
 
     return backend.makeOutput(resultValues, [histograms.shape[0]], histograms.dtype);
 }

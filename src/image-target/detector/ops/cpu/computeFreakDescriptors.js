@@ -52,8 +52,9 @@ const computeFreakDescriptor = (args) => {
     const freaksData ={values:backend.data.get(extremaFreaks.dataId).values,height:extremaFreaks.shape[0], width:extremaFreaks.shape[1]};
     const positionData ={values:backend.data.get(positionT.dataId).values,width:positionT.shape[1]};
     //backend.runWebGLProgram(program,[extremaFreaks, positionT],'int32');
+
     const resultValues=computeFreakDescriptorImpl(freaksData,positionData);
-    return backend.makeOutput(resultValues, [extremaFreaks, positionT], 'int32');
+    return backend.makeOutput(resultValues, [extremaFreaks.shape[0], descriptorCount], 'int32');
 }
 
 const computeFreakDescriptorConfig = {//: KernelConfig
