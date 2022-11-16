@@ -1,4 +1,4 @@
-const {resize} = require("./utils/images.js");
+import {resize} from "./utils/images.js";
 
 const MIN_IMAGE_PIXEL_SIZE = 100;
 
@@ -40,7 +40,7 @@ const buildTrackingImageList = (inputImage) => {
   return imageList;
 }
 
-module.exports = {
+export {
   buildImageList,
   buildTrackingImageList
 }

@@ -1,7 +1,7 @@
-const {Matrix, inverse} = require('ml-matrix');
-const {createRandomizer} = require('../utils/randomizer.js');
-const {quadrilateralConvex, matrixInverse33, smallestTriangleArea, multiplyPointHomographyInhomogenous, checkThreePointsConsistent, checkFourPointsConsistent, determinant} = require('../utils/geometry.js');
-const {solveHomography} = require('../utils/homography');
+import {Matrix, inverse} from 'ml-matrix';
+import {createRandomizer} from '../utils/randomizer.js';
+import {quadrilateralConvex, matrixInverse33, smallestTriangleArea, multiplyPointHomographyInhomogenous, checkThreePointsConsistent, checkFourPointsConsistent, determinant} from '../utils/geometry.js';
+import {solveHomography} from '../utils/homography';
 
 const CAUCHY_SCALE = 0.01;
 const CHUNK_SIZE = 10;
@@ -159,6 +159,6 @@ const _checkHomographyPointsGeometricallyConsistent = ({H, testPoints}) => {
   return true;
 }
 
-module.exports = {
+export {
   computeHomography,
 }

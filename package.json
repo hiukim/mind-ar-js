@@ -8,7 +8,7 @@
     "build": "webpack --config webpack.config.prod.cjs"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=14.0.0"
   },
   "type": "commonjs",
   "repository": {
@@ -29,21 +29,28 @@
   "dependencies": {
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "@msgpack/msgpack": "^1.12.2",
-    "@tensorflow/tfjs": "^3.13.0",
+    "@tensorflow/tfjs": "^3.21.0",
+    "canvas": "^2.10.2",
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
     "three": "^0.136.0",
-    "tinyqueue": "^2.0.3"
+    "tinyqueue": "^2.0.3",
+    "worker-loader": "^3.0.8"
   },
   "devDependencies": {
     "css-loader": "^5.1.1",
+    "express": "^4.18.2",
     "html-loader": "^2.1.1",
+    "multer": "^1.4.5-lts.1",
+    "playwright": "^1.27.1",
     "sass": "^1.51.0",
     "sass-loader": "^11.0.1",
     "style-loader": "^2.0.0",
     "terser-webpack-plugin": "^5.3.1",
-    "webpack": "^5.24.3",
-    "webpack-cli": "^4.5.0",
-    "worker-loader": "^2.0.0"
+    "vite": "^3.2.4",
+    "vite-plugin-require": "^1.0.8",
+    "vite-require": "^0.2.3",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^4.10.0"
   }
 }

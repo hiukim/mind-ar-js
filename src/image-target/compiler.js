@@ -1,9 +1,9 @@
-const Worker = require("./compiler.worker.js");
-const {Detector} = require('./detector/detector.js');
-const {buildImageList, buildTrackingImageList} = require('./image-list.js');
-const {build: hierarchicalClusteringBuild} = require('./matching/hierarchical-clustering.js');
-const msgpack = require('@msgpack/msgpack');
-const tf = require('@tensorflow/tfjs');
+import CompilerWorker from "./compiler.worker.js?worker&inline";
+import {Detector} from './detector/detector.js';
+import {buildImageList, buildTrackingImageList} from './image-list.js';
+import {build as hierarchicalClusteringBuild} from './matching/hierarchical-clustering.js';
+import * as msgpack from '@msgpack/msgpack';
+import * as tf from '@tensorflow/tfjs';
 // TODO: better compression method. now grey image saved in pixels, which could be larger than original image
 
 const CURRENT_VERSION = 2;
@@ -63,7 +63,7 @@ class Compiler {
       // compute tracking data with worker: 50% progress
       const compileTrack = () => {
 	return new Promise((resolve, reject) => {
-	  const worker = new Worker();
+	  const worker = new CompilerWorker();
 	  worker.onmessage = (e) => {
 	    if (e.data.type === 'progress') {
 	      progressCallback(50 + e.data.percent);
@@ -159,6 +159,6 @@ const _extractMatchingFeatures = async (imageList, doneCallback) => {
   return keyframes;
 }
 
-module.exports = {
+export {
   Compiler
 }

@@ -3,7 +3,7 @@ const {cv, waitCV} = require("../libs/opencv-helper.js");
 const {Estimator} = require("./face-geometry/estimator.js");
 const {createThreeFaceGeometry: _createThreeFaceGeometry} = require("./face-geometry/face-geometry");
 const {positions: canonicalMetricLandmarks} = require("./face-geometry/face-data.js");
-const {OneEuroFilter} = require('../libs/one-euro-filter.js');
+import {OneEuroFilter} from '../libs/one-euro-filter.js';
 
 const DEFAULT_FILTER_CUTOFF = 0.001; // 1Hz. time period in milliseconds
 const DEFAULT_FILTER_BETA = 1;
@@ -142,6 +142,6 @@ class Controller {
   }
 }
 
-module.exports = {
+export {
  Controller
 }

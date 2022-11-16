@@ -36,6 +36,6 @@ const createThreeFaceGeometry = (THREE) => {
   return new FaceGeometry();
 }
 
-module.exports = {
+export {
   createThreeFaceGeometry
 }

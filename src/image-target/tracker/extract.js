@@ -1,4 +1,4 @@
-const {Cumsum} = require('../utils/cumsum');
+import {Cumsum} from '../utils/cumsum';
 
 const SEARCH_SIZE1 = 10;
 const SEARCH_SIZE2 = 2;
@@ -329,6 +329,6 @@ const _getSimilarity = (options) => {
   return sim;
 }
 
-module.exports = {
+export {
   extract
 };

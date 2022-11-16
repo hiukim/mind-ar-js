@@ -1,7 +1,7 @@
 // try to implement https://hal.inria.fr/inria-00174036/PDF/RR-6303.pdf
-const {Matrix, inverse} = require('ml-matrix');
+import {Matrix, inverse} from 'ml-matrix';
 const {SVD} = require("svd-js");
-const {solveHomography} = require('../utils/homography');
+import {solveHomography} from '../utils/homography';
 const {computeScreenCoordiate} = require("./utils");
 
 const opposites_of_minors = (M, row, col) => {
@@ -302,6 +302,6 @@ const estimate = ({screenCoords, worldCoords, projectionTransform}) => {
   return modelViewTransform;
 }
 
-module.exports = {
+export {
   estimate,
 }

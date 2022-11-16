@@ -2,12 +2,12 @@
   <head>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.2/min/dropzone.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.2/dropzone.min.css">
-    <script src="../../dist-dev/mindar-image.js"></script>
+    <script id="mindar-module" src="../../src/image-target/index.js"  type="module"></script>
 
     <script>
       Dropzone.autoDiscover = false;
-
-      const compiler = new MINDAR.IMAGE.Compiler();
+      document.getElementById('mindar-module').onload=()=>{
+      const compiler = new window.MINDAR.IMAGE.Compiler();
 
       const download = (buffer) => {
         var blob = new Blob([buffer]);
@@ -133,6 +133,7 @@
           }
         });
       });
+    };
     </script>
 
     <style>

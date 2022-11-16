@@ -1,5 +1,5 @@
-const {Controller} = require('./controller');
-const {UI} = require('../ui/ui');
+import {Controller} from './controller';
+import {UI} from '../ui/ui';
 
 const e = {
   Controller, 

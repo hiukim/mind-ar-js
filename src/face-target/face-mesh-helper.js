@@ -33,6 +33,6 @@ class FaceMeshHelper {
   }
 }
 
-module.exports = {
+export {
  FaceMeshHelper
 }

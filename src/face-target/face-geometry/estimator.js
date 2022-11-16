@@ -364,6 +364,6 @@ class Estimator {
   }
 }
 
-module.exports = {
+export {
   Estimator
 }

@@ -46,7 +46,7 @@ output += "const faces=" + JSON.stringify(faces) + ";\n";
 output += "const landmarkBasis=" + JSON.stringify(landmarkBasis) + ";\n";
 
 output += `
-module.exports = {
+export {
   positions, uvs, faces, landmarkBasis
 }
 `

@@ -1,6 +1,6 @@
 const THREE = require("three");
-const tf = require('@tensorflow/tfjs');
-const {CSS3DRenderer} = require('three/examples/jsm/renderers/CSS3DRenderer.js');
+import * as tf from '@tensorflow/tfjs';
+import {CSS3DRenderer} from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 const {Controller} = require("./controller");
 const {UI} = require("../ui/ui");
 

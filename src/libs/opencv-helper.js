@@ -21,7 +21,7 @@ cv.then((target) => {
   });
 });
 
-module.exports = {
-  cv: _cv,
+module.exports= {
+  cv : _cv,
   waitCV,
 }

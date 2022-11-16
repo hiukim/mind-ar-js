@@ -1,7 +1,7 @@
-require("./ui.scss");
-const loadingHTML = require('./loading.html').default;
-const compatibilityHTML = require('./compatibility.html').default;
-const scanningHTML = require('./scanning.html').default;
+import "./ui.scss";
+import loadingHTML from './loading.html';
+import compatibilityHTML from './compatibility.html';
+import scanningHTML from './scanning.html';
 
 class UI {
   constructor({uiLoading, uiScanning, uiError}) {
@@ -62,6 +62,6 @@ class UI {
   }
 }
 
-module.exports = {
+export {
   UI
 }
