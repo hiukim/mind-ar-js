@@ -13,7 +13,7 @@ export default defineConfig({
         lib: {
             fileName:"[name].prod",
             entry:'index.js',
-            formats:["cjs"],
+            formats:["cjs","es"],
         },
         rollupOptions:{
             external:['three','@tensorflow/tfjs'],
