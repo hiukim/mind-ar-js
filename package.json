@@ -4,8 +4,9 @@
   "description": "web augmented reality framework",
   "main": "index.js",
   "scripts": {
-    "watch": "webpack --watch --config webpack.config.dev.cjs",
-    "build": "webpack --config webpack.config.prod.cjs"
+    "dev":"vite --config vite.config.dev.js",
+    "watch": "vite build --watch --config vite.config.dev.js",
+    "build": "vite build --config vite.config.prod.js"
   },
   "engines": {
     "node": ">=14.0.0"

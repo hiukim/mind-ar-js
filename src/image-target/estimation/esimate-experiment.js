@@ -1,8 +1,8 @@
 // try to implement https://hal.inria.fr/inria-00174036/PDF/RR-6303.pdf
 import {Matrix, inverse} from 'ml-matrix';
-const {SVD} = require("svd-js");
+import {SVD} from "svd-js";
 import {solveHomography} from '../utils/homography';
-const {computeScreenCoordiate} = require("./utils");
+import {computeScreenCoordiate} from "./utils";
 
 const opposites_of_minors = (M, row, col) => {
   let x1 = col === 0? 1: 0;

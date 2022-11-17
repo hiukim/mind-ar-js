@@ -1,8 +1,8 @@
-const THREE = require("three");
+import * as THREE from "three";
 import * as tf from '@tensorflow/tfjs';
 import {CSS3DRenderer} from 'three/examples/jsm/renderers/CSS3DRenderer.js';
-const {Controller} = require("./controller");
-const {UI} = require("../ui/ui");
+import {Controller} from "./controller";
+import {UI} from "../ui/ui";
 
 const cssScaleDownMatrix = new THREE.Matrix4();
 cssScaleDownMatrix.compose(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(0.001, 0.001, 0.001));

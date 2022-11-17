@@ -1,7 +1,7 @@
-const THREE = require("three");
+import * as THREE from "three";
 import {CSS3DRenderer} from 'three/examples/jsm/renderers/CSS3DRenderer.js';
-const {Controller} = require("./controller");
-const {UI} = require("../ui/ui");
+import {Controller} from "./controller";
+import {UI} from "../ui/ui";
 
 class MindARThree {
   constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null}) {

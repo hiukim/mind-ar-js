@@ -1,7 +1,7 @@
 // TODO: delete opencv Mat
 //
-const {positions: canonicalMetricLandmarks, landmarkBasis} = require("./face-data.js");
-const {cv} = require("../../libs/opencv-helper.js");
+import {positions as canonicalMetricLandmarks, landmarkBasis} from "./face-data.js";
+import * as cv from "../../libs/opencv-helper.js";
 
 const landmarkWeights = [];
 for (let i = 0; i < canonicalMetricLandmarks.length; i++) {

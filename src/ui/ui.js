@@ -1,7 +1,7 @@
 import "./ui.scss";
-import loadingHTML from './loading.html';
-import compatibilityHTML from './compatibility.html';
-import scanningHTML from './scanning.html';
+import * as loadingHTML from './loading.html';
+import * as compatibilityHTML from './compatibility.html';
+import * as scanningHTML from './scanning.html';
 
 class UI {
   constructor({uiLoading, uiScanning, uiError}) {
