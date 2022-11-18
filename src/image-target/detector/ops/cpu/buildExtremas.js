@@ -80,16 +80,25 @@ const kernel = {
   `
       };
 */
+function clamp(n, min, max) {
+  return Math.min(Math.max(min, n), max);
+}
 
 const buildExtremasImpl = (image0, image1, image2, width, height) => {
   const resultValues = new Float32Array(width * height);
   function getImage0(y, x) {
+    y=clamp(y,0,height);
+    x=clamp(x,0,width);
     return image0[y * width + x];
   }
   function getImage1(y, x) {
+    y=clamp(y,0,height);
+    x=clamp(x,0,width);
     return image1[y * width + x];
   }
   function getImage2(y, x) {
+    y=clamp(y,0,height);
+    x=clamp(x,0,width);
     return image2[y * width + x];
   }
 

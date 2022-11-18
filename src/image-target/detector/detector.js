@@ -67,7 +67,7 @@ class Detector {
 		// Build gaussian pyramid images, two images per octave
 		/** @type {Array<Array<tf.Tensor<tf.Rank>>} */
 		const pyramidImagesT = [];
-		console.log("Detector::Building pyramid Images...");
+		//console.log("Detector::Building pyramid Images...");
 		for (let i = 0; i < this.numOctaves; i++) {
 			let image1T;
 			let image2T;
@@ -81,7 +81,7 @@ class Detector {
 			image2T = tf.tidy(()=>{return tf.engine().runKernel('BinomialFilter', { image: image1T });});//this._applyFilter(image1T);
 			pyramidImagesT.push([image1T, image2T]);
 		}
-		console.log("Detector::Building dog images...");
+		//console.log("Detector::Building dog images...");
 		// Build difference-of-gaussian (dog) pyramid
 		/** @type {tf.Tensor<tf.Rank>[]} */
 		const dogPyramidImagesT = [];

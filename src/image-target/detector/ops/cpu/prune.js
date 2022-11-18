@@ -35,12 +35,17 @@ const kernel = {
 	}
 
 */
+function clamp(n, min, max) {
+    return Math.min(Math.max(min, n), max-1);
+}
 
 const pruneImpl=(vals,width,height)=>{
     const w=Math.floor(width/2);
     const h=Math.floor(height/2);
     const resultValues = new Float32Array(w*h);
     function getExtrema(x,y){
+		x=clamp(x,0,width);
+		y=clamp(y,0,height);
         return vals[y*width+x];
     }
     function setOutput(x,y,o){

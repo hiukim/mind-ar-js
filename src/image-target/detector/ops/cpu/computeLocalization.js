@@ -37,39 +37,51 @@ const kernel = {
 	  }
 
 */
+const int = Math.trunc;
+function clamp(n, min, max) {
+    return Math.min(Math.max(min, n), max-1);
+}
 
 function computeLocalizationImpl(images, extrema) {
-	const resultValues=new Float32Array(extrema.height*3*3);
+	const resultValues = new Float32Array(extrema.height * 3 * 3);
 	//so normally we would unshift since we're 0 indexed and octaves start at 1.
-	//however we never sliced out the first element, so we should be fine
+	//however we never sliced out the first element, so we should be fine?
 	function getPixel(octave, y, x) {
-        const temp = images[octave];
-        return temp.values[y * temp.width + x];
-    }
+		const temp = images[octave];
+		y=clamp(y,0,temp.height);
+		x=clamp(x,0,temp.width);
+		return temp.values[y * temp.width + x];
+	}
 	function getExtrema(y, x) {
+		y=clamp(y,0,extrema.height);
+		x=clamp(x,0,extrema.width);
 		return extrema.values[y * extrema.width + x];
 	}
 	function setOutput(z, y, x, o) {
 		//(z * xMax * yMax) + (y * xMax) + x;
-		resultValues[z*3*3+y*3+x]=o;
+		resultValues[z * 3 * 3 + y * 3 + x] = o;
 	}
-	let zeroOctaveCount=0;
-	for (let featureIndex = 0; featureIndex < extrema.height; featureIndex++) {
-		for (let y = 0; y < 3; y++) {
-			for (let x = 0; x < 3; x++) {
+	
+	for (let _featureIndex = 0; _featureIndex < extrema.height; _featureIndex++) {
+		for (let _y = 0; _y < 3; _y++) {
+			for (let _x = 0; _x < 3; _x++) {
+				const coords = [_featureIndex, _y, _x];
+				const featureIndex = coords[0];
 				const score = getExtrema(featureIndex, 0);
-				if (score == 0.0){ continue;}
-				const dy = y - 1;
-				const dx = x - 1;
-				const octave = Math.trunc(getExtrema(featureIndex, 1));
-				if(octave==0) zeroOctaveCount++;
-				const y2 = Math.trunc(getExtrema(featureIndex, 2));
-				const x2 = Math.trunc(getExtrema(featureIndex, 3));
-				setOutput(featureIndex,y,x, getPixel(octave, y2 + dy, x2 + dx));
+				if (score == 0.0) {
+					continue;
+				}
+
+				const dy = coords[1] - 1;
+				const dx = coords[2] - 1;
+				const octave = int(getExtrema(featureIndex, 1));
+				const y = int(getExtrema(featureIndex, 2));
+				const x = int(getExtrema(featureIndex, 3));
+				setOutput(_featureIndex, _y, _x, getPixel(octave, y + dy, x + dx));
 			}
 		}
 	}
-	console.log("computeLocalization:: Zero Octaves:",zeroOctaveCount);
+	
 
 	return resultValues;
 }
@@ -83,9 +95,9 @@ const computeLocalization = (args) => {
 
 	const dogPyramidImagesTData = dogPyramidImagesT.map((tensorInfo) => { return { height: tensorInfo.shape[0], width: tensorInfo.shape[1], values: backend.data.get(tensorInfo.dataId).values, } });
 	const prunedExtremasData = { values: backend.data.get(prunedExtremasT.dataId).values, height: prunedExtremasT.shape[0], width: prunedExtremasT.shape[1] };
-	const resultValues=computeLocalizationImpl(dogPyramidImagesTData, prunedExtremasData)
+	const resultValues = computeLocalizationImpl(dogPyramidImagesTData, prunedExtremasData)
 
-	return backend.makeOutput(resultValues, [prunedExtremasData.height, 3,3], dogPyramidImagesT[0].dtype);
+	return backend.makeOutput(resultValues, [prunedExtremasData.height, 3, 3], dogPyramidImagesT[0].dtype);
 }
 
 const computeLocalizationConfig = {//: KernelConfig

@@ -3,6 +3,10 @@ const oneOver2PI = 0.159154943091895;
 const ORIENTATION_NUM_BINS = 36;
 
 
+
+function clamp(n, min, max) {
+    return Math.min(Math.max(min, n), max-1);
+  }
 /**
  * 
  * @param {Array<*>} gaussianImagesT 
@@ -10,7 +14,7 @@ const ORIENTATION_NUM_BINS = 36;
  * @param {*} radialPropertiesT 
  * @returns 
  */
-function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radialPropertiesT) {
+function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radialPropertiesT,pyramidImagesLength) {
 
     const resultValues1 = new Float32Array(prunedExtremasT.height * radialPropertiesT.height * 2); 
     //octaves map on the range of 1 -> pyramidImagesLength
@@ -18,20 +22,27 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
     
     gaussianImagesT.unshift(null);
     function getPixel(octave, y, x) {
+        
         const temp = gaussianImagesT[octave];
         //console.log("getPixel::",octave,y,x,temp);
-        if(temp==null) return 0;
+        //if(temp==null) return 0;
+        y=clamp(y,0,temp.height);
+        x=clamp(x,0,temp.width);
         return temp.values[y * temp.width + x];
     }
     function getExtrema(y, x) {
+        y=clamp(y,0,prunedExtremasT.height);
+        x=clamp(x,0,prunedExtremasT.width);
         return prunedExtremasT.values[y*prunedExtremasT.width+x];
     }
     function getRadial(y, x) {
+        y=clamp(y,0,radialPropertiesT.height);
+        x=clamp(x,0,radialPropertiesT.width);
         return radialPropertiesT.values[y*radialPropertiesT.width+x];
     }
     function setOutput(z, y, x, o) {
         //prunedExtremasT.shape[0], radialPropertiesT.shape[0], 2
-        resultValues1[(z * prunedExtremasT.height * radialPropertiesT.height) + (y * radialPropertiesT.height) + x] = o;
+        resultValues1[(z * 2 * radialPropertiesT.height) + (y * 2) + x] = o;
     }
     /** replicated undefined behavior like you have on OpenGL */
     function badAtan(x,y){
@@ -47,7 +58,7 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
                 const radialW = getRadial(radialIndex, 2);
 
                 const octave = Math.trunc(getExtrema(featureIndex, 1));
-                if(octave==0) console.log("Got zero octave for ",featureIndex,1);
+                //if(octave==0) console.log("Got zero octave for ",featureIndex,1);
                 const y = Math.trunc(getExtrema(featureIndex, 2));
                 const x = Math.trunc(getExtrema(featureIndex, 3));
 
@@ -78,6 +89,9 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
 
     const resultValues2= new Float32Array(ORIENTATION_NUM_BINS*prunedExtremasT.height);
     function getFbinMag(z,y,x){
+        z=clamp(z,0,prunedExtremasT.height);
+        y=clamp(y,0,radialPropertiesT.height.height);
+        x=clamp(x,0,2);
         return resultValues1[z*radialPropertiesT.height*2+y*2+x];
     }
     function setOutput2(y,x,o){
@@ -128,7 +142,7 @@ const computeOrientationHistograms = (args) => {
     //const result1 = backend.runWebGLProgram(program1, [...gaussianImagesT, prunedExtremasT, radialPropertiesT],radialPropertiesT.dtype);
     //return backend.runWebGLProgram(program2, [result1],radialPropertiesT.dtype);
 
-    const resultValues=computeOrientationHistogramsImpl(gaussianImagesTData,prunedExtremasData,radialPropertiesData);
+    const resultValues=computeOrientationHistogramsImpl(gaussianImagesTData,prunedExtremasData,radialPropertiesData,pyramidImagesLength);
     return backend.makeOutput(resultValues, [prunedExtremasT.shape[0], ORIENTATION_NUM_BINS], radialPropertiesT.dtype);
 }
 
