@@ -6,16 +6,16 @@ const ORIENTATION_NUM_BINS = 36;
 
 const cache={};
 
-function GetPrograms(gaussianImagesT, prunedExtremasT, radialPropertiesT){
-    const key=`${gaussianImagesT.length}|${prunedExtremasT.shape[0]}|${radialPropertiesT.shape[0]}`;
+function GetPrograms(prunedExtremasT, radialPropertiesT,pyramidImagesLength){
+    const key=`${pyramidImagesLength}|${prunedExtremasT.shape[0]}|${radialPropertiesT.shape[0]}`;
     if (!cache.hasOwnProperty(key)) {
         const imageVariableNames = [];
-        for (let i = 1; i <= gaussianImagesT.length; i++) {
+        for (let i = 1; i < pyramidImagesLength; i++) {
             imageVariableNames.push('image' + i);
         }
 
         let kernel1SubCodes = `float getPixel(int octave, int y, int x) {`;
-        for (let i = 1; i <= gaussianImagesT.length; i++) {
+        for (let i = 1; i <pyramidImagesLength; i++) {
             kernel1SubCodes += `
             if (octave == ${i}) {
                 return getImage${i}(y, x);
@@ -110,10 +110,10 @@ function GetPrograms(gaussianImagesT, prunedExtremasT, radialPropertiesT){
 }
 
 const computeOrientationHistograms=(args)=>{
-    const {gaussianImagesT, prunedExtremasT, radialPropertiesT}=args.inputs;
+    const {gaussianImagesT, prunedExtremasT, radialPropertiesT,pyramidImagesLength}=args.inputs;
     /** @type {MathBackendWebGL} */
     const backend = args.backend;
-    const [program1,program2]=GetPrograms(gaussianImagesT, prunedExtremasT, radialPropertiesT);
+    const [program1,program2]=GetPrograms(prunedExtremasT, radialPropertiesT,pyramidImagesLength);
     
     const result1 = backend.runWebGLProgram(program1, [...gaussianImagesT, prunedExtremasT, radialPropertiesT],radialPropertiesT.dtype);
 	return backend.runWebGLProgram(program2, [result1],radialPropertiesT.dtype);

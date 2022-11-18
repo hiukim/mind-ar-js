@@ -336,7 +336,7 @@ class Detector {
 		return tf.tidy(() => {
 			//const [program] = this.kernelCaches._computeExtremaFreak;
 			//const result = this._compileAndRun(program, [...gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT]);
-			return tf.engine().runKernel('ComputeExtremaFreak',{gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT});
+			return tf.engine().runKernel('ComputeExtremaFreak',{gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT,pyramidImagesLength:pyramidImagesT.length});
 		});
 	}
 	/**
@@ -556,7 +556,7 @@ class Detector {
 			const result1 = this._compileAndRun(program1, [...gaussianImagesT, prunedExtremasT, radialPropertiesT]);
 			const result2 = this._compileAndRun(program2, [result1]); 
 			return result2;*/
-			return tf.engine().runKernel('ComputeOrientationHistograms',{gaussianImagesT, prunedExtremasT, radialPropertiesT});
+			return tf.engine().runKernel('ComputeOrientationHistograms',{gaussianImagesT, prunedExtremasT, radialPropertiesT,pyramidImagesLength:pyramidImagesT.length});
 		});
 	}
 

@@ -40,6 +40,8 @@ const kernel = {
 
 function computeLocalizationImpl(images, extrema) {
 	const resultValues=new Float32Array(extrema.height*3*3);
+	//so normally we would unshift since we're 0 indexed and octaves start at 1.
+	//however we never sliced out the first element, so we should be fine
 	function getPixel(octave, y, x) {
         const temp = images[octave];
         return temp.values[y * temp.width + x];
@@ -51,21 +53,23 @@ function computeLocalizationImpl(images, extrema) {
 		//(z * xMax * yMax) + (y * xMax) + x;
 		resultValues[z*3*3+y*3+x]=o;
 	}
-
+	let zeroOctaveCount=0;
 	for (let featureIndex = 0; featureIndex < extrema.height; featureIndex++) {
 		for (let y = 0; y < 3; y++) {
 			for (let x = 0; x < 3; x++) {
 				const score = getExtrema(featureIndex, 0);
-				if (score == 0.0) continue;
+				if (score == 0.0){ continue;}
 				const dy = y - 1;
 				const dx = x - 1;
 				const octave = Math.trunc(getExtrema(featureIndex, 1));
-				const y = Math.trunc(getExtrema(featureIndex, 2));
-				const x = Math.trunc(getExtrema(featureIndex, 3));
-				setOutput(featureIndex,y,x, getPixel(octave, y + dy, x + dx));
+				if(octave==0) zeroOctaveCount++;
+				const y2 = Math.trunc(getExtrema(featureIndex, 2));
+				const x2 = Math.trunc(getExtrema(featureIndex, 3));
+				setOutput(featureIndex,y,x, getPixel(octave, y2 + dy, x2 + dx));
 			}
 		}
 	}
+	console.log("computeLocalization:: Zero Octaves:",zeroOctaveCount);
 
 	return resultValues;
 }

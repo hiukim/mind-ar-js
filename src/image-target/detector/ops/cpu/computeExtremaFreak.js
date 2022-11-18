@@ -2,9 +2,17 @@ const { FREAKPOINTS } = require('../../freak.js')
 
 
 const FREAK_EXPANSION_FACTOR = 7.0;
-
+/**
+ * 
+ * @param {Array<*>} gaussianImagesT 
+ * @param {*} prunedExtremas 
+ * @param {*} prunedExtremasAngles 
+ * @param {*} freakPointsT 
+ * @returns 
+ */
 function computeExtremaFreakImpl(gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT) {
     const resultValues = new Float32Array(prunedExtremas.height * FREAKPOINTS.length);
+    gaussianImagesT.unshift(null);
     function getPixel(octave, y, x) {
         const temp = gaussianImagesT[octave];
         return temp.values[y * temp.width + x];
@@ -68,7 +76,7 @@ function computeExtremaFreakImpl(gaussianImagesT, prunedExtremas, prunedExtremas
 
 const computeExtremaFreak = (args) => {
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
-    const { gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT } = args.inputs;
+    const { gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT,pyramidImagesLength } = args.inputs;
     /** @type {MathBackendCPU} */
     const backend = args.backend;
     

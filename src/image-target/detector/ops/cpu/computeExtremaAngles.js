@@ -52,11 +52,12 @@ function computeExtremaAnglesImpl(histogram) {
             const b = p20 * p20;
 
             // Solve for the coefficients A,B,C
-            const A = ((p31 - p21) / d1) - ((p11 - p21) / d2);
+            let A = ((p31 - p21) / d1) - ((p11 - p21) / d2);
+            if(Number.isNaN(A)) A=0;
             const B = ((p11 - p21) + (A * (b - a))) / d3;
             //const C = p11 - (A * a) - (B * p10);
             fbin = -B / (2.0 * A);
-            //if(Number.isNaN(fbin)) console.warn(`computeExtremaAngles::NaN! fbin=${fbin} maxIndex=${maxIndex} A=${A} B=${B} p31=${p31} p21=${p21} p11=${p11}`);
+            if(Number.isNaN(fbin)) fbin=0;//console.warn(`computeExtremaAngles::NaN! fbin=${fbin} maxIndex=${maxIndex} A=${A} B=${B} p31=${p31} p21=${p21} p11=${p11}`);
         }
 
         const an = 2.0 * Math.PI * (fbin + 0.5) / ORIENTATION_NUM_BINS - Math.PI;

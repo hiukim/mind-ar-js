@@ -3,13 +3,24 @@ const oneOver2PI = 0.159154943091895;
 const ORIENTATION_NUM_BINS = 36;
 
 
-
+/**
+ * 
+ * @param {Array<*>} gaussianImagesT 
+ * @param {*} prunedExtremasT 
+ * @param {*} radialPropertiesT 
+ * @returns 
+ */
 function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radialPropertiesT) {
 
-    const resultValues1 = new Float32Array(prunedExtremasT.height * radialPropertiesT.height * 2);
+    const resultValues1 = new Float32Array(prunedExtremasT.height * radialPropertiesT.height * 2); 
+    //octaves map on the range of 1 -> pyramidImagesLength
+    //but our gaussianImages are 0 indexed. So we insert a null ref at the beginning to offset it
+    
+    gaussianImagesT.unshift(null);
     function getPixel(octave, y, x) {
         const temp = gaussianImagesT[octave];
         //console.log("getPixel::",octave,y,x,temp);
+        if(temp==null) return 0;
         return temp.values[y * temp.width + x];
     }
     function getExtrema(y, x) {
@@ -22,6 +33,11 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
         //prunedExtremasT.shape[0], radialPropertiesT.shape[0], 2
         resultValues1[(z * prunedExtremasT.height * radialPropertiesT.height) + (y * radialPropertiesT.height) + x] = o;
     }
+    /** replicated undefined behavior like you have on OpenGL */
+    function badAtan(x,y){
+        if(x==0&&y==0) return 1.57;
+        return Math.atan(x,y);
+    }
     //Program 1
     for (let featureIndex = 0; featureIndex <prunedExtremasT.height; featureIndex++) {
         for (let radialIndex = 0; radialIndex <radialPropertiesT.height; radialIndex++) {
@@ -31,6 +47,7 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
                 const radialW = getRadial(radialIndex, 2);
 
                 const octave = Math.trunc(getExtrema(featureIndex, 1));
+                if(octave==0) console.log("Got zero octave for ",featureIndex,1);
                 const y = Math.trunc(getExtrema(featureIndex, 2));
                 const x = Math.trunc(getExtrema(featureIndex, 3));
 
@@ -42,8 +59,8 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
 
                 if (propertyIndex == 0) {
                     // be careful that atan(0, 0) gives 1.57 instead of 0 (different from js), but doesn't matter here, coz magnitude is 0
-
-                    const angle = Math.atan(dy, dx) + Math.PI;
+                    
+                    const angle = badAtan(dy, dx) + Math.PI;
                     const fbin = angle * ORIENTATION_NUM_BINS * oneOver2PI;
                     setOutput(featureIndex,radialIndex,propertyIndex,fbin);
                     continue;
@@ -99,7 +116,7 @@ function computeOrientationHistogramsImpl(gaussianImagesT, prunedExtremasT, radi
 }
 
 const computeOrientationHistograms = (args) => {
-    const { gaussianImagesT, prunedExtremasT, radialPropertiesT } = args.inputs;
+    const { gaussianImagesT, prunedExtremasT, radialPropertiesT,pyramidImagesLength } = args.inputs;
     /** @type {MathBackendCPU} */
     const backend = args.backend;
     //const [program1,program2]=GetPrograms(gaussianImagesT, prunedExtremasT, radialPropertiesT);

@@ -65,10 +65,16 @@
  */
 function binomialFilterImpl(vals,width,height){
   
-  const resultValues1 = new Float32Array(vals.length);
+  const resultValues1 = new Float32Array(width*height);
   let p=vals;
   let result=resultValues1;
+  function clamp(n,min,max){
+    return Math.min(Math.max(min,n),max);
+  }
   function getP(y,x){
+    x=clamp(x,0,width-1);
+    y=clamp(y,0,height-1);
+
     return p[y*width+x];
   }
   function setOutput(y,x,o){
@@ -77,11 +83,12 @@ function binomialFilterImpl(vals,width,height){
   //step1
   for(let y=0;y<height;y++){
     for(let x=0;x<width;x++){
-      let sum = getP(y, x-2);
-      sum += getP(y, x-1) * 4.;
-      sum += getP(y, x) * 6.;
-      sum += getP(y, x+1) * 4.;
-      sum += getP(y, x+2);
+      const coords=[y,x];
+      let sum = getP(coords[0], coords[1]-2);
+	    sum += getP(coords[0], coords[1]-1) * 4.0;
+	    sum += getP(coords[0], coords[1]) * 6.0;
+	    sum += getP(coords[0], coords[1]+1) * 4.0;
+	    sum += getP(coords[0], coords[1]+2);
       setOutput(y,x,sum);
     }
   }
@@ -92,13 +99,14 @@ function binomialFilterImpl(vals,width,height){
   //step2
   for(let y=0;y<height;y++){
     for(let x=0;x<width;x++){
-      let sum = getP(y-2, x);
-	    sum += getP(y-1, x) * 4.;
-	    sum += getP(y, x) * 6.;
-	    sum += getP(y+1, x) * 4.;
-	    sum += getP(y+2, x);
-      sum /= 256;
-      setOutput(sum);
+      const coords=[y,x];
+      let sum = getP(coords[0]-2, coords[1]);
+	    sum += getP(coords[0]-1, coords[1]) * 4.0;
+	    sum += getP(coords[0], coords[1]) * 6.0;
+	    sum += getP(coords[0]+1, coords[1]) * 4.0;
+	    sum += getP(coords[0]+2, coords[1]);
+	    sum /= 256.0;
+      setOutput(y,x,sum);
     }
   }
   return result;

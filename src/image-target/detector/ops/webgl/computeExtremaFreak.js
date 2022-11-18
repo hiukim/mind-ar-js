@@ -12,7 +12,7 @@ function GetProgram(imageCount, prunedExtremas) {
         }
 
         let pixelsSubCodes = `float getPixel(int octave, int y, int x) {`;
-        for (let i = 1; i <= imageCount; i++) {
+        for (let i = 1; i < imageCount; i++) {
             pixelsSubCodes += `
 	  if (octave == ${i}) {
 	    return getImage${i}(y, x);
@@ -78,11 +78,11 @@ function GetProgram(imageCount, prunedExtremas) {
 
 const computeExtremaFreak = (args) => {
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
-    const { gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT } = args.inputs;
+    const { gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT,pyramidImagesLength } = args.inputs;
     /** @type {MathBackendWebGL} */
     const backend = args.backend;
 
-    const program = GetProgram(gaussianImagesT.length, prunedExtremas);
+    const program = GetProgram(pyramidImagesLength, prunedExtremas);
 
     return backend.runWebGLProgram(program, [...gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT], 'float32');
 }
