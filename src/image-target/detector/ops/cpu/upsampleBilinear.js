@@ -32,6 +32,9 @@ const kernel = {
 	`
       };
 */
+function clamp(n, min, max) {
+    return Math.min(Math.max(min, n), max);
+}
 /**
  * 
  * @param {TypedArray} vals 
@@ -45,6 +48,8 @@ const upsampleBilinearImpl=(vals,width,height,targetWidth,targetHeight)=>{
     
     const resultValues = new Float32Array(targetWidth*targetHeight);
     function getP(x,y){
+        x=clamp(x,0,width-1);
+        y=clamp(y,0,height-1);
         return vals[y*width+x];
     }
     function setOutput(x,y,o){
