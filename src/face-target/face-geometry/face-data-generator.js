@@ -3,7 +3,7 @@
 //
 // this script parse the model data. To run: node face-data-generator.js
 
-const fs = require("fs");
+import * as fs from "fs";
 const text = fs.readFileSync("./canonical-face-model.obj", "utf8");
 const textByLine = text.split("\n")
 

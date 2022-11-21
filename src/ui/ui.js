@@ -1,7 +1,11 @@
-import "./ui.scss";
-import * as loadingHTML from './loading.html';
-import * as compatibilityHTML from './compatibility.html';
-import * as scanningHTML from './scanning.html';
+require("./ui.scss");
+import loadingHTML from './loading.html';
+import compatibilityHTML from './compatibility.html';
+import scanningHTML from './scanning.html';
+/* 
+import {compileString} from 'sass'
+
+const css=compileString(uiCss); */
 
 class UI {
   constructor({uiLoading, uiScanning, uiError}) {

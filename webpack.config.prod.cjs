@@ -1,6 +1,6 @@
-const path = require('path');
-
-module.exports = {
+const path =require('path');
+const webpack = require('webpack');
+module.exports=  {
   entry: {
     'mindar-image': './src/image-target/index.js',
     'mindar-image-aframe': './src/image-target/aframe.js',
@@ -10,33 +10,28 @@ module.exports = {
     'mindar-face-three': './src/face-target/three.js'
   },
   mode: 'production',
+  target:'web',
   output: {
     filename: '[name].prod.js',
     path: path.resolve(__dirname, 'dist'),
     publicPath: ''
   },
+  externals: {
+    three: 'three',
+    tfjs: '@tensorflow/tfjs'
+  },
   module: {
     rules: [
       {
-        test: /\.worker\.js$/,
-        use: {
-          loader: 'worker-loader',
-          options: {
-            inline: true,
-            name: '[name].prod.js'
-          },
-        },
-      },
-      {
-	test: /\.s[ac]ss$/i,
+        test: /\.s[ac]ss$/i,
         use: [
           'style-loader',
           'css-loader',
-	  'sass-loader'
+          'sass-loader'
         ]
       },
       {
-	test: /\.html$/,
+        test: /\.html$/,
         use: 'html-loader',
       }
     ],
@@ -47,5 +42,17 @@ module.exports = {
       path: false,
       crypto: false
     }
-  }
+  },
+  plugins: [
+    new webpack.optimize.LimitChunkCountPlugin({
+      maxChunks: 6,
+    }),
+  ],
+  optimization: {
+     
+     minimize: true,
+    /*splitChunks: {
+      chunks: 'all',
+    }, */
+  },
 };

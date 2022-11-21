@@ -1,7 +1,7 @@
 // result should be similar to previou
 // improve freka descriptors computation 
 import * as tf from '@tensorflow/tfjs';
-import {FREAKPOINTS} from './freak';
+import {FREAKPOINTS} from './freak.js';
 
 const PYRAMID_MIN_SIZE = 8;
 const PYRAMID_MAX_OCTAVE = 5;

@@ -1,4 +1,3 @@
-import CompilerWorker from "./compiler.worker.js?worker&inline";
 import {Detector} from './detector/detector.js';
 import {buildImageList, buildTrackingImageList} from './image-list.js';
 import {build as hierarchicalClusteringBuild} from './matching/hierarchical-clustering.js';
@@ -63,7 +62,7 @@ class Compiler {
       // compute tracking data with worker: 50% progress
       const compileTrack = () => {
 	return new Promise((resolve, reject) => {
-	  const worker = new CompilerWorker();
+	  const worker = new Worker(new URL('./compiler.worker.js', import.meta.url));
 	  worker.onmessage = (e) => {
 	    if (e.data.type === 'progress') {
 	      progressCallback(50 + e.data.percent);

@@ -1,7 +1,7 @@
 import {Matrix, inverse} from 'ml-matrix';
 import {createRandomizer} from '../utils/randomizer.js';
 import {quadrilateralConvex, matrixInverse33, smallestTriangleArea, multiplyPointHomographyInhomogenous, checkThreePointsConsistent, checkFourPointsConsistent, determinant} from '../utils/geometry.js';
-import {solveHomography} from '../utils/homography';
+import {solveHomography} from '../utils/homography.js';
 
 const CAUCHY_SCALE = 0.01;
 const CHUNK_SIZE = 10;

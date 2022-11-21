@@ -1,6 +1,6 @@
-import {Controller} from './controller';
-import {Compiler} from './compiler';
-import {UI} from '../ui/ui';
+import {Controller} from './controller.js';
+import {Compiler} from './compiler.js';
+import {UI} from '../ui/ui.js';
 
 const e = {
   Controller, 

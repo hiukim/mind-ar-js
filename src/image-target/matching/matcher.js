@@ -1,4 +1,4 @@
-import {match} from './matching';
+import {match} from './matching.js';
 
 class Matcher {
   constructor(queryWidth, queryHeight, debugMode = false) {

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import {CSS3DRenderer} from 'three/examples/jsm/renderers/CSS3DRenderer.js';
-import {Controller} from "./controller";
-import {UI} from "../ui/ui";
+import {Controller} from "./controller.js";
+import {UI} from "../ui/ui.js";
 
 class MindARThree {
   constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null}) {
