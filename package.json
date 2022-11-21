@@ -4,7 +4,7 @@
   "description": "web augmented reality framework",
   "main": "index.js",
   "scripts": {
-    "dev":"vite --config vite.config.dev.js",
+    "dev": "vite --config vite.config.dev.js",
     "watch": "vite build --watch --config vite.config.dev.js",
     "build": "vite build --config vite.config.prod.js"
   },
