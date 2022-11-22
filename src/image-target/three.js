@@ -2,7 +2,7 @@ import * as THREE from "three";
 import * as tf from '@tensorflow/tfjs';
 import {CSS3DRenderer} from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import {Controller} from "./controller.js";
-import {UI} from "../ui/ui.js";
+import {UI} from "../ui/ui.cjs";
 
 const cssScaleDownMatrix = new THREE.Matrix4();
 cssScaleDownMatrix.compose(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(0.001, 0.001, 0.001));
@@ -256,5 +256,5 @@ if (!window.MINDAR.IMAGE) {
 }
 
 window.MINDAR.IMAGE.MindARThree = MindARThree;
-window.MINDAR.IMAGE.THREE = THREE;
+//window.MINDAR.IMAGE.THREE = THREE;
 window.MINDAR.IMAGE.tf = tf;

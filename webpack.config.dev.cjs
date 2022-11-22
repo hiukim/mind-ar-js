@@ -16,7 +16,7 @@ module.exports=  {
   output: {
     filename: '[name].js',
     path: path.resolve(__dirname, 'dist-dev'),
-    publicPath: ''
+    publicPath: 'auto'
   },
   module: {
     rules: [

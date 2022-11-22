@@ -4,8 +4,8 @@
   "description": "web augmented reality framework",
   "main": "index.js",
   "scripts": {
-    "watch": "webpack build --watch --config vite.config.dev.js",
-    "build": "webpack build --config vite.config.prod.js"
+    "watch": "webpack build --watch --config webpack.config.dev.cjs",
+    "build": "webpack build --config webpack.config.prod.cjs"
   },
   "engines": {
     "node": ">=14.0.0"
@@ -33,8 +33,11 @@
     "canvas": "^2.10.2",
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
-    "three": "^0.136.0",
+    
     "tinyqueue": "^2.0.3"
+  },
+  "peerDependencies": {
+    "three": ">=0.136.0"
   },
   "devDependencies": {
     "css-loader": "^5.2.7",

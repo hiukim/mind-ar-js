@@ -14,12 +14,9 @@ module.exports=  {
   output: {
     filename: '[name].prod.js',
     path: path.resolve(__dirname, 'dist'),
-    publicPath: ''
+    publicPath: 'auto'
   },
-  externals: {
-    three: 'three',
-    tfjs: '@tensorflow/tfjs'
-  },
+  externals: 'three',
   module: {
     rules: [
       {
@@ -43,11 +40,7 @@ module.exports=  {
       crypto: false
     }
   },
-  plugins: [
-    new webpack.optimize.LimitChunkCountPlugin({
-      maxChunks: 6,
-    }),
-  ],
+  plugins: [],
   optimization: {
      
      minimize: true,

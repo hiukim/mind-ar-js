@@ -1,9 +1,9 @@
-import * as THREE from "three";
+import {Scene,WebGLRenderer,PerspectiveCamera,sRGBEncoding,Mesh,MeshStandardMaterial,Group} from "three";
 import {CSS3DRenderer} from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import {Controller} from "./controller.js";
-import {UI} from "../ui/ui.js";
+import {UI} from "../ui/ui.cjs";
 
-class MindARThree {
+export class MindARThree {
   constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null}) {
     this.container = container;
     this.ui = new UI({uiLoading, uiScanning, uiError});
@@ -12,13 +12,13 @@ class MindARThree {
       filterMinCF: filterMinCF,
       filterBeta: filterBeta,
     });
-    this.scene = new THREE.Scene();
-    this.cssScene = new THREE.Scene();
-    this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    this.scene = new Scene();
+    this.cssScene = new Scene();
+    this.renderer = new WebGLRenderer({antialias: true, alpha: true});
     this.cssRenderer = new CSS3DRenderer({antialias: true });
-    this.renderer.outputEncoding = THREE.sRGBEncoding;
+    this.renderer.outputEncoding = sRGBEncoding;
     this.renderer.setPixelRatio(window.devicePixelRatio);
-    this.camera = new THREE.PerspectiveCamera();
+    this.camera = new PerspectiveCamera();
 
     this.anchors = [];
     this.faceMeshes = [];
@@ -55,7 +55,7 @@ class MindARThree {
 
   addFaceMesh() {
     const faceGeometry = this.controller.createThreeFaceGeometry(THREE);
-    const faceMesh = new THREE.Mesh(faceGeometry, new THREE.MeshStandardMaterial({color: 0xffffff}));
+    const faceMesh = new Mesh(faceGeometry, new MeshStandardMaterial({color: 0xffffff}));
     faceMesh.visible = false;
     faceMesh.matrixAutoUpdate = false;
     this.faceMeshes.push(faceMesh);
@@ -63,7 +63,7 @@ class MindARThree {
   }
 
   addAnchor(landmarkIndex) {
-    const group = new THREE.Group();
+    const group = new Group();
     group.matrixAutoUpdate = false;
     const anchor = {group, landmarkIndex, css: false};
     this.anchors.push(anchor);
@@ -72,7 +72,7 @@ class MindARThree {
   }
 
   addCSSAnchor(landmarkIndex) {
-    const group = new THREE.Group();
+    const group = new Group();
     group.matrixAutoUpdate = false;
     const anchor = {group, landmarkIndex, css: true};
     this.anchors.push(anchor);
@@ -227,4 +227,4 @@ if (!window.MINDAR.FACE) {
 }
 
 window.MINDAR.FACE.MindARThree = MindARThree;
-window.MINDAR.FACE.THREE = THREE;
+//window.MINDAR.FACE.THREE = THREE;
