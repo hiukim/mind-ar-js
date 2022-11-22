@@ -1,7 +1,40 @@
 import "./ui.scss";
-import loadingHTML from './loading.html?raw';
-import  compatibilityHTML from './compatibility.html?raw';
-import scanningHTML from './scanning.html?raw';
+//import loadingHTML from './loading.html?raw';
+//import  compatibilityHTML from './compatibility.html?raw';
+//import scanningHTML from './scanning.html?raw';
+const loadingHTML=`<div class="mindar-ui-overlay mindar-ui-loading">
+<div class="loader"/>
+</div>`;
+
+const compatibilityHTML=`<div class="mindar-ui-overlay mindar-ui-compatibility">
+<div class="content">
+  <h1>Failed to launch :(</h1>
+  <p>
+    Looks like your device/browser is not compatible.
+  </p>
+
+  <br/>
+  <br/>
+  <p>
+    Please try the following recommended browsers:
+  </p>
+  <p>
+    For Android device - Chrome
+  </p>
+  <p>
+    For iOS device - Safari
+  </p>
+</div>
+</div>`;
+
+const scanningHTML=`<div class="mindar-ui-overlay mindar-ui-scanning">
+<div class="scanning">
+  <div class="inner">
+    <div class="scanline"/>
+  </div>
+</div>
+</div>
+`;
 
 class UI {
   constructor({uiLoading, uiScanning, uiError}) {

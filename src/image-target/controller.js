@@ -1,4 +1,5 @@
-import * as tf from '@tensorflow/tfjs';
+import {memory,nextFrame} from '@tensorflow/tfjs';
+const tf = {memory,nextFrame};
 import ControllerWorker  from "./controller.worker.js?worker&inline";
 import {Tracker} from './tracker/tracker.js';
 import {CropDetector} from './detector/crop-detector.js';
