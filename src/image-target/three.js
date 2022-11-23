@@ -9,7 +9,7 @@ cssScaleDownMatrix.compose(new THREE.Vector3(), new THREE.Quaternion(), new THRE
 
 class MindARThree {
   constructor({
-      container, imageTargetSrc, maxTrack, uiLoading="yes", uiScanning="yes", uiError="yes",
+      container, imageTargetSrc, maxTrack, uiLoading="yes", uiScanning="yes", uiError="yes", sourceWidth=640, sourceHeight=480, 
       filterMinCF=null, filterBeta=null, warmupTolerance=null, missTolerance=null
     }) {
     this.container = container;
@@ -20,6 +20,8 @@ class MindARThree {
     this.warmupTolerance = warmupTolerance;
     this.missTolerance = missTolerance;
     this.ui = new UI({uiLoading, uiScanning, uiError});
+    this.sourceWidth = sourceWidth;
+    this.sourceHeight = sourceHeight;
 
     this.scene = new THREE.Scene();
     this.cssScene = new THREE.Scene();
@@ -94,6 +96,12 @@ class MindARThree {
 
       navigator.mediaDevices.getUserMedia({audio: false, video: {
 	facingMode: 'environment',
+  width: {
+    ideal: this.sourceWidth,
+  },
+  height: {
+    ideal: this.sourceHeight,
+  }
       }}).then((stream) => {
 	this.video.addEventListener( 'loadedmetadata', () => {
 	  this.video.setAttribute('width', this.video.videoWidth);
