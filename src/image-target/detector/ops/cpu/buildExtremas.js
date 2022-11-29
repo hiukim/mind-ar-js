@@ -1,4 +1,5 @@
 
+const FakeShader= require('./fakeShader.js');
 const tf = require('@tensorflow/tfjs');
 const FREAK_EXPANSION_FACTOR = 7.0;
 
@@ -8,78 +9,84 @@ const LAPLACIAN_SQR_THRESHOLD = LAPLACIAN_THRESHOLD * LAPLACIAN_THRESHOLD;
 const EDGE_THRESHOLD = 4.0;
 const EDGE_HESSIAN_THRESHOLD = ((EDGE_THRESHOLD + 1) * (EDGE_THRESHOLD + 1) / EDGE_THRESHOLD);
 
-/*
-const kernel = {
-  variableNames: ['image0', 'image1', 'image2'],
-  outputShape: [imageHeight, imageWidth],
-  userCode: `
-    void main() {
-      ivec2 coords = getOutputCoords();
+function GetProgram(image) {
+  const imageWidth = image.shape[1];
+  const imageHeight = image.shape[0];
+  const kernel = {
+    variableNames: ['image0', 'image1', 'image2'],
+    outputShape: [imageHeight, imageWidth],
+    userCode:
+      function () {
+        const coords = this.getOutputCoords();
 
-      int y = coords[0];
-      int x = coords[1];
+        const y = coords[0];
+        const x = coords[1];
 
-      float value = getImage1(y, x);
+        const value = this.getImage1(y, x);
 
-      // Step 1: find local maxima/minima
-      if (value * value < ${LAPLACIAN_SQR_THRESHOLD}.) {
-        setOutput(0.);
-        return;
-      }
-      if (y < ${FREAK_EXPANSION_FACTOR} || y > ${imageHeight - 1 - FREAK_EXPANSION_FACTOR}) {
-        setOutput(0.);
-        return;
-      }
-      if (x < ${FREAK_EXPANSION_FACTOR} || x > ${imageWidth - 1 - FREAK_EXPANSION_FACTOR}) {
-        setOutput(0.);
-        return;
-      }
-
-      bool isMax = true;
-      bool isMin = true;
-      for (int dy = -1; dy <= 1; dy++) {
-        for (int dx = -1; dx <= 1; dx++) {
-          float value0 = getImage0(y+dy, x+dx);
-          float value1 = getImage1(y+dy, x+dx);
-          float value2 = getImage2(y+dy, x+dx);
-
-    if (value < value0 || value < value1 || value < value2) {
-      isMax = false;
-    }
-    if (value > value0 || value > value1 || value > value2) {
-      isMin = false;
-    }
+        // Step 1: find local maxima/minima
+        if (value * value < LAPLACIAN_SQR_THRESHOLD) {
+          this.setOutput(0.0);
+          return;
         }
+        if (y < FREAK_EXPANSION_FACTOR || y > imageHeight - 1 - FREAK_EXPANSION_FACTOR) {
+          this.setOutput(0.0);
+          return;
+        }
+        if (x < FREAK_EXPANSION_FACTOR || x > imageWidth - 1 - FREAK_EXPANSION_FACTOR) {
+          this.setOutput(0.0);
+          return;
+        }
+
+        let isMax = true;
+        let isMin = true;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const value0 = this.getImage0(y + dy, x + dx);
+            const value1 = this.getImage1(y + dy, x + dx);
+            const value2 = this.getImage2(y + dy, x + dx);
+
+            if (value < value0 || value < value1 || value < value2) {
+              isMax = false;
+            }
+            if (value > value0 || value > value1 || value > value2) {
+              isMin = false;
+            }
+          }
+        }
+
+        if (!isMax && !isMin) {
+          this.setOutput(0.0);
+          return;
+        }
+
+        // compute edge score and reject based on threshold
+        const dxx = this.getImage1(y, x + 1) + this.getImage1(y, x - 1) - 2. * this.getImage1(y, x);
+        const dyy = this.getImage1(y + 1, x) + this.getImage1(y - 1, x) - 2. * this.getImage1(y, x);
+        const dxy = 0.25 * (this.getImage1(y - 1, x - 1) + this.getImage1(y + 1, x + 1) - this.getImage1(y - 1, x + 1) - this.getImage1(y + 1, x - 1));
+
+        const det = (dxx * dyy) - (dxy * dxy);
+
+        if (Math.abs(det) < 0.0001) { // determinant undefined. no solution
+          this.setOutput(0.0);
+          return;
+        }
+
+        const edgeScore = (dxx + dyy) * (dxx + dyy) / det;
+
+        if (Math.abs(edgeScore) >= EDGE_HESSIAN_THRESHOLD) {
+          this.setOutput(0.0);
+          return;
+        }
+        this.setOutput(this.getImage1(y, x));
       }
 
-      if (!isMax && !isMin) {
-        setOutput(0.);
-        return;
-      }
+  };
+  
 
-      // compute edge score and reject based on threshold
-      float dxx = getImage1(y, x+1) + getImage1(y, x-1) - 2. * getImage1(y, x);
-      float dyy = getImage1(y+1, x) + getImage1(y-1, x) - 2. * getImage1(y, x);
-      float dxy = 0.25 * (getImage1(y-1,x-1) + getImage1(y+1,x+1) - getImage1(y-1,x+1) - getImage1(y+1,x-1));
+  return kernel;
+}
 
-      float det = (dxx * dyy) - (dxy * dxy);
-
-      if (abs(det) < 0.0001) { // determinant undefined. no solution
-        setOutput(0.);
-        return;
-      }
-
-      float edgeScore = (dxx + dyy) * (dxx + dyy) / det;
-
-      if (abs(edgeScore) >= ${EDGE_HESSIAN_THRESHOLD} ) {
-        setOutput(0.);
-        return;
-      }
-      setOutput(getImage1(y,x));
-    }
-  `
-      };
-*/
 function clamp(n, min, max) {
   return Math.min(Math.max(min, n), max);
 }
@@ -87,18 +94,18 @@ function clamp(n, min, max) {
 const buildExtremasImpl = (image0, image1, image2, width, height) => {
   const resultValues = new Float32Array(width * height);
   function getImage0(y, x) {
-    y=clamp(y,0,height);
-    x=clamp(x,0,width);
+    y = clamp(y, 0, height);
+    x = clamp(x, 0, width);
     return image0[y * width + x];
   }
   function getImage1(y, x) {
-    y=clamp(y,0,height);
-    x=clamp(x,0,width);
+    y = clamp(y, 0, height);
+    x = clamp(x, 0, width);
     return image1[y * width + x];
   }
   function getImage2(y, x) {
-    y=clamp(y,0,height);
-    x=clamp(x,0,width);
+    y = clamp(y, 0, height);
+    x = clamp(x, 0, width);
     return image2[y * width + x];
   }
 
@@ -180,15 +187,16 @@ const buildExtremas = (args) => {
 
   image0 = tf.engine().runKernel('DownsampleBilinear', { image: image0 });
   image2 = tf.engine().runKernel('UpsampleBilinear', { image: image2, targetImage: image1 });
-
+  const program=GetProgram(image1);
+  return FakeShader.runCode(backend,program,[image0,image1,image2],image1.dtype);
   /** @type {TypedArray} */
-  const vals0 = backend.data.get(image0.dataId).values;
+  /* const vals0 = backend.data.get(image0.dataId).values;
   const vals1 = backend.data.get(image1.dataId).values;
   const vals2 = backend.data.get(image2.dataId).values;
 
   const resultValues = buildExtremasImpl(vals0, vals1, vals2, imageWidth, imageHeight);
 
-  return backend.makeOutput(resultValues, [imageHeight, imageWidth], image1.dtype);
+  return backend.makeOutput(resultValues, [imageHeight, imageWidth], image1.dtype); */
 }
 
 const buildExtremasConfig = {//: KernelConfig

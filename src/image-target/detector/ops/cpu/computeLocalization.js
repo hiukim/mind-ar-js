@@ -1,5 +1,5 @@
 const tf = require('@tensorflow/tfjs');
-
+const FakeShader = require('./fakeShader.js');
 /*
 let dogSubCodes = `float getPixel(int octave, int y, int x) {`;
 	  for (let i = 1; i < dogPyramidImagesT.length; i++) {  // extrema starts from second octave
@@ -37,10 +37,63 @@ const kernel = {
 	  }
 
 */
+
+function GetProgram(numDogPyramidImages, extremasListLength) {
+	//const kernelKey=`${numDogPyramidImages}|${extremasListLength}`;
+	//if(!cache.hasOwnProperty(kernelKey)){
+	const dogVariableNames = [];
+	//let dogSubCodes = `float getPixel(int octave, int y, int x) {`;
+	for (let i = 1; i < numDogPyramidImages; i++) {  // extrema starts from second octave
+		dogVariableNames.push('image' + i);
+		/* 	dogSubCodes += `
+				if (octave == ${i}) {
+					return getImage${i}(y, x);
+				}
+			`; */
+	}
+	//dogSubCodes += `}`;
+
+	const program = {
+		variableNames: [...dogVariableNames, 'extrema'],
+		outputShape: [extremasListLength, 3, 3], // 3x3 pixels around the extrema
+		userCode: function () {
+			const getPixel = (octave, y, x) => {
+				const k = 'getImage' + octave
+				if (!this.hasOwnProperty(k)) {
+					throw new Error(`ComputeLocalization:: ${k} does not exist`);
+				}
+				return this[k](y, x);
+			}
+			const coords = this.getOutputCoords();
+			const featureIndex = coords[0];
+			const score = this.getExtrema(featureIndex, 0);
+			if (score == 0.0) {
+				return;
+			}
+
+			const dy = coords[1] - 1;
+			const dx = coords[2] - 1;
+			const octave = this.int(this.getExtrema(featureIndex, 1));
+			const y = this.int(this.getExtrema(featureIndex, 2));
+			const x = this.int(this.getExtrema(featureIndex, 3));
+			this.setOutput(getPixel(octave, y + dy, x + dx));
+		}
+
+	};
+	//}
+	return program;
+}
+
+
+
 const int = Math.trunc;
 function clamp(n, min, max) {
-    return Math.min(Math.max(min, n), max-1);
+	return Math.min(Math.max(min, n), max - 1);
 }
+
+
+
+
 
 function computeLocalizationImpl(images, extrema) {
 	const resultValues = new Float32Array(extrema.height * 3 * 3);
@@ -48,20 +101,20 @@ function computeLocalizationImpl(images, extrema) {
 	//however we never sliced out the first element, so we should be fine?
 	function getPixel(octave, y, x) {
 		const temp = images[octave];
-		y=clamp(y,0,temp.height);
-		x=clamp(x,0,temp.width);
+		y = clamp(y, 0, temp.height);
+		x = clamp(x, 0, temp.width);
 		return temp.values[y * temp.width + x];
 	}
 	function getExtrema(y, x) {
-		y=clamp(y,0,extrema.height);
-		x=clamp(x,0,extrema.width);
+		y = clamp(y, 0, extrema.height);
+		x = clamp(x, 0, extrema.width);
 		return extrema.values[y * extrema.width + x];
 	}
 	function setOutput(z, y, x, o) {
 		//(z * xMax * yMax) + (y * xMax) + x;
 		resultValues[z * 3 * 3 + y * 3 + x] = o;
 	}
-	
+
 	for (let _featureIndex = 0; _featureIndex < extrema.height; _featureIndex++) {
 		for (let _y = 0; _y < 3; _y++) {
 			for (let _x = 0; _x < 3; _x++) {
@@ -81,7 +134,7 @@ function computeLocalizationImpl(images, extrema) {
 			}
 		}
 	}
-	
+
 
 	return resultValues;
 }
@@ -91,13 +144,16 @@ const computeLocalization = (args) => {
 	const { prunedExtremasList, dogPyramidImagesT } = args.inputs;
 	/** @type {MathBackendCPU} */
 	const backend = args.backend;
-	const prunedExtremasT = tf.tensor(prunedExtremasList, [prunedExtremasList.length, prunedExtremasList[0].length], 'int32');
+	/* const prunedExtremasT = tf.tensor(prunedExtremasList, [prunedExtremasList.length, prunedExtremasList[0].length], 'int32');
 
 	const dogPyramidImagesTData = dogPyramidImagesT.map((tensorInfo) => { return { height: tensorInfo.shape[0], width: tensorInfo.shape[1], values: backend.data.get(tensorInfo.dataId).values, } });
 	const prunedExtremasData = { values: backend.data.get(prunedExtremasT.dataId).values, height: prunedExtremasT.shape[0], width: prunedExtremasT.shape[1] };
 	const resultValues = computeLocalizationImpl(dogPyramidImagesTData, prunedExtremasData)
 
-	return backend.makeOutput(resultValues, [prunedExtremasData.height, 3, 3], dogPyramidImagesT[0].dtype);
+	return backend.makeOutput(resultValues, [prunedExtremasData.height, 3, 3], dogPyramidImagesT[0].dtype); */
+	const program = GetProgram(dogPyramidImagesT.length, prunedExtremasList.length);
+	const prunedExtremasT = tf.tensor(prunedExtremasList, [prunedExtremasList.length, prunedExtremasList[0].length], 'int32');
+	return FakeShader.runCode(backend, program, [...dogPyramidImagesT.slice(1), prunedExtremasT], dogPyramidImagesT[0].dtype);
 }
 
 const computeLocalizationConfig = {//: KernelConfig

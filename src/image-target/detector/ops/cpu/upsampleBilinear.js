@@ -1,37 +1,37 @@
+const FakeShader = require('./fakeShader.js');
+function getProgram(targetImage) {
+    const kernel = {
+        variableNames: ['p'],
+        outputShape: [targetImage.shape[0], targetImage.shape[1]],
+        userCode: function () {
+            const coords = this.getOutputCoords();
+            const j = coords[0];
+            const i = coords[1];
 
-/*
-const kernel = {
-	variableNames: ['p'],
-	outputShape: [targetImage.shape[0], targetImage.shape[1]],
-	userCode: `
-	  void main() {
-	    ivec2 coords = getOutputCoords();
-	    int j = coords[0];
-	    int i = coords[1];
+            const sj = Math.fround(0.5 * j) - 0.25;
+            const si = Math.fround(0.5 * i) - 0.25;
 
-	    float sj = 0.5 * float(j) - 0.25; 
-	    float si = 0.5 * float(i) - 0.25;
+            const sj0 = Math.floor(sj);
+            const sj1 = Math.ceil(sj);
+            const si0 = Math.floor(si);
+            const si1 = Math.ceil(si);
 
-	    float sj0 = floor(sj);
-	    float sj1 = ceil(sj);
-	    float si0 = floor(si);
-	    float si1 = ceil(si);
+            const sj0I = this.int(sj0);
+            const sj1I = this.int(sj1);
+            const si0I = this.int(si0);
+            const si1I = this.int(si1);
 
-	    int sj0I = int(sj0);
-	    int sj1I = int(sj1);
-	    int si0I = int(si0);
-	    int si1I = int(si1);
+            let sum = 0.0;
+            sum += this.getP(sj0I, si0I) * Math.fround((si1 - si) * (sj1 - sj));
+            sum += this.getP(sj1I, si0I) * Math.fround((si1 - si) * (sj - sj0));
+            sum += this.getP(sj0I, si1I) * Math.fround((si - si0) * (sj1 - sj));
+            sum += this.getP(sj1I, si1I) * Math.fround((si - si0) * (sj - sj0));
+            this.setOutput(sum);
+        }
 
-	    float sum = 0.0;
-	    sum += getP(sj0I, si0I) * (si1 - si) * (sj1 - sj);
-	    sum += getP(sj1I, si0I) * (si1 - si) * (sj - sj0);
-	    sum += getP(sj0I, si1I) * (si - si0) * (sj1 - sj);
-	    sum += getP(sj1I, si1I) * (si - si0) * (sj - sj0);
-	    setOutput(sum);
-	  }
-	`
-      };
-*/
+    };
+    return kernel;
+}
 function clamp(n, min, max) {
     return Math.min(Math.max(min, n), max);
 }
@@ -44,23 +44,23 @@ function clamp(n, min, max) {
  * @param {*} targetHeight 
  * @returns 
  */
-const upsampleBilinearImpl=(vals,width,height,targetWidth,targetHeight)=>{
-    
-    const resultValues = new Float32Array(targetWidth*targetHeight);
-    function getP(x,y){
-        x=clamp(x,0,width-1);
-        y=clamp(y,0,height-1);
-        return vals[y*width+x];
-    }
-    function setOutput(x,y,o){
-        resultValues[y*targetWidth+x]=o;
-    }
-    for(let j=0;j<targetWidth;j++){
-        for(let i=0;i<targetHeight;i++){
-            
-            
+const upsampleBilinearImpl = (vals, width, height, targetWidth, targetHeight) => {
 
-            const sj = 0.5 * j - 0.25; 
+    const resultValues = new Float32Array(targetWidth * targetHeight);
+    function getP(x, y) {
+        x = clamp(x, 0, width - 1);
+        y = clamp(y, 0, height - 1);
+        return vals[y * width + x];
+    }
+    function setOutput(x, y, o) {
+        resultValues[y * targetWidth + x] = o;
+    }
+    for (let j = 0; j < targetWidth; j++) {
+        for (let i = 0; i < targetHeight; i++) {
+
+
+
+            const sj = 0.5 * j - 0.25;
             const si = 0.5 * i - 0.25;
 
             const sj0 = Math.floor(sj);
@@ -80,28 +80,31 @@ const upsampleBilinearImpl=(vals,width,height,targetWidth,targetHeight)=>{
             sum += getP(sj1I, si1I) * (si - si0) * (sj - sj0);
             //setOutput(sum);
 
-            setOutput(j,i,sum);
+            setOutput(j, i, sum);
         }
     }
     return resultValues;
 }
 
-const upsampleBilinear =(args)=>{
+const upsampleBilinear = (args) => {
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
-    const {image,targetImage} = args.inputs;
-    const targetHeight=targetImage.shape[0];
-    const targetWidth=targetImage.shape[1];
-    
+    const { image, targetImage } = args.inputs;
+    const targetHeight = targetImage.shape[0];
+    const targetWidth = targetImage.shape[1];
+
     /** @type {MathBackendCPU} */
     const cpuBackend = args.backend;
-    const imageHeight = image.shape[0];
+    /* const imageHeight = image.shape[0];
     const imageWidth = image.shape[1];
-    /** @type {TypedArray} */
+    
     const values = cpuBackend.data.get(image.dataId).values;
 
-    const resultValues = upsampleBilinearImpl(values,imageWidth,imageHeight,targetWidth,targetHeight);
+    const resultValues = upsampleBilinearImpl(values, imageWidth, imageHeight, targetWidth, targetHeight);
 
-    return cpuBackend.makeOutput(resultValues, [targetHeight, targetWidth], 'float32');
+    return cpuBackend.makeOutput(resultValues, [targetHeight, targetWidth], 'float32'); */
+    const program = getProgram(targetImage);
+    return FakeShader.runCode(cpuBackend,program,[image],image.dtype);
+
 }
 
 const upsampleBilinearConfig = {//: KernelConfig
@@ -110,7 +113,7 @@ const upsampleBilinearConfig = {//: KernelConfig
     kernelFunc: upsampleBilinear,// as {} as KernelFunc,
 };
 
-module.exports={
+module.exports = {
     upsampleBilinearConfig,
     upsampleBilinear,
     upsampleBilinearImpl

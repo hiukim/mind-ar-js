@@ -1,4 +1,4 @@
-
+const FakeShader = require('./fakeShader.js');
 /*
 const kernel = {
 	  variableNames: ['extrema'],

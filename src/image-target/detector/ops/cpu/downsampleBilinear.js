@@ -1,28 +1,15 @@
+const FakeShader = require('./fakeShader.js');
 
-/*
-const kernel = {
-    variableNames: ['p'],
-    outputShape: [Math.floor(imageHeight/2), Math.floor(imageWidth/2)],
-    userCode: `
-      void main() {
-        ivec2 coords = getOutputCoords();
-        int y = coords[0] * 2;
-        int x = coords[1] * 2;
 
-        float sum = getP(y, x) * 0.25;
-        sum += getP(y+1,x) * 0.25; 
-        sum += getP(y, x+1) * 0.25; 
-        sum += getP(y+1,x+1) * 0.25;
-        setOutput(sum);
-      }
-    `
-*/
+
+
+
 function clamp(n, min, max) {
     return Math.min(Math.max(min, n), max);
 }
 
 
-const downsampleBilinearImpl = (imageData,outputSize) => {
+const downsampleBilinearImpl = (imageData, outputSize) => {
     const resultValues = new Float32Array(outputSize[0] * outputSize[1]);
 
     function getP(y, x) {
@@ -54,12 +41,31 @@ const downsampleBilinear = (args) => {
     const x = args.inputs.image;
     /** @type {MathBackendCPU} */
     const backend = args.backend;
-    
-    const imageData = {values:backend.data.get(x.dataId).values,height:x.shape[0],width:x.shape[1]}
-    const outputSize=[Math.floor(imageData.height/2.0),Math.floor(imageData.width/2.0)];
-    const resultValues = downsampleBilinearImpl(imageData,outputSize);
-    
-    return backend.makeOutput(resultValues, outputSize, x.dtype);
+
+     /* const imageData = { values: backend.data.get(x.dataId).values, height: x.shape[0], width: x.shape[1] }
+     const outputSize = [Math.floor(imageData.height / 2.0), Math.floor(imageData.width / 2.0)];
+     const resultValues = downsampleBilinearImpl(imageData, outputSize);
+ 
+     return backend.makeOutput(resultValues, outputSize, x.dtype); */
+
+    const kernel = {
+        variableNames: ['p'],
+        outputShape: [Math.floor(x.shape[0] / 2), Math.floor(x.shape[1] / 2)],
+        userCode:
+            function () {
+                const coords = this.getOutputCoords();
+                const y = coords[0] * 2;
+                const x = coords[1] * 2;
+                let sum = new Float32Array(1);
+                sum[0] = Math.fround(this.getP(y, x) * 0.25);
+                sum[0] += Math.fround(this.getP(y + 1, x) * 0.25);
+                sum[0] += Math.fround(this.getP(y, x + 1) * 0.25);
+                sum[0] += Math.fround(this.getP(y + 1, x + 1) * 0.25);
+                
+                this.setOutput(sum[0]);
+            }
+    }
+    return FakeShader.runCode(backend, kernel, [x], x.dtype);
 }
 
 const downsampleBilinearConfig = {//: KernelConfig
