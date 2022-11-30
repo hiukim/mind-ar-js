@@ -105,7 +105,7 @@ const _areaOfTriangle = (u, v) => {
   return Math.abs(a) * 0.5;
 }
 
-module.exports = {
+export {
   matrixInverse33,
   matrixMul33,
   quadrilateralConvex,

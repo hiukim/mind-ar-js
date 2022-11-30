@@ -169,6 +169,6 @@ const _mapCorrespondence = ({querypoint, keypoint, keycenterX, keycenterY, scale
   }
 }
 
-module.exports = {
+export {
   computeHoughMatches
 }

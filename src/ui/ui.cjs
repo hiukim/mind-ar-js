@@ -3,6 +3,7 @@ const loadingHTML = require('./loading.html').default;
 const compatibilityHTML = require('./compatibility.html').default;
 const scanningHTML = require('./scanning.html').default;
 
+
 class UI {
   constructor({uiLoading, uiScanning, uiError}) {
     if (uiLoading === 'yes') {
@@ -62,6 +63,5 @@ class UI {
   }
 }
 
-module.exports = {
-  UI
-}
+module.exports= {UI};
+

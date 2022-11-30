@@ -1,7 +1,7 @@
-const {Controller} = require('./controller');
-const {UI} = require('../ui/ui');
+import {Controller} from './controller.js';
+import {UI} from '../ui/ui.cjs';
 
-const e = {
+export const e = {
   Controller, 
   UI
 }
@@ -12,4 +12,4 @@ if (!window.MINDAR) {
 
 window.MINDAR.FACE = e;
 
-module.exports = e;
+

@@ -1,5 +1,5 @@
-const {estimate} = require('./estimate.js');
-const {refineEstimate} = require('./refine-estimate.js');
+import {estimate} from './estimate.js';
+import {refineEstimate} from './refine-estimate.js';
 
 class Estimator {
   constructor(projectionTransform) {
@@ -22,6 +22,6 @@ class Estimator {
   }
 }
 
-module.exports = {
+export {
   Estimator,
 }

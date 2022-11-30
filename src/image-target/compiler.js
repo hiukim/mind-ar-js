@@ -1,10 +1,9 @@
-const Worker = require("./compiler.worker.js");
-const { Detector } = require('./detector/detector.js');
-const { buildImageList, buildTrackingImageList } = require('./image-list.js');
-const { build: hierarchicalClusteringBuild } = require('./matching/hierarchical-clustering.js');
-const msgpack = require('@msgpack/msgpack');
-const tf = require('@tensorflow/tfjs');
-const canvas = require('canvas');
+import {Detector} from './detector/detector.js';
+import {buildImageList, buildTrackingImageList} from './image-list.js';
+import {build as hierarchicalClusteringBuild} from './matching/hierarchical-clustering.js';
+import * as msgpack from '@msgpack/msgpack';
+import * as tf from '@tensorflow/tfjs';
+import {createCanvas} from 'canvas'
 // TODO: better compression method. now grey image saved in pixels, which could be larger than original image
 
 const CURRENT_VERSION = 2;
@@ -20,7 +19,7 @@ class Compiler {
       const targetImages = [];
       for (let i = 0; i < images.length; i++) {
         const img = images[i];
-        const processCanvas = canvas.createCanvas(img.width,img.height);
+        const processCanvas = createCanvas(img.width,img.height);
         const processContext = processCanvas.getContext('2d');
         processContext.drawImage(img, 0, 0, img.width, img.height);
         const processData = processContext.getImageData(0, 0, img.width, img.height);
@@ -61,17 +60,17 @@ class Compiler {
 
       // compute tracking data with worker: 50% progress
       const compileTrack = () => {
-        return new Promise((resolve, reject) => {
-          const worker = new Worker();
-          worker.onmessage = (e) => {
-            if (e.data.type === 'progress') {
-              progressCallback(50 + e.data.percent);
-            } else if (e.data.type === 'compileDone') {
-              resolve(e.data.list);
-            }
-          };
-          worker.postMessage({ type: 'compile', targetImages });
-        });
+	return new Promise((resolve, reject) => {
+	  const worker = new Worker(new URL('./compiler.worker.js', import.meta.url));
+	  worker.onmessage = (e) => {
+	    if (e.data.type === 'progress') {
+	      progressCallback(50 + e.data.percent);
+	    } else if (e.data.type === 'compileDone') {
+	      resolve(e.data.list);
+	    }
+	  };
+	  worker.postMessage({type: 'compile', targetImages});
+	});
       }
 
       const trackingDataList = await compileTrack();
@@ -158,6 +157,6 @@ const _extractMatchingFeatures = async (imageList, doneCallback) => {
   return keyframes;
 }
 
-module.exports = {
+export {
   Compiler
 }

@@ -1,4 +1,4 @@
-const {FaceMesh} = require("@mediapipe/face_mesh");
+import {FaceMesh} from "@mediapipe/face_mesh";
 
 class FaceMeshHelper {
   constructor() {
@@ -33,6 +33,6 @@ class FaceMeshHelper {
   }
 }
 
-module.exports = {
+export {
  FaceMeshHelper
 }

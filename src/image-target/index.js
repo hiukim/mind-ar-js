@@ -1,6 +1,6 @@
-const {Controller} = require('./controller');
-const {Compiler} = require('./compiler');
-const {UI} = require('../ui/ui');
+import {Controller} from './controller.js';
+import {Compiler} from './compiler.js';
+import {UI} from '../ui/ui.cjs';
 
 const e = {
   Controller, 
@@ -14,4 +14,4 @@ if (!window.MINDAR) {
 
 window.MINDAR.IMAGE = e;
 
-module.exports = e;
+export default e;

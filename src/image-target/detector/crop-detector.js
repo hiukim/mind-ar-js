@@ -1,6 +1,6 @@
-const tf = require('@tensorflow/tfjs');
-const {Detector} = require('./detector.js');
-const {buildModelViewProjectionTransform, computeScreenCoordiate} = require('../estimation/utils.js');
+import * as tf from '@tensorflow/tfjs';
+import {Detector} from './detector.js';
+import {buildModelViewProjectionTransform, computeScreenCoordiate} from '../estimation/utils.js';
 
 class CropDetector {
   constructor(width, height, debugMode=false) {
@@ -63,6 +63,6 @@ class CropDetector {
   }
 }
 
-module.exports = {
+export {
   CropDetector
 };

@@ -90,6 +90,6 @@ for (let r = 0; r < FREAK_RINGS.length; r++) {
   }
 }
 
-module.exports = {
+export {
   FREAKPOINTS
 };

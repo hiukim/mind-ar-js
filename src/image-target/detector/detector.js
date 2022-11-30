@@ -1,9 +1,8 @@
 // result should be similar to previou
 // improve freka descriptors computation 
-const tf = require('@tensorflow/tfjs');
-const { FREAKPOINTS } = require('./freak');
-require('./kernels');
-
+import * as tf from '@tensorflow/tfjs';
+import {FREAKPOINTS} from './freak.js';
+import './kernels/index.js';
 const PYRAMID_MIN_SIZE = 8;
 const PYRAMID_MAX_OCTAVE = 5;
 
@@ -1098,6 +1097,6 @@ class Detector {
 	}
 }
 
-module.exports = {
-	Detector
+export {
+  Detector
 };
