@@ -263,8 +263,8 @@ class Detector {
 			//gaussianImagesT.push(pyramidImagesT[i][0]);
 			gaussianImagesT.push(pyramidImagesT[i][1]); // better
 		}
-		/*
-		if (!this.kernelCaches._computeExtremaFreak) {
+		
+		/* if (!this.kernelCaches._computeExtremaFreak) {
 			const imageVariableNames = [];
 			for (let i = 1; i < pyramidImagesT.length; i++) {
 				imageVariableNames.push('image' + i);
@@ -298,8 +298,8 @@ class Detector {
 	    float inputY = getExtrema(featureIndex, 2);
 	    float inputX = getExtrema(featureIndex, 3);
 	    float inputAngle = getAngles(featureIndex);
-            float cos = ${FREAK_EXPANSION_FACTOR}. * cos(inputAngle);
-            float sin = ${FREAK_EXPANSION_FACTOR}. * sin(inputAngle);
+        float cos = ${FREAK_EXPANSION_FACTOR}. * cos(inputAngle);
+        float sin = ${FREAK_EXPANSION_FACTOR}. * sin(inputAngle);
 
 	    float yp = inputY + freakX * sin + freakY * cos;
 	    float xp = inputX + freakX * cos + freakY * -sin;
@@ -331,12 +331,13 @@ class Detector {
 			}
 
 			this.kernelCaches._computeExtremaFreak = [kernel];
-		}
-		*/
+		} */
+		
 		return tf.tidy(() => {
-			//const [program] = this.kernelCaches._computeExtremaFreak;
-			//const result = this._compileAndRun(program, [...gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT]);
-			return tf.engine().runKernel('ComputeExtremaFreak',{gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT,pyramidImagesLength:pyramidImagesT.length});
+			/* const [program] = this.kernelCaches._computeExtremaFreak;
+			const result = this._compileAndRun(program, [...gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT]);
+			return result; */
+			return tf.engine().runKernel('ComputeExtremaFreak',{ gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT,pyramidImagesLength:pyramidImagesT.length});
 		});
 	}
 	/**
