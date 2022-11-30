@@ -30,12 +30,15 @@
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "@msgpack/msgpack": "^1.12.2",
     "@tensorflow/tfjs": "^3.13.0",
+    "mathjs": "^11.4.0",
     "ml-matrix": "^6.6.0",
     "svd-js": "^1.1.1",
     "three": "^0.136.0",
-    "tinyqueue": "^2.0.3"
+    "tinyqueue": "^2.0.3",
+    "canvas": "^2.10.2"
   },
   "devDependencies": {
+    
     "css-loader": "^5.1.1",
     "html-loader": "^2.1.1",
     "sass": "^1.51.0",
