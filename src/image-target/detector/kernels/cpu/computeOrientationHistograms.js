@@ -8,7 +8,6 @@ function clamp(n, min, max) {
     return Math.min(Math.max(min, n), max - 1);
 }
 const cache = {};
-let badCount=0;
 function GetPrograms(prunedExtremasT, radialPropertiesT, pyramidImagesLength) {
     const key = `${pyramidImagesLength}|${prunedExtremasT.shape[0]}|${radialPropertiesT.shape[0]}`;
     //if (!cache.hasOwnProperty(key)) {
@@ -56,11 +55,6 @@ function GetPrograms(prunedExtremasT, radialPropertiesT, pyramidImagesLength) {
             const radialW = this.getRadial(radialIndex, 2);
 
             const octave = this.int(this.getExtrema(featureIndex, 1));
-            if(octave==0){
-                //console.log("Bad octave. FeatureIndex:",featureIndex," RadialIndex:",radialIndex," PropertyIndex:",propertyIndex," PreInt: ",this.getExtrema(featureIndex, 1));
-                badCount++;
-            }
-
             const y = this.int(this.getExtrema(featureIndex, 2));
             const x = this.int(this.getExtrema(featureIndex, 3));
 
@@ -75,9 +69,6 @@ function GetPrograms(prunedExtremasT, radialPropertiesT, pyramidImagesLength) {
 
                 const angle = this.atan(dy, dx) + Math.PI;
                 const fbin = angle * ORIENTATION_NUM_BINS * oneOver2PI;
-                if(featureIndex==225&&radialIndex==21){
-                    console.log("Weird numbers dy:",dy,"dx:",dx,"angle:",angle);
-                }
                 this.setOutput(fbin);
                 return;
             }
@@ -144,7 +135,6 @@ const computeOrientationHistograms = (args) => {
     const [program1,program2]=GetPrograms(prunedExtremasT, radialPropertiesT,pyramidImagesLength);
     
     const result1 = FakeShader.runCode(backend,program1, [...gaussianImagesT, prunedExtremasT, radialPropertiesT],radialPropertiesT.dtype);
-    console.error("Bad octave count:",badCount,"/",(prunedExtremasT.shape[0]* radialPropertiesT.shape[0]* 2));
 	return FakeShader.runCode(backend,program2, [result1],radialPropertiesT.dtype);
 }
 

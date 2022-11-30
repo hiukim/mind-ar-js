@@ -107,6 +107,5 @@ const buildExtremasConfig = {//: KernelConfig
 
 module.exports = {
   buildExtremasConfig,
-  buildExtremas,
-  buildExtremasImpl
+  buildExtremas
 }

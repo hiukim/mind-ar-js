@@ -53,6 +53,5 @@ const upsampleBilinearConfig = {//: KernelConfig
 
 module.exports = {
     upsampleBilinearConfig,
-    upsampleBilinear,
-    upsampleBilinearImpl
+    upsampleBilinear
 }

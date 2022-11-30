@@ -72,6 +72,5 @@ const computeLocalizationConfig = {//: KernelConfig
 
 module.exports = {
 	computeLocalizationConfig,
-	computeLocalization,
-	computeLocalizationImpl
+	computeLocalization
 }

@@ -70,5 +70,4 @@ const binomialFilterConfig = {//: KernelConfig
 module.exports = {
   binomialFilterConfig,
   binomialFilter,
-  binomialFilterImpl
 }
