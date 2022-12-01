@@ -1,6 +1,6 @@
 
-const FakeShader= require('./fakeShader.js');
-const tf = require('@tensorflow/tfjs');
+import * as FakeShader from './fakeShader.js';
+import {engine} from '@tensorflow/tfjs'
 const FREAK_EXPANSION_FACTOR = 7.0;
 
 const LAPLACIAN_THRESHOLD = 3.0;
@@ -88,24 +88,19 @@ function GetProgram(image) {
 }
 
 
-const buildExtremas = (args) => {
+export const buildExtremas = (args) => {
   let { image0, image1, image2 } = args.inputs;
   /** @type {MathBackendCPU} */
   const backend = args.backend;
 
-  image0 = tf.engine().runKernel('DownsampleBilinear', { image: image0 });
-  image2 = tf.engine().runKernel('UpsampleBilinear', { image: image2, targetImage: image1 });
+  image0 = engine().runKernel('DownsampleBilinear', { image: image0 });
+  image2 = engine().runKernel('UpsampleBilinear', { image: image2, targetImage: image1 });
   const program=GetProgram(image1);
   return FakeShader.runCode(backend,program,[image0,image1,image2],image1.dtype);
 }
 
-const buildExtremasConfig = {//: KernelConfig
+export const buildExtremasConfig = {//: KernelConfig
   kernelName: "BuildExtremas",
   backendName: 'cpu',
   kernelFunc: buildExtremas,// as {} as KernelFunc,
 };
-
-module.exports = {
-  buildExtremasConfig,
-  buildExtremas
-}

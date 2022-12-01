@@ -1,5 +1,4 @@
-const { FREAKPOINTS } = require('../../freak.js')
-const { MathBackendWebGL, GPGPUProgram } = require('@tensorflow/tfjs-backend-webgl');
+import { FREAKPOINTS } from '../../freak.js'
 
 const FREAK_EXPANSION_FACTOR = 7.0;
 const cache = {};
@@ -77,7 +76,7 @@ function GetProgram(imageCount, prunedExtremas) {
     return cache[key];
 }
 
-const computeExtremaFreak = (args) => {
+export const computeExtremaFreak = (args) => {
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     const { gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT,pyramidImagesLength } = args.inputs;
     /** @type {MathBackendWebGL} */
@@ -88,13 +87,9 @@ const computeExtremaFreak = (args) => {
     return backend.runWebGLProgram(program, [...gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT], 'float32');
 }
 
-const computeExtremaFreakConfig = {//: KernelConfig
+export const computeExtremaFreakConfig = {//: KernelConfig
     kernelName: "ComputeExtremaFreak",
     backendName: 'webgl',
     kernelFunc: computeExtremaFreak,// as {} as KernelFunc,
 };
 
-module.exports = {
-    computeExtremaFreakConfig,
-    computeExtremaFreak
-}

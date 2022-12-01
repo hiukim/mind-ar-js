@@ -1,4 +1,4 @@
-const {MathBackendWebGL} = require('@tensorflow/tfjs-backend-webgl');
+import {MathBackendWebGL} from '@tensorflow/tfjs-backend-webgl';
 
 const cache={};
 function GetProgram(image,targetImage){
@@ -42,7 +42,7 @@ function GetProgram(image,targetImage){
     return cache[kernelKey];
 }
 
-const upsampleBilinear =(args)=>{
+export const upsampleBilinear =(args)=>{
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     const {image,targetImage} = args.inputs;
 
@@ -56,13 +56,8 @@ const upsampleBilinear =(args)=>{
     
 }
 
-const upsampleBilinearConfig = {//: KernelConfig
+export const upsampleBilinearConfig = {//: KernelConfig
     kernelName: "UpsampleBilinear",
     backendName: 'webgl',
     kernelFunc: upsampleBilinear,// as {} as KernelFunc,
 };
-
-module.exports={
-    upsampleBilinearConfig,
-    upsampleBilinear
-}

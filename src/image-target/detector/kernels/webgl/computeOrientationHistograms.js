@@ -1,6 +1,4 @@
 
-const {MathBackendWebGL,GPGPUProgram} = require('@tensorflow/tfjs-backend-webgl');
-
 const oneOver2PI = 0.159154943091895;
 const ORIENTATION_NUM_BINS = 36;
 
@@ -109,7 +107,7 @@ function GetPrograms(prunedExtremasT, radialPropertiesT,pyramidImagesLength){
     return cache[key];
 }
 
-const computeOrientationHistograms=(args)=>{
+export const computeOrientationHistograms=(args)=>{
     const {gaussianImagesT, prunedExtremasT, radialPropertiesT,pyramidImagesLength}=args.inputs;
     /** @type {MathBackendWebGL} */
     const backend = args.backend;
@@ -120,13 +118,9 @@ const computeOrientationHistograms=(args)=>{
     
 }
 
-const computeOrientationHistogramsConfig={
+export const computeOrientationHistogramsConfig={
     kernelName: "ComputeOrientationHistograms",
     backendName: 'webgl',
     kernelFunc: computeOrientationHistograms,// as {} as KernelFunc,
 }
 
-module.exports={
-    computeOrientationHistograms,
-    computeOrientationHistogramsConfig
-}

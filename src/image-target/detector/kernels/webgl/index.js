@@ -1,17 +1,17 @@
-const {registerKernel} = require('@tensorflow/tfjs');
-const {binomialFilterConfig}=require('./binomialFilter');
-const {buildExtremasConfig} = require('./buildExtremas');
-const {computeExtremaAnglesConfig} = require('./computeExtremaAngles');
-const {computeExtremaFreakConfig} = require('./computeExtremaFreak')
-const {computeFreakDescriptorConfig}=require('./computeFreakDescriptors')
-const {computeLocalizationConfig}=require('./computeLocalization')
-const {computeOrientationHistogramsConfig} = require('./computeOrientationHistograms')
-const {downsampleBilinearConfig}=require('./downsampleBilinear');
-const {extremaReductionConfig} = require('./extremaReduction');
-const {smoothHistogramsConfig} = require('./smoothHistograms');
-const {upsampleBilinearConfig} = require('./upsampleBilinear');
+import {registerKernel} from '@tensorflow/tfjs';
+import {binomialFilterConfig} from './binomialFilter.js';
+import {buildExtremasConfig} from './buildExtremas.js';
+import {computeExtremaAnglesConfig} from './computeExtremaAngles.js';
+import {computeExtremaFreakConfig} from './computeExtremaFreak.js'
+import {computeFreakDescriptorConfig} from './computeFreakDescriptors.js'
+import {computeLocalizationConfig} from './computeLocalization.js'
+import {computeOrientationHistogramsConfig} from './computeOrientationHistograms.js'
+import {downsampleBilinearConfig} from './downsampleBilinear.js';
+import {extremaReductionConfig} from './extremaReduction.js';
+import {smoothHistogramsConfig} from './smoothHistograms.js';
+import {upsampleBilinearConfig} from './upsampleBilinear.js';
 
-function Register(){
+export function Register(){
     registerKernel(binomialFilterConfig);
     registerKernel(buildExtremasConfig);
     registerKernel(computeExtremaAnglesConfig);
@@ -24,4 +24,3 @@ function Register(){
     registerKernel(smoothHistogramsConfig);
     registerKernel(upsampleBilinearConfig);
 }
-module.exports= Register;

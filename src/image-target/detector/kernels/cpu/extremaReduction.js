@@ -1,4 +1,4 @@
-const FakeShader = require('./fakeShader.js')
+import * as FakeShader from './fakeShader.js';
 function GetProgram(outHeight,outWidth) {
   const kernel = {
     variableNames: ['extrema'],
@@ -36,7 +36,7 @@ function GetProgram(outHeight,outWidth) {
 }
 
 
-const extremaReduction = (args) => {
+export const extremaReduction = (args) => {
   const { extremasResultT } = args.inputs;
   /** @type {MathBackendCPU} */
   const backend = args.backend;
@@ -49,13 +49,8 @@ const extremaReduction = (args) => {
  return FakeShader.runCode(backend,program,[extremasResultT],extremasResultT.dtype);
 }
 
-const extremaReductionConfig = {//: KernelConfig
+export const extremaReductionConfig = {//: KernelConfig
   kernelName: "ExtremaReduction",
   backendName: 'cpu',
   kernelFunc: extremaReduction,// as {} as KernelFunc,
 };
-
-module.exports = {
-  extremaReductionConfig,
-  extremaReduction
-}

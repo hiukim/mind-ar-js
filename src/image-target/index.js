@@ -2,7 +2,7 @@ import {Controller} from './controller.js';
 import {Compiler} from './compiler.js';
 import {UI} from '../ui/ui.cjs';
 
-const e = {
+export const e = {
   Controller, 
   Compiler,
   UI

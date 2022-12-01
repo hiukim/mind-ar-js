@@ -1,7 +1,3 @@
-const {TensorInfo} = require('@tensorflow/tfjs-core');
-const {MathBackendWebGL,GPGPUProgram} = require('@tensorflow/tfjs-backend-webgl');
-
-
 const cache={};
 /**
  * 
@@ -36,7 +32,7 @@ function GetProgram(image){
 }
 
 
-const downsampleBilinear =(args)=>{
+export const downsampleBilinear =(args)=>{
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     const image = args.inputs.image;
     /** @type {MathBackendWebGL} */
@@ -47,13 +43,9 @@ const downsampleBilinear =(args)=>{
     return backend.runWebGLProgram(program,[image],image.dtype);
 }
 
-const downsampleBilinearConfig = {//: KernelConfig
+export const downsampleBilinearConfig = {//: KernelConfig
     kernelName: "DownsampleBilinear",
     backendName: 'webgl',
     kernelFunc: downsampleBilinear,// as {} as KernelFunc,
 };
 
-module.exports={
-    downsampleBilinearConfig,
-    downsampleBilinear
-}

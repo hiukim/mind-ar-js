@@ -1,7 +1,7 @@
 const ORIENTATION_NUM_BINS = 36;
 
 
-function computeExtremaAnglesImpl(histogram) {
+export function computeExtremaAnglesImpl(histogram) {
     const resultValues = new Float32Array(histogram.height);
 
     function getHistogram(featureIndex, prev) { 
@@ -67,7 +67,7 @@ function computeExtremaAnglesImpl(histogram) {
     return resultValues;
 }
 
-const computeExtremaAngles = (args) => {
+export const computeExtremaAngles = (args) => {
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     const { histograms } = args.inputs;
     /** @type {import('@tensorflow/tfjs-backend-cpu').MathBackendCPU} */
@@ -82,14 +82,8 @@ const computeExtremaAngles = (args) => {
 }
 
 
-const computeExtremaAnglesConfig = {//: KernelConfig
+export const computeExtremaAnglesConfig = {//: KernelConfig
     kernelName: "ComputeExtremaAngles",
     backendName: 'cpu',
     kernelFunc: computeExtremaAngles,// as {} as KernelFunc,
 };
-
-module.exports = {
-    computeExtremaAnglesConfig,
-    computeExtremaAngles,
-    computeExtremaAnglesImpl
-}

@@ -1,6 +1,4 @@
-const tf = require('@tensorflow/tfjs');
-const mathjs = require('mathjs')
-
+import {zeros,map, flatten as mathjsflatten} from 'mathjs'
 /**
  * @typedef {Object} Kernel
  * @property {string[]} variableNames
@@ -10,11 +8,11 @@ const mathjs = require('mathjs')
 
 /**
  *
- * @param {tf.MathBackendCPU} backend
+ * @param {MathBackendCPU} backend
  * @param {Kernel} kernel 
- * @param {Array<tf.TensorInfo>} inputs 
- * @param {tf.DataType} dtype
- * @returns {tf.TensorInfo}
+ * @param {Array<.TensorInfo>} inputs 
+ * @param {DataType} dtype
+ * @returns {Tensor}
  */
 function runCode(backend, kernel, inputs, dtype) {
     const inputData = inputs.map((value) => { return backend.data.get(value.dataId).values; });
@@ -37,8 +35,8 @@ function runCode(backend, kernel, inputs, dtype) {
     //create an empty matrix to map the output size, because i'm lazy and want to use Matrix.map(...)
     //const temp = new Matrix();
     //console.log("Creating output shape:",kernel.outputShape);
-    const temp=mathjs.zeros(kernel.outputShape);//reshape([0,0,0],kernel.outputShape);
-    const output = mathjs.map(temp,(value, index,matrix) => {
+    const temp=zeros(kernel.outputShape);//reshape([0,0,0],kernel.outputShape);
+    const output = map(temp,(value, index,matrix) => {
         
         tempData.getOutputCoords = () => { return index; }
         let out;
@@ -52,7 +50,7 @@ function runCode(backend, kernel, inputs, dtype) {
     //output.flat()
     //convert the output from a matrix into a tensor
     
-    return backend.makeOutput(mathjs.flatten(output), kernel.outputShape, dtype);
+    return backend.makeOutput(mathjsflatten(output), kernel.outputShape, dtype);
 }
 
 /**
@@ -82,4 +80,4 @@ function flatten(input, max) {
     },0);
 }
 
-module.exports = { runCode };
+export { runCode };

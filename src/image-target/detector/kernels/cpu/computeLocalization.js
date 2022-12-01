@@ -1,5 +1,5 @@
-const tf = require('@tensorflow/tfjs');
-const FakeShader = require('./fakeShader.js');
+import {tensor} from '@tensorflow/tfjs'
+import * as FakeShader from './fakeShader.js';
 
 function GetProgram(numDogPyramidImages, extremasListLength) {
 	
@@ -53,24 +53,20 @@ function clamp(n, min, max) {
 
 
 
-const computeLocalization = (args) => {
+export const computeLocalization = (args) => {
 	/** @type {import('@tensorflow/tfjs').TensorInfo} */
 	const { prunedExtremasList, dogPyramidImagesT } = args.inputs;
 	/** @type {MathBackendCPU} */
 	const backend = args.backend;
 	
 	const program = GetProgram(dogPyramidImagesT.length, prunedExtremasList.length);
-	const prunedExtremasT = tf.tensor(prunedExtremasList, [prunedExtremasList.length, prunedExtremasList[0].length], 'int32');
+	const prunedExtremasT = tensor(prunedExtremasList, [prunedExtremasList.length, prunedExtremasList[0].length], 'int32');
 	return FakeShader.runCode(backend, program, [...dogPyramidImagesT.slice(1), prunedExtremasT], dogPyramidImagesT[0].dtype);
 }
 
-const computeLocalizationConfig = {//: KernelConfig
+export const computeLocalizationConfig = {//: KernelConfig
 	kernelName: "ComputeLocalization",
 	backendName: 'cpu',
 	kernelFunc: computeLocalization,// as {} as KernelFunc,
 };
 
-module.exports = {
-	computeLocalizationConfig,
-	computeLocalization
-}

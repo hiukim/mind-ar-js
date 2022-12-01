@@ -1,5 +1,4 @@
-const tf = require('@tensorflow/tfjs');
-const {MathBackendWebGL} = require('@tensorflow/tfjs-backend-webgl');
+import {engine} from '@tensorflow/tfjs';
 
 const FREAK_EXPANSION_FACTOR = 7.0;
 
@@ -91,25 +90,21 @@ function GetProgram(image){
   return cache[kernelKey];
 }
 
-const buildExtremas=(args)=>{
+export const buildExtremas=(args)=>{
     let {image0,image1,image2}=args.inputs;
     /** @type {MathBackendWebGL} */
     const backend = args.backend;
     
     const program=GetProgram(image1);
     
-    image0=tf.engine().runKernel('DownsampleBilinear',{image:image0});
-    image2=tf.engine().runKernel('UpsampleBilinear',{image:image2,targetImage:image1});
+    image0=engine().runKernel('DownsampleBilinear',{image:image0});
+    image2=engine().runKernel('UpsampleBilinear',{image:image2,targetImage:image1});
     return backend.runWebGLProgram(program,[image0,image1,image2],image1.dtype);
 }
 
-const buildExtremasConfig = {//: KernelConfig
+export const buildExtremasConfig = {//: KernelConfig
     kernelName: "BuildExtremas",
     backendName: 'webgl',
     kernelFunc: buildExtremas,// as {} as KernelFunc,
 };
 
-module.exports={
-    buildExtremasConfig,
-    buildExtremas
-}

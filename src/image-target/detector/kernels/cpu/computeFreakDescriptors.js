@@ -1,5 +1,5 @@
 
-const { FREAKPOINTS } = require('../../freak');
+import { FREAKPOINTS } from '../../freak.js';
 
 const FREAK_CONPARISON_COUNT = (FREAKPOINTS.length - 1) * (FREAKPOINTS.length) / 2;
 const descriptorCount = Math.ceil(FREAK_CONPARISON_COUNT / 8);
@@ -45,7 +45,7 @@ function computeFreakDescriptorImpl(extremaFreaks,positionT) {
     return resultValues;
 }
 
-const computeFreakDescriptor = (args) => {
+export const computeFreakDescriptor = (args) => {
     const { extremaFreaks, positionT } = args.inputs;
     const { backend } = args;
 
@@ -57,14 +57,8 @@ const computeFreakDescriptor = (args) => {
     return backend.makeOutput(resultValues, [extremaFreaks.shape[0], descriptorCount], 'int32');
 }
 
-const computeFreakDescriptorConfig = {//: KernelConfig
+export const computeFreakDescriptorConfig = {//: KernelConfig
     kernelName: "ComputeFreakDescriptors",
     backendName: 'cpu',
     kernelFunc: computeFreakDescriptor,// as {} as KernelFunc,
 };
-
-module.exports = {
-    computeFreakDescriptorConfig,
-    computeFreakDescriptor,
-    computeFreakDescriptorImpl
-}

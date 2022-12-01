@@ -1,4 +1,4 @@
-const FakeShader = require('./fakeShader.js');
+import * as FakeShader from './fakeShader.js';
 function getProgram(targetImage) {
     const kernel = {
         variableNames: ['p'],
@@ -33,7 +33,7 @@ function getProgram(targetImage) {
     return kernel;
 }
 
-const upsampleBilinear = (args) => {
+export const upsampleBilinear = (args) => {
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     const { image, targetImage } = args.inputs;
  
@@ -45,13 +45,9 @@ const upsampleBilinear = (args) => {
 
 }
 
-const upsampleBilinearConfig = {//: KernelConfig
+export const upsampleBilinearConfig = {//: KernelConfig
     kernelName: "UpsampleBilinear",
     backendName: 'cpu',
     kernelFunc: upsampleBilinear,// as {} as KernelFunc,
 };
 
-module.exports = {
-    upsampleBilinearConfig,
-    upsampleBilinear
-}

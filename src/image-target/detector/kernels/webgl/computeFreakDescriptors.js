@@ -1,5 +1,5 @@
 
-const { FREAKPOINTS } = require('../../freak');
+import { FREAKPOINTS } from '../../freak.js';
 
 const FREAK_CONPARISON_COUNT = (FREAKPOINTS.length - 1) * (FREAKPOINTS.length) / 2;
 const descriptorCount = Math.ceil(FREAK_CONPARISON_COUNT / 8);
@@ -42,20 +42,16 @@ function GetProgram(extremaFreaks){
     return cache[key];
 }
 
-const computeFreakDescriptor=(args)=>{
+export const computeFreakDescriptor=(args)=>{
     const {extremaFreaks, positionT} =args.inputs;
     const {backend} = args;
     const program = GetProgram(extremaFreaks);
     return backend.runWebGLProgram(program,[extremaFreaks, positionT],'int32');
 }
 
-const computeFreakDescriptorConfig = {//: KernelConfig
+export const computeFreakDescriptorConfig = {//: KernelConfig
     kernelName: "ComputeFreakDescriptors",
     backendName: 'webgl',
     kernelFunc: computeFreakDescriptor,// as {} as KernelFunc,
 };
 
-module.exports={
-    computeFreakDescriptorConfig,
-    computeFreakDescriptor
-}

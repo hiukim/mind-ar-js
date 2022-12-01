@@ -27,7 +27,7 @@ function smoothHistogramsImpl(histograms) {
     return resultValues;
 }
 
-const smoothHistograms = (args) => {
+export const smoothHistograms = (args) => {
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     const { histograms } = args.inputs;
     /** @type {MathBackendCPU} */
@@ -43,14 +43,9 @@ const smoothHistograms = (args) => {
 
 
 
-const smoothHistogramsConfig = {//: KernelConfig
+export const smoothHistogramsConfig = {//: KernelConfig
     kernelName: "SmoothHistograms",
     backendName: 'cpu',
     kernelFunc: smoothHistograms,// as {} as KernelFunc,
 };
 
-module.exports = {
-    smoothHistogramsConfig,
-    smoothHistograms,
-    smoothHistogramsImpl
-}

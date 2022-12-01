@@ -1,12 +1,9 @@
-const FakeShader = require('./fakeShader.js');
+import * as FakeShader from './fakeShader.js';
 const oneOver2PI = 0.159154943091895;
 const ORIENTATION_NUM_BINS = 36;
 
 
 
-function clamp(n, min, max) {
-    return Math.min(Math.max(min, n), max - 1);
-}
 const cache = {};
 function GetPrograms(prunedExtremasT, radialPropertiesT, pyramidImagesLength) {
     const key = `${pyramidImagesLength}|${prunedExtremasT.shape[0]}|${radialPropertiesT.shape[0]}`;
@@ -128,7 +125,7 @@ function GetPrograms(prunedExtremasT, radialPropertiesT, pyramidImagesLength) {
     //return cache[key];
 }
 
-const computeOrientationHistograms = (args) => {
+export const computeOrientationHistograms = (args) => {
     const { gaussianImagesT, prunedExtremasT, radialPropertiesT, pyramidImagesLength } = args.inputs;
     /** @type {MathBackendCPU} */
     const backend = args.backend;
@@ -138,14 +135,9 @@ const computeOrientationHistograms = (args) => {
 	return FakeShader.runCode(backend,program2, [result1],radialPropertiesT.dtype);
 }
 
-const computeOrientationHistogramsConfig = {
+export const computeOrientationHistogramsConfig = {
     kernelName: "ComputeOrientationHistograms",
     backendName: 'cpu',
     kernelFunc: computeOrientationHistograms,// as {} as KernelFunc,
 }
 
-module.exports = {
-    computeOrientationHistograms,
-    computeOrientationHistogramsConfig,
-    computeOrientationHistogramsPrograms:GetPrograms
-}

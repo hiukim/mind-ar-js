@@ -1,4 +1,4 @@
-const {MathBackendWebGL} = require('@tensorflow/tfjs-backend-webgl');
+
 const ORIENTATION_NUM_BINS = 36;
 
 const cache={};
@@ -65,7 +65,7 @@ function GetProgram(histograms){
     return cache[key];
 }
 
-const computeExtremaAngles=(args)=>{
+export const computeExtremaAngles=(args)=>{
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     const {histograms} = args.inputs;
     /** @type {MathBackendWebGL} */
@@ -76,13 +76,8 @@ const computeExtremaAngles=(args)=>{
 }
 
 
-const computeExtremaAnglesConfig = {//: KernelConfig
+export const computeExtremaAnglesConfig = {//: KernelConfig
     kernelName: "ComputeExtremaAngles",
     backendName: 'webgl',
     kernelFunc: computeExtremaAngles,// as {} as KernelFunc,
 };
-
-module.exports={
-    computeExtremaAnglesConfig,
-    computeExtremaAngles
-}

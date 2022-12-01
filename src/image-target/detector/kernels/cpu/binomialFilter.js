@@ -1,4 +1,5 @@
-const FakeShader = require('./fakeShader.js');
+import * as FakeShader from './fakeShader.js';
+
 
 function GetKernels(image) {
   const imageWidth = image.shape[1];
@@ -44,7 +45,7 @@ function GetKernels(image) {
 
 
 
-const binomialFilter = (args) => {//{inputs: UnaryInputs, backend: MathBackendCPU}
+export const binomialFilter = (args) => {//{inputs: UnaryInputs, backend: MathBackendCPU}
   /** @type {import('@tensorflow/tfjs').TensorInfo} */
   const image = args.inputs.image;
   /** @type {MathBackendCPU} */
@@ -59,7 +60,7 @@ const binomialFilter = (args) => {//{inputs: UnaryInputs, backend: MathBackendCP
 
 
 
-const binomialFilterConfig = {//: KernelConfig
+export const binomialFilterConfig = {//: KernelConfig
   kernelName: "BinomialFilter",
   backendName: 'cpu',
   kernelFunc: binomialFilter,// as {} as KernelFunc,
@@ -67,7 +68,3 @@ const binomialFilterConfig = {//: KernelConfig
 
 
 
-module.exports = {
-  binomialFilterConfig,
-  binomialFilter,
-}

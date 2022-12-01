@@ -1,7 +1,3 @@
-const {TypedArray,KernelConfig} = require('@tensorflow/tfjs-core');
-//const {MathBackendCPU} =require('@tensorflow/tfjs-backend-cpu');
-const {MathBackendWebGL} = require('@tensorflow/tfjs-backend-webgl');
-
 const cache={};
 
 /**
@@ -53,7 +49,7 @@ function GetKernels(image){
   return cache[key];
 }
 
-const binomialFilter = (args) =>{//{inputs: UnaryInputs, backend: MathBackendCPU}
+export const binomialFilter = (args) =>{//{inputs: UnaryInputs, backend: MathBackendCPU}
   /** @type {import('@tensorflow/tfjs').TensorInfo} */
   const image = args.inputs.image;
   /** @type {MathBackendWebGL} */
@@ -68,15 +64,10 @@ const binomialFilter = (args) =>{//{inputs: UnaryInputs, backend: MathBackendCPU
 
 
 
-const binomialFilterConfig = {//: KernelConfig
+export const binomialFilterConfig = {//: KernelConfig
     kernelName: "BinomialFilter",
     backendName: 'webgl',
     kernelFunc: binomialFilter,// as {} as KernelFunc,
 };
 
 
-
-module.exports={
-  binomialFilterConfig,
-  binomialFilter
-}

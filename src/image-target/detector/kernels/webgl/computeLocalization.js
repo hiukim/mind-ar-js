@@ -1,5 +1,3 @@
-const tf = require('@tensorflow/tfjs');
-const {MathBackendWebGL} = require('@tensorflow/tfjs-backend-webgl');
 
 /*
 let dogSubCodes = `float getPixel(int octave, int y, int x) {`;
@@ -81,7 +79,7 @@ function GetProgram(numDogPyramidImages,extremasListLength){
 	return cache[kernelKey];
 }
 
-const computeLocalization=(args)=>{
+export const computeLocalization=(args)=>{
 	/** @type {import('@tensorflow/tfjs').TensorInfo} */
 	const {prunedExtremasList, dogPyramidImagesT} = args.inputs;
 	/** @type {MathBackendWebGL} */
@@ -92,13 +90,9 @@ const computeLocalization=(args)=>{
 	 
 }
 
-const computeLocalizationConfig = {//: KernelConfig
+export const computeLocalizationConfig = {//: KernelConfig
     kernelName: "ComputeLocalization",
     backendName: 'webgl',
     kernelFunc: computeLocalization,// as {} as KernelFunc,
 };
 
-module.exports={
-    computeLocalizationConfig,
-    computeLocalization
-}

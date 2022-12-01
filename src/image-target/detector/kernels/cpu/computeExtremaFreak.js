@@ -1,5 +1,5 @@
-const { FREAKPOINTS } = require('../../freak.js')
-const FakeShader = require('./fakeShader.js')
+import { FREAKPOINTS } from '../../freak.js';
+import * as FakeShader from './fakeShader.js';
 const FREAK_EXPANSION_FACTOR = 7.0;
 
 function GetProgram(prunedExtremasHeight, pyramidImagesLength) {
@@ -70,7 +70,7 @@ function GetProgram(prunedExtremasHeight, pyramidImagesLength) {
 
 
 
-const computeExtremaFreak = (args) => {
+export const computeExtremaFreak = (args) => {
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     const { gaussianImagesT, prunedExtremas, prunedExtremasAngles, freakPointsT, pyramidImagesLength } = args.inputs;
     /** @type {MathBackendCPU} */
@@ -81,13 +81,9 @@ const computeExtremaFreak = (args) => {
 
 
 
-const computeExtremaFreakConfig = {//: KernelConfig
+export const computeExtremaFreakConfig = {//: KernelConfig
     kernelName: "ComputeExtremaFreak",
     backendName: 'cpu',
     kernelFunc: computeExtremaFreak,// as {} as KernelFunc,
 };
 
-module.exports = {
-    computeExtremaFreakConfig,
-    computeExtremaFreak
-}

@@ -1,4 +1,4 @@
-const FakeShader = require('./fakeShader.js');
+import * as FakeShader from './fakeShader.js';
 /*
 const kernel = {
 	  variableNames: ['extrema'],

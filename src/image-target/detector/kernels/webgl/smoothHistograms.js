@@ -1,4 +1,4 @@
-const {MathBackendWebGL} = require('@tensorflow/tfjs-backend-webgl');
+
 const ORIENTATION_NUM_BINS = 36;
 const ORIENTATION_SMOOTHING_ITERATIONS = 5;
 
@@ -29,7 +29,7 @@ function GetProgram(histograms){
     return cache[kernelKey];
 }
 
-const smoothHistograms=(args)=>{
+export const smoothHistograms=(args)=>{
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     let {histograms} = args.inputs;
     /** @type {MathBackendWebGL} */
@@ -45,13 +45,9 @@ const smoothHistograms=(args)=>{
 
 
 
-const smoothHistogramsConfig = {//: KernelConfig
+export const smoothHistogramsConfig = {//: KernelConfig
     kernelName: "SmoothHistograms",
     backendName: 'webgl',
     kernelFunc: smoothHistograms,// as {} as KernelFunc,
 };
 
-module.exports={
-    smoothHistogramsConfig,
-    smoothHistograms
-}

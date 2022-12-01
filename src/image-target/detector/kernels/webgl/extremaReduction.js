@@ -1,8 +1,4 @@
-const {TypedArray,KernelConfig} = require('@tensorflow/tfjs-core');
-const {MathBackendWebGL} = require('@tensorflow/tfjs-backend-webgl');
-
-
-const extremaReduction=(args)=>{
+export const extremaReduction=(args)=>{
     /** @type {import('@tensorflow/tfjs').TensorInfo[]} */
     const {extremasResultT} = args.inputs;
     /** @type {MathBackendWebGL} */
@@ -46,13 +42,8 @@ const extremaReduction=(args)=>{
 	return backend.runWebGLProgram(kernel,[extremasResultT],extremasResultT.dtype);
 }
 
-const extremaReductionConfig = {//: KernelConfig
+export const extremaReductionConfig = {//: KernelConfig
     kernelName: "ExtremaReduction",
     backendName: 'webgl',
     kernelFunc: extremaReduction,// as {} as KernelFunc,
 };
-
-module.exports={
-    extremaReductionConfig,
-    extremaReduction
-}

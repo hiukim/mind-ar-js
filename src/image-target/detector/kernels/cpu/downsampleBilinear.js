@@ -1,6 +1,6 @@
-const FakeShader = require('./fakeShader.js');
+import * as FakeShader from './fakeShader.js';
 
-const downsampleBilinear = (args) => {
+export const downsampleBilinear = (args) => {
     /** @type {import('@tensorflow/tfjs').TensorInfo} */
     const x = args.inputs.image;
     /** @type {MathBackendCPU} */
@@ -26,13 +26,8 @@ const downsampleBilinear = (args) => {
     return FakeShader.runCode(backend, kernel, [x], x.dtype);
 }
 
-const downsampleBilinearConfig = {//: KernelConfig
+export const downsampleBilinearConfig = {//: KernelConfig
     kernelName: "DownsampleBilinear",
     backendName: 'cpu',
     kernelFunc: downsampleBilinear,// as {} as KernelFunc,
 };
-
-module.exports = {
-    downsampleBilinearConfig,
-    downsampleBilinear
-}
