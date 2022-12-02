@@ -1,0 +1,25 @@
+{
+    "kernels": ["Reshape",
+    "BinomialFilter",
+    "DownsampleBilinear",
+    "Sub",
+    "UpsampleBilinear",
+    "BuildExtremas",
+    "ExtremaReduction",
+    "ComputeLocalization",
+    "ComputeOrientationHistograms",
+    "SmoothHistograms",
+    "ComputeExtremaAngles",
+    "ComputeExtremaFreak",
+    "Cast",
+    "Pack",
+    "ComputeFreakDescriptors"],
+    "backends": [
+        "cpu","webgl"
+    ],
+    "models": [
+       
+    ],
+    "outputPath": "./custom_tfjs",
+    "forwardModeOnly": true
+  }
