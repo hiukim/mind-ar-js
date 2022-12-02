@@ -1,5 +1,5 @@
-import {Controller} from './controller';
-import {UI} from '../ui/ui';
+import {Controller} from './controller.js';
+import {UI} from '../ui/ui.cjs';
 
 export const e = {
   Controller, 

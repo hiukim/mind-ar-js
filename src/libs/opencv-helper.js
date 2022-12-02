@@ -1,4 +1,4 @@
-import * as opencv from "../libs/opencv.js";
+const cv = require("../libs/opencv.js");
 
 let initialized = false;
 
@@ -13,7 +13,7 @@ export const waitCV = async() => {
   });
 }
 
-opencv.then((target) => {
+cv().then((target) => {
   initialized = true;
   Object.assign(_cv, target);
   waitResolves.forEach((resolve) => {
@@ -21,4 +21,4 @@ opencv.then((target) => {
   });
 });
 
-export const cv=_cv;
+export const opencv=_cv;

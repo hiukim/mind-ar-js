@@ -1,6 +1,7 @@
-const path = require('path');
+const path =require('path');
 
-module.exports = {
+
+module.exports=  {
   entry: {
     'mindar-image': './src/image-target/index.js',
     'mindar-image-aframe': './src/image-target/aframe.js',
@@ -8,36 +9,37 @@ module.exports = {
     'mindar-face': './src/face-target/index.js',
     'mindar-face-aframe': './src/face-target/aframe.js',
     'mindar-face-three': './src/face-target/three.js'
+    
   },
   mode: 'development',
   devtool: 'inline-source-map',
   output: {
     filename: '[name].js',
     path: path.resolve(__dirname, 'dist-dev'),
-    publicPath: ''
+    publicPath: 'auto'
   },
   module: {
     rules: [
-      {
-        test: /\.worker\.js$/,
-        use: {
-          loader: 'worker-loader',
-          options: {
-            inline: true,
-            name: '[name].js'
+        /* {
+          test: /\.worker\.mjs$/,
+          use: {
+            loader: 'worker-loader',
+            options: {
+              inline: true,
+              name: '[name].mjs'
+            },
           },
-        },
-      },
+        }, */
       {
-	test: /\.s[ac]ss$/i,
+        test: /\.s[ac]ss$/i,
         use: [
           'style-loader',
           'css-loader',
-	  'sass-loader'
+          'sass-loader'
         ]
       },
       {
-	test: /\.html$/i,
+        test: /\.html$/i,
         use: 'html-loader',
       },
     ],

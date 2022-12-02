@@ -1,5 +1,5 @@
 import {Matrix, inverse} from 'ml-matrix';
-import {solveHomography} from '../utils/homography';
+import {solveHomography} from '../utils/homography.js';
 
 // build world matrix with list of matching worldCoords|screenCoords
 //

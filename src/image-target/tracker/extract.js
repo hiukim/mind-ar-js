@@ -1,4 +1,4 @@
-import {Cumsum} from '../utils/cumsum';
+import {Cumsum} from '../utils/cumsum.js';
 
 const SEARCH_SIZE1 = 10;
 const SEARCH_SIZE2 = 2;

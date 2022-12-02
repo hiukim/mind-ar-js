@@ -1,7 +1,7 @@
 // TODO: delete opencv Mat
 //
 import {positions as canonicalMetricLandmarks, landmarkBasis} from "./face-data.js";
-import * as cv from "../../libs/opencv-helper.js";
+import {opencv} from "../../libs/opencv-helper.js";
 
 const landmarkWeights = [];
 for (let i = 0; i < canonicalMetricLandmarks.length; i++) {
@@ -92,7 +92,7 @@ class Estimator {
     const poseTransformMat = this._solveWeightedOrthogonal(canonicalMetricLandmarks, metricLandmarks, sqrtWeights);
     //console.log("estimator poseTransformMat", poseTransformMat);
 
-    const poseTransformMatCV = cv.matFromArray(4, 4, cv.CV_64F, [
+    const poseTransformMatCV = opencv.matFromArray(4, 4, opencv.CV_64F, [
       poseTransformMat[0][0], poseTransformMat[0][1], poseTransformMat[0][2], poseTransformMat[0][3],
       poseTransformMat[1][0], poseTransformMat[1][1], poseTransformMat[1][2], poseTransformMat[1][3],
       poseTransformMat[2][0], poseTransformMat[2][1], poseTransformMat[2][2], poseTransformMat[2][3],
@@ -136,23 +136,23 @@ class Estimator {
     //console.log("estimator modelPoints", modelPoints);
     //console.log("estimator imagePoints", imagePoints);
 
-    const modelPointsMat = cv.matFromArray(modelPoints.length/3, 3, cv.CV_64F, modelPoints);
-    const imagePointsMat = cv.matFromArray(imagePoints.length/2, 2, cv.CV_64F, imagePoints);
+    const modelPointsMat = opencv.matFromArray(modelPoints.length/3, 3, opencv.CV_64F, modelPoints);
+    const imagePointsMat = opencv.matFromArray(imagePoints.length/2, 2, opencv.CV_64F, imagePoints);
 
-    const cameraMatrix = cv.matFromArray(3, 3, cv.CV_64F, [
+    const cameraMatrix = opencv.matFromArray(3, 3, opencv.CV_64F, [
       this.focalLength, 0, this.center[0],
       0, this.focalLength, this.center[1],
       0, 0, 1
     ]);
 
-    const distCoeffs = cv.Mat.zeros(4, 1, cv.CV_64F); // Assuming no lens distortion
+    const distCoeffs = opencv.Mat.zeros(4, 1, opencv.CV_64F); // Assuming no lens distortion
 
-    const rvecs = new cv.Mat(3, 1, cv.CV_64F);
-    const tvecs = new cv.Mat(3, 1, cv.CV_64F);
-    const rvecs2 = new cv.Mat(3, 3, cv.CV_64F);
+    const rvecs = new opencv.Mat(3, 1, opencv.CV_64F);
+    const tvecs = new opencv.Mat(3, 1, opencv.CV_64F);
+    const rvecs2 = new opencv.Mat(3, 3, opencv.CV_64F);
 
-    cv.solvePnP(modelPointsMat, imagePointsMat, cameraMatrix, distCoeffs, rvecs, tvecs, false);
-    cv.Rodrigues(rvecs, rvecs2);
+    opencv.solvePnP(modelPointsMat, imagePointsMat, cameraMatrix, distCoeffs, rvecs, tvecs, false);
+    opencv.Rodrigues(rvecs, rvecs2);
 
     const m = [
       rvecs2.data64F[0], rvecs2.data64F[1], rvecs2.data64F[2], tvecs.data64F[0],
@@ -270,15 +270,15 @@ class Estimator {
   }
 
   _computeOptimalRotation(design_matrix) {
-    const designMatrixMat = cv.matFromArray(3, 3, cv.CV_64F, [
+    const designMatrixMat = opencv.matFromArray(3, 3, opencv.CV_64F, [
       design_matrix[0][0], design_matrix[0][1], design_matrix[0][2],
       design_matrix[1][0], design_matrix[1][1], design_matrix[1][2],
       design_matrix[2][0], design_matrix[2][1], design_matrix[2][2]
     ]);
-    const wMat = new cv.Mat(3, 1, cv.CV_64F);
-    const uMat = new cv.Mat(3, 3, cv.CV_64F);
-    const vtMat = new cv.Mat(3, 3, cv.CV_64F);
-    cv.SVDecomp(designMatrixMat, wMat, uMat, vtMat);
+    const wMat = new opencv.Mat(3, 1, opencv.CV_64F);
+    const uMat = new opencv.Mat(3, 3, opencv.CV_64F);
+    const vtMat = new opencv.Mat(3, 3, opencv.CV_64F);
+    opencv.SVDecomp(designMatrixMat, wMat, uMat, vtMat);
 
     const rotation = [[0,0,0], [0,0,0], [0,0,0]];
     for (let k = 0; k < 3; k++) {

@@ -1,6 +1,6 @@
 {
   "name": "mind-ar",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "web augmented reality framework",
   "main": "index.js",
   "scripts": {
@@ -11,7 +11,7 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "type": "commonjs",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/hiukim/mind-ar-js"
@@ -30,29 +30,23 @@
   "dependencies": {
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "@msgpack/msgpack": "^1.12.2",
+    "@tensorflow/tfjs": "^3.13.0",
+    "mathjs": "^11.4.0",
+    "tinyqueue": "^2.0.3",
     "canvas": "^2.10.2",
     "ml-matrix": "^6.6.0",
-    "svd-js": "^1.1.1",
-    "tinyqueue": "^2.0.3"
+    "svd-js": "^1.1.1"
   },
   "peerDependencies": {
-    "three": "0.x",
-    "@tensorflow/tfjs": "^3.21.0"
+    "three": ">=0.136.0"
   },
   "devDependencies": {
-    "css-loader": "^5.1.1",
-    "express": "^4.18.2",
-    "html-loader": "^2.1.1",
-    "multer": "^1.4.5-lts.1",
-    "playwright": "^1.27.1",
-    "sass": "^1.51.0",
-    "sass-loader": "^11.0.1",
-    "style-loader": "^2.0.0",
-    "terser-webpack-plugin": "^5.3.1",
-    "vite": "^3.2.4",
-    "vite-plugin-require": "^1.0.8",
-    "vite-require": "^0.2.3",
+    "css-loader": "^5.2.7",
+    "html-loader": "^2.1.2",
+    "sass": "^1.56.1",
+    "sass-loader": "^13.2.0",
+    "style-loader": "^3.3.1",
     "webpack": "^5.75.0",
-    "webpack-cli": "^4.10.0"
+    "webpack-cli": "^5.0.0"
   }
 }
