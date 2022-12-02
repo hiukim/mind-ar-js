@@ -1,7 +1,7 @@
 import { Scene, WebGLRenderer, PerspectiveCamera, sRGBEncoding, Mesh, MeshStandardMaterial, Group } from "three";
 import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import { Controller } from "./controller.js";
-import { UI } from "../ui/ui.cjs";
+import { UI } from "../ui/ui.js";
 
 export class MindARThree {
   constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null}) {

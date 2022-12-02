@@ -1,8 +1,8 @@
 import {Controller} from './controller.js';
 import {Compiler} from './compiler.js';
-import {UI} from '../ui/ui.cjs';
+import {UI} from '../ui/ui.js';
 
-export const e = {
+export {
   Controller, 
   Compiler,
   UI
@@ -12,6 +12,8 @@ if (!window.MINDAR) {
   window.MINDAR = {};
 }
 
-window.MINDAR.IMAGE = e;
-
-export default e;
+window.MINDAR.IMAGE = {
+  Controller, 
+  Compiler,
+  UI
+};

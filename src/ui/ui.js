@@ -1,10 +1,10 @@
-require("./ui.scss");
-const loadingHTML = require('./loading.html').default;
-const compatibilityHTML = require('./compatibility.html').default;
-const scanningHTML = require('./scanning.html').default;
+import "./ui.scss";
+import loadingHTML from './loading.html?raw';
+import compatibilityHTML from './compatibility.html?raw';
+import scanningHTML from './scanning.html?raw';
 
 
-class UI {
+export class UI {
   constructor({uiLoading, uiScanning, uiError}) {
     if (uiLoading === 'yes') {
       this.loadingModal = this._loadHTML(loadingHTML);
@@ -63,5 +63,5 @@ class UI {
   }
 }
 
-module.exports= {UI};
+
 
