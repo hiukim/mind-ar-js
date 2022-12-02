@@ -1,13 +1,15 @@
-import { C as o, a as i } from "./controller.354c9e2d.js";
-import { u as r } from "./ui.65f3a8cb.js";
-const a = {
-  Controller: o,
-  Compiler: i,
-  UI: r.UI
-};
+import { C as o, a as r } from "./controller.4d77898b.js";
+import { a as p, C as s } from "./controller.4d77898b.js";
+import { U as a } from "./ui.f7b5eaac.js";
+import { U as w } from "./ui.f7b5eaac.js";
 window.MINDAR || (window.MINDAR = {});
-window.MINDAR.IMAGE = a;
+window.MINDAR.IMAGE = {
+  Controller: o,
+  Compiler: r,
+  UI: a
+};
 export {
-  a as default,
-  a as e
+  p as Compiler,
+  s as Controller,
+  w as UI
 };

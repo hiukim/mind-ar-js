@@ -1,45 +1,122 @@
-import { Scene as f, WebGLRenderer as w, sRGBEncoding as y, PerspectiveCamera as g, Mesh as M, MeshStandardMaterial as x, Group as p } from "three";
-import { C as A } from "./CSS3DRenderer.fa516df2.js";
-import { C as R } from "./controller.1dea13c9.js";
-import { u as S } from "./ui.65f3a8cb.js";
-class b {
-  constructor({ container: o, uiLoading: e = "yes", uiScanning: i = "yes", uiError: n = "yes", filterMinCF: t = null, filterBeta: h = null }) {
-    this.container = o, this.ui = new S.UI({ uiLoading: e, uiScanning: i, uiError: n }), this.controller = new R({
-      filterMinCF: t,
-      filterBeta: h
-    }), this.scene = new f(), this.cssScene = new f(), this.renderer = new w({ antialias: !0, alpha: !0 }), this.cssRenderer = new A({ antialias: !0 }), this.renderer.outputEncoding = y, this.renderer.setPixelRatio(window.devicePixelRatio), this.camera = new g(), this.anchors = [], this.faceMeshes = [], this.container.appendChild(this.renderer.domElement), this.container.appendChild(this.cssRenderer.domElement), this.shouldFaceUser = !0, window.addEventListener("resize", this._resize.bind(this));
+import { Vector3 as A, Quaternion as W, Matrix4 as D, Object3D as U, Scene as M, WebGLRenderer as I, sRGBEncoding as O, PerspectiveCamera as k, Mesh as z, MeshStandardMaterial as H, Group as C } from "three";
+import { C as P } from "./controller.f401b103.js";
+import { U as F } from "./ui.f7b5eaac.js";
+const E = new A(), N = new W(), R = new A();
+class b extends U {
+  constructor(n = document.createElement("div")) {
+    super(), this.element = n, this.element.style.position = "absolute", this.element.style.pointerEvents = "auto", this.element.style.userSelect = "none", this.element.setAttribute("draggable", !1), this.addEventListener("removed", function() {
+      this.traverse(function(s) {
+        s.element instanceof Element && s.element.parentNode !== null && s.element.parentNode.removeChild(s.element);
+      });
+    });
+  }
+  copy(n, s) {
+    return super.copy(n, s), this.element = n.element.cloneNode(!0), this;
+  }
+}
+b.prototype.isCSS3DObject = !0;
+class L extends b {
+  constructor(n) {
+    super(n), this.rotation2D = 0;
+  }
+  copy(n, s) {
+    return super.copy(n, s), this.rotation2D = n.rotation2D, this;
+  }
+}
+L.prototype.isCSS3DSprite = !0;
+const v = new D(), G = new D();
+class T {
+  constructor(n = {}) {
+    const s = this;
+    let r, h, o, c;
+    const a = {
+      camera: { fov: 0, style: "" },
+      objects: /* @__PURE__ */ new WeakMap()
+    }, l = n.element !== void 0 ? n.element : document.createElement("div");
+    l.style.overflow = "hidden", this.domElement = l;
+    const m = document.createElement("div");
+    m.style.transformStyle = "preserve-3d", m.style.pointerEvents = "none", l.appendChild(m), this.getSize = function() {
+      return {
+        width: r,
+        height: h
+      };
+    }, this.render = function(i, e) {
+      const f = e.projectionMatrix.elements[5] * c;
+      a.camera.fov !== f && (l.style.perspective = e.isPerspectiveCamera ? f + "px" : "", a.camera.fov = f), i.autoUpdate === !0 && i.updateMatrixWorld(), e.parent === null && e.updateMatrixWorld();
+      let g, u;
+      e.isOrthographicCamera && (g = -(e.right + e.left) / 2, u = (e.top + e.bottom) / 2);
+      const x = (e.isOrthographicCamera ? "scale(" + f + ")translate(" + t(g) + "px," + t(u) + "px)" + d(e.matrixWorldInverse) : "translateZ(" + f + "px)" + d(e.matrixWorldInverse)) + "translate(" + o + "px," + c + "px)";
+      a.camera.style !== x && (m.style.transform = x, a.camera.style = x), p(i, i, e);
+    }, this.setSize = function(i, e) {
+      r = i, h = e, o = r / 2, c = h / 2, l.style.width = i + "px", l.style.height = e + "px", m.style.width = i + "px", m.style.height = e + "px";
+    };
+    function t(i) {
+      return Math.abs(i) < 1e-10 ? 0 : i;
+    }
+    function d(i) {
+      const e = i.elements;
+      return "matrix3d(" + t(e[0]) + "," + t(-e[1]) + "," + t(e[2]) + "," + t(e[3]) + "," + t(e[4]) + "," + t(-e[5]) + "," + t(e[6]) + "," + t(e[7]) + "," + t(e[8]) + "," + t(-e[9]) + "," + t(e[10]) + "," + t(e[11]) + "," + t(e[12]) + "," + t(-e[13]) + "," + t(e[14]) + "," + t(e[15]) + ")";
+    }
+    function S(i) {
+      const e = i.elements;
+      return "translate(-50%,-50%)" + ("matrix3d(" + t(e[0]) + "," + t(e[1]) + "," + t(e[2]) + "," + t(e[3]) + "," + t(-e[4]) + "," + t(-e[5]) + "," + t(-e[6]) + "," + t(-e[7]) + "," + t(e[8]) + "," + t(e[9]) + "," + t(e[10]) + "," + t(e[11]) + "," + t(e[12]) + "," + t(e[13]) + "," + t(e[14]) + "," + t(e[15]) + ")");
+    }
+    function p(i, e, f, g) {
+      if (i.isCSS3DObject) {
+        i.onBeforeRender(s, e, f);
+        let u;
+        i.isCSS3DSprite ? (v.copy(f.matrixWorldInverse), v.transpose(), i.rotation2D !== 0 && v.multiply(G.makeRotationZ(i.rotation2D)), i.matrixWorld.decompose(E, N, R), v.setPosition(E), v.scale(R), v.elements[3] = 0, v.elements[7] = 0, v.elements[11] = 0, v.elements[15] = 1, u = S(v)) : u = S(i.matrixWorld);
+        const y = i.element, x = a.objects.get(i);
+        if (x === void 0 || x.style !== u) {
+          y.style.transform = u;
+          const _ = { style: u };
+          a.objects.set(i, _);
+        }
+        y.style.display = i.visible ? "" : "none", y.parentNode !== m && m.appendChild(y), i.onAfterRender(s, e, f);
+      }
+      for (let u = 0, y = i.children.length; u < y; u++)
+        p(i.children[u], e, f);
+    }
+  }
+}
+class V {
+  constructor({ container: n, uiLoading: s = "yes", uiScanning: r = "yes", uiError: h = "yes", filterMinCF: o = null, filterBeta: c = null }) {
+    this.container = n, this.ui = new F({ uiLoading: s, uiScanning: r, uiError: h }), this.controller = new P({
+      filterMinCF: o,
+      filterBeta: c
+    }), this.scene = new M(), this.cssScene = new M(), this.renderer = new I({ antialias: !0, alpha: !0 }), this.cssRenderer = new T({ antialias: !0 }), this.renderer.outputEncoding = O, this.renderer.setPixelRatio(window.devicePixelRatio), this.camera = new k(), this.anchors = [], this.faceMeshes = [], this.container.appendChild(this.renderer.domElement), this.container.appendChild(this.cssRenderer.domElement), this.shouldFaceUser = !0, window.addEventListener("resize", this._resize.bind(this));
   }
   async start() {
     this.ui.showLoading(), await this._startVideo(), await this._startAR(), this.ui.hideLoading();
   }
   stop() {
-    this.video.srcObject.getTracks().forEach(function(e) {
-      e.stop();
+    this.video.srcObject.getTracks().forEach(function(s) {
+      s.stop();
     }), this.video.remove(), this.controller.stopProcessVideo();
   }
   switchCamera() {
     this.shouldFaceUser = !this.shouldFaceUser, this.stop(), this.start();
   }
   addFaceMesh() {
-    const o = this.controller.createThreeFaceGeometry(THREE), e = new M(o, new x({ color: 16777215 }));
-    return e.visible = !1, e.matrixAutoUpdate = !1, this.faceMeshes.push(e), e;
+    const n = this.controller.createThreeFaceGeometry(THREE), s = new z(n, new H({ color: 16777215 }));
+    return s.visible = !1, s.matrixAutoUpdate = !1, this.faceMeshes.push(s), s;
   }
-  addAnchor(o) {
-    const e = new p();
-    e.matrixAutoUpdate = !1;
-    const i = { group: e, landmarkIndex: o, css: !1 };
-    return this.anchors.push(i), this.scene.add(e), i;
+  addAnchor(n) {
+    const s = new C();
+    s.matrixAutoUpdate = !1;
+    const r = { group: s, landmarkIndex: n, css: !1 };
+    return this.anchors.push(r), this.scene.add(s), r;
   }
-  addCSSAnchor(o) {
-    const e = new p();
-    e.matrixAutoUpdate = !1;
-    const i = { group: e, landmarkIndex: o, css: !0 };
-    return this.anchors.push(i), this.cssScene.add(e), i;
+  addCSSAnchor(n) {
+    const s = new C();
+    s.matrixAutoUpdate = !1;
+    const r = { group: s, landmarkIndex: n, css: !0 };
+    return this.anchors.push(r), this.cssScene.add(s), r;
   }
   _startVideo() {
-    return new Promise((o, e) => {
+    return new Promise((n, s) => {
       if (this.video = document.createElement("video"), this.video.setAttribute("autoplay", ""), this.video.setAttribute("muted", ""), this.video.setAttribute("playsinline", ""), this.video.style.position = "absolute", this.video.style.top = "0px", this.video.style.left = "0px", this.video.style.zIndex = "-2", this.container.appendChild(this.video), !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        this.ui.showCompatibility(), e();
+        this.ui.showCompatibility(), s();
         return;
       }
       navigator.mediaDevices.getUserMedia({
@@ -47,74 +124,74 @@ class b {
         video: {
           facingMode: this.shouldFaceUser ? "face" : "environment"
         }
-      }).then((i) => {
+      }).then((r) => {
         this.video.addEventListener("loadedmetadata", () => {
-          this.video.setAttribute("width", this.video.videoWidth), this.video.setAttribute("height", this.video.videoHeight), o();
-        }), this.video.srcObject = i;
-      }).catch((i) => {
-        console.log("getUserMedia error", i), e();
+          this.video.setAttribute("width", this.video.videoWidth), this.video.setAttribute("height", this.video.videoHeight), n();
+        }), this.video.srcObject = r;
+      }).catch((r) => {
+        console.log("getUserMedia error", r), s();
       });
     });
   }
   _startAR() {
-    return new Promise(async (o, e) => {
-      const i = this.video;
+    return new Promise(async (n, s) => {
+      const r = this.video;
       this.container, this.controller.onUpdate = ({ hasFace: l, estimateResult: m }) => {
-        for (let r = 0; r < this.anchors.length; r++)
-          this.anchors[r].css ? this.anchors[r].group.children.forEach((a) => {
-            a.element.style.visibility = l ? "visible" : "hidden";
-          }) : this.anchors[r].group.visible = l;
-        for (let r = 0; r < this.faceMeshes.length; r++)
-          this.faceMeshes[r].visible = l;
+        for (let t = 0; t < this.anchors.length; t++)
+          this.anchors[t].css ? this.anchors[t].group.children.forEach((d) => {
+            d.element.style.visibility = l ? "visible" : "hidden";
+          }) : this.anchors[t].group.visible = l;
+        for (let t = 0; t < this.faceMeshes.length; t++)
+          this.faceMeshes[t].visible = l;
         if (l) {
-          const { metricLandmarks: r, faceMatrix: a, faceScale: E } = m;
-          for (let c = 0; c < this.anchors.length; c++) {
-            const v = this.anchors[c].landmarkIndex, s = this.controller.getLandmarkMatrix(v);
-            if (this.anchors[c].css) {
-              const u = [
-                1e-3 * s[0],
-                1e-3 * s[1],
-                s[2],
-                s[3],
-                1e-3 * s[4],
-                1e-3 * s[5],
-                s[6],
-                s[7],
-                1e-3 * s[8],
-                1e-3 * s[9],
-                s[10],
-                s[11],
-                1e-3 * s[12],
-                1e-3 * s[13],
-                s[14],
-                s[15]
+          const { metricLandmarks: t, faceMatrix: d, faceScale: S } = m;
+          for (let p = 0; p < this.anchors.length; p++) {
+            const i = this.anchors[p].landmarkIndex, e = this.controller.getLandmarkMatrix(i);
+            if (this.anchors[p].css) {
+              const g = [
+                1e-3 * e[0],
+                1e-3 * e[1],
+                e[2],
+                e[3],
+                1e-3 * e[4],
+                1e-3 * e[5],
+                e[6],
+                e[7],
+                1e-3 * e[8],
+                1e-3 * e[9],
+                e[10],
+                e[11],
+                1e-3 * e[12],
+                1e-3 * e[13],
+                e[14],
+                e[15]
               ];
-              this.anchors[c].group.matrix.set(...u);
+              this.anchors[p].group.matrix.set(...g);
             } else
-              this.anchors[c].group.matrix.set(...s);
+              this.anchors[p].group.matrix.set(...e);
           }
-          for (let c = 0; c < this.faceMeshes.length; c++)
-            this.faceMeshes[c].matrix.set(...a);
+          for (let p = 0; p < this.faceMeshes.length; p++)
+            this.faceMeshes[p].matrix.set(...d);
         }
-      }, this._resize(), await this.controller.setup(i);
-      const { fov: n, aspect: t, near: h, far: d } = this.controller.getCameraParams();
-      this.camera.fov = n, this.camera.aspect = t, this.camera.near = h, this.camera.far = d, this.camera.updateProjectionMatrix(), this.renderer.setSize(this.video.videoWidth, this.video.videoHeight), this.cssRenderer.setSize(this.video.videoWidth, this.video.videoHeight), await this.controller.dummyRun(i), this._resize(), this.controller.processVideo(i), o();
+      }, this._resize(), await this.controller.setup(r);
+      const { fov: h, aspect: o, near: c, far: a } = this.controller.getCameraParams();
+      this.camera.fov = h, this.camera.aspect = o, this.camera.near = c, this.camera.far = a, this.camera.updateProjectionMatrix(), this.renderer.setSize(this.video.videoWidth, this.video.videoHeight), this.cssRenderer.setSize(this.video.videoWidth, this.video.videoHeight), await this.controller.dummyRun(r), this._resize(), this.controller.processVideo(r), n();
     });
   }
   _resize() {
-    const { renderer: o, cssRenderer: e, camera: i, container: n, video: t } = this;
-    if (!t)
+    const { renderer: n, cssRenderer: s, camera: r, container: h, video: o } = this;
+    if (!o)
       return;
-    let h, d;
-    const l = t.videoWidth / t.videoHeight, m = n.clientWidth / n.clientHeight;
-    l > m ? (d = n.clientHeight, h = d * l) : (h = n.clientWidth, d = h / l), t.style.top = -(d - n.clientHeight) / 2 + "px", t.style.left = -(h - n.clientWidth) / 2 + "px", t.style.width = h + "px", t.style.height = d + "px";
-    const r = o.domElement, a = e.domElement;
-    r.style.position = "absolute", r.style.top = t.style.top, r.style.left = t.style.left, r.style.width = t.style.width, r.style.height = t.style.height, a.style.position = "absolute", a.style.top = t.style.top, a.style.left = t.style.left, a.style.transformOrigin = "top left", a.style.transform = "scale(" + h / parseFloat(a.style.width) + "," + d / parseFloat(a.style.height) + ")";
+    let c, a;
+    const l = o.videoWidth / o.videoHeight, m = h.clientWidth / h.clientHeight;
+    l > m ? (a = h.clientHeight, c = a * l) : (c = h.clientWidth, a = c / l), o.style.top = -(a - h.clientHeight) / 2 + "px", o.style.left = -(c - h.clientWidth) / 2 + "px", o.style.width = c + "px", o.style.height = a + "px";
+    const t = n.domElement, d = s.domElement;
+    t.style.position = "absolute", t.style.top = o.style.top, t.style.left = o.style.left, t.style.width = o.style.width, t.style.height = o.style.height, d.style.position = "absolute", d.style.top = o.style.top, d.style.left = o.style.left, d.style.transformOrigin = "top left", d.style.transform = "scale(" + c / parseFloat(d.style.width) + "," + a / parseFloat(d.style.height) + ")";
   }
 }
 window.MINDAR || (window.MINDAR = {});
 window.MINDAR.FACE || (window.MINDAR.FACE = {});
-window.MINDAR.FACE.MindARThree = b;
+window.MINDAR.FACE.MindARThree = V;
 export {
-  b as MindARThree
+  V as MindARThree
 };

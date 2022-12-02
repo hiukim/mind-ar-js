@@ -31,11 +31,11 @@
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "@msgpack/msgpack": "^1.12.2",
     "@tensorflow/tfjs": "^3.13.0",
-    "mathjs": "^11.4.0",
-    "tinyqueue": "^2.0.3",
     "canvas": "^2.10.2",
+    "mathjs": "^11.4.0",
     "ml-matrix": "^6.6.0",
-    "svd-js": "^1.1.1"
+    "svd-js": "^1.1.1",
+    "tinyqueue": "^2.0.3"
   },
   "peerDependencies": {
     "three": ">=0.136.0"
@@ -46,6 +46,7 @@
     "sass": "^1.56.1",
     "sass-loader": "^13.2.0",
     "style-loader": "^3.3.1",
+    "vite": "^3.2.4",
     "webpack": "^5.75.0",
     "webpack-cli": "^5.0.0"
   }
