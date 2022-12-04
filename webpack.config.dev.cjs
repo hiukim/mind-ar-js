@@ -18,6 +18,7 @@ module.exports=  {
     path: path.resolve(__dirname, 'dist-dev'),
     publicPath: 'auto'
   },
+  externals: 'three',
   module: {
     rules: [
         /* {

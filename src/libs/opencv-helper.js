@@ -1,5 +1,4 @@
-const cv = require("../libs/opencv.js");
-
+import {cv} from './opencv.js'
 let initialized = false;
 
 const _cv = {};
@@ -22,3 +21,4 @@ cv().then((target) => {
 });
 
 export const opencv=_cv;
+//module.exports={waitCV,opencv}
