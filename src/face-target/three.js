@@ -1,4 +1,5 @@
-import { Scene, WebGLRenderer, PerspectiveCamera, sRGBEncoding, Mesh, MeshStandardMaterial, Group } from "three";
+import { Scene, WebGLRenderer, PerspectiveCamera, sRGBEncoding, Mesh, MeshStandardMaterial, Group, BufferAttribute,BufferGeometry } from "three";
+const THREE= { Scene, WebGLRenderer, PerspectiveCamera, sRGBEncoding, Mesh, MeshStandardMaterial, Group, BufferAttribute,BufferGeometry };
 import { CSS3DRenderer } from '../libs/CSS3DRenderer.js';
 import { Controller } from "./controller.js";
 import { UI } from "../ui/ui.cjs";
@@ -229,4 +230,3 @@ if (!window.MINDAR.FACE) {
 }
 
 window.MINDAR.FACE.MindARThree = MindARThree;
-//window.MINDAR.FACE.THREE = THREE;
