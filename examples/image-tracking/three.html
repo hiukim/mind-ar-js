@@ -1,69 +1,82 @@
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <script src="../../dist-dev/mindar-image-three.js"></script>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
 
-    <script type="module">
-      const THREE = window.MINDAR.IMAGE.THREE;
-      const mindarThree = new window.MINDAR.IMAGE.MindARThree({
-	container: document.querySelector("#container"),
-	imageTargetSrc: './assets/card-example/card.mind',
-	filterMinCF: 1,
-	filterBeta: 10000,
-	missTolerance: 0,
-	warmupTolerance: 0,
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.136.0/build/three.module.js"
+    }
+  }
+</script>
+  <script src="../../dist-dev/mindar-image-three.js" type="module"></script>
+
+  <script type="module">
+    import * as THREE from 'three'
+    const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+      container: document.querySelector("#container"),
+      imageTargetSrc: './assets/card-example/card.mind',
+      filterMinCF: 1,
+      filterBeta: 10000,
+      missTolerance: 0,
+      warmupTolerance: 0,
+    });
+    const { renderer, scene, camera } = mindarThree;
+
+    const anchor = mindarThree.addAnchor(0);
+    const geometry = new THREE.PlaneGeometry(1, 0.55);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.5 });
+    const plane = new THREE.Mesh(geometry, material);
+    anchor.group.add(plane);
+
+    const start = async () => {
+      await mindarThree.start();
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
       });
-      const {renderer, scene, camera} = mindarThree;
+    }
 
-      const anchor = mindarThree.addAnchor(0);
-      const geometry = new THREE.PlaneGeometry(1, 0.55);
-      const material = new THREE.MeshBasicMaterial( {color: 0x00ffff, transparent: true, opacity: 0.5} );
-      const plane = new THREE.Mesh( geometry, material );
-      anchor.group.add(plane);
+    const startButton = document.querySelector("#startButton");
+    startButton.addEventListener("click", () => {
+      start();
+    });
+    stopButton.addEventListener("click", () => {
+      mindarThree.stop();
+      mindarThree.renderer.setAnimationLoop(null);
+    });
+  </script>
 
-      const start = async() => {
-	await mindarThree.start();
-	renderer.setAnimationLoop(() => {
-	  renderer.render(scene, camera);
-	});
-      }
+  <style>
+    body {
+      margin: 0;
+    }
 
-      const startButton = document.querySelector("#startButton");
-      startButton.addEventListener("click", () => {
-	start();
-      });
-      stopButton.addEventListener("click", () => {
-	mindarThree.stop();
-	mindarThree.renderer.setAnimationLoop(null);
-      });
-    </script>
+    #container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
 
-    <style>
-      body {
-	margin: 0;
-      }
-      #container {
-	width: 100vw;
-	height: 100vh;
-	position: relative;
-	overflow: hidden;
-      }
-      #control {
-	position: fixed;
-	top: 0;
-	left: 0;
-	z-index: 2;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="control">
-      <button id="startButton">Start</button>
-      <button id="stopButton">Stop</button>
-    </div>
+    #control {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 2;
+    }
+  </style>
+</head>
 
-    <div id="container">
-    </div>
-  </body>
+<body>
+  <div id="control">
+    <button id="startButton">Start</button>
+    <button id="stopButton">Stop</button>
+  </div>
+
+  <div id="container">
+  </div>
+</body>
+
 </html>

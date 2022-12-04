@@ -1,5 +1,5 @@
 import {FaceMeshHelper} from "./face-mesh-helper.js";
-import {cv, waitCV} from "../libs/opencv-helper.js";
+import {opencv, waitCV} from "../libs/opencv-helper.js";
 import {Estimator} from "./face-geometry/estimator.js";
 import {createThreeFaceGeometry as  _createThreeFaceGeometry} from "./face-geometry/face-geometry.js";
 import {positions as canonicalMetricLandmarks} from "./face-geometry/face-data.js";

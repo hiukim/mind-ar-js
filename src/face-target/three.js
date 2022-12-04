@@ -1,5 +1,5 @@
 import { Scene, WebGLRenderer, PerspectiveCamera, sRGBEncoding, Mesh, MeshStandardMaterial, Group } from "three";
-import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
+import { CSS3DRenderer } from '../libs/CSS3DRenderer.js';
 import { Controller } from "./controller.js";
 import { UI } from "../ui/ui.cjs";
 
