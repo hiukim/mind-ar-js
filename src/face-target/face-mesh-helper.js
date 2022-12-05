@@ -1,4 +1,4 @@
-import {FaceMesh} from "@mediapipe/face_mesh";
+import "@mediapipe/face_mesh";
 
 class FaceMeshHelper {
   constructor() {
