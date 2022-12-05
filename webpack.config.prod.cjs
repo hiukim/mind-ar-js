@@ -11,12 +11,18 @@ module.exports=  {
   },
   mode: 'production',
   target:'web',
+  experiments:{
+    outputModule:true
+  },
   output: {
     filename: '[name].prod.js',
     path: path.resolve(__dirname, 'dist'),
-    publicPath: 'auto'
+    publicPath: 'auto',
+    chunkFormat:'module',
+    chunkLoading:'import',
+    module:true
   },
-  externals: 'three',
+  externals: {three: 'module three'},
   module: {
     rules: [
       {

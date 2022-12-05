@@ -13,12 +13,19 @@ module.exports=  {
   },
   mode: 'development',
   devtool: 'inline-source-map',
+  experiments:{
+    outputModule:true
+  },
   output: {
     filename: '[name].js',
     path: path.resolve(__dirname, 'dist-dev'),
-    publicPath: 'auto'
+    publicPath: 'auto',
+    chunkFormat:'module',
+    chunkLoading:'import',
+    module:true
   },
-  externals: 'three',
+  externals: {three: 'module three'},
+  
   module: {
     rules: [
         /* {
@@ -49,7 +56,14 @@ module.exports=  {
     fallback: {
       fs: false,
       path: false,
-      crypto: false
+      crypto: false,
+      zlib:false,
+      http:false,
+      https:false,
+      stream:false,
+      buffer:false,
+      util:false,
+      url:false,
     }
   }
 };
