@@ -1,1 +1,1 @@
-"use strict";Object.defineProperties(exports,{__esModule:{value:!0},[Symbol.toStringTag]:{value:"Module"}});const o=require("./controller.9e272f85.cjs"),r=require("./ui.d6b77cda.cjs"),e={Controller:o.Controller,UI:r.UI};window.MINDAR||(window.MINDAR={});window.MINDAR.FACE=e;exports.e=e;
+"use strict";Object.defineProperties(exports,{__esModule:{value:!0},[Symbol.toStringTag]:{value:"Module"}});const o=require("./controller.f64c8904.cjs"),r=require("./ui.d6b77cda.cjs"),e={Controller:o.Controller,UI:r.UI};window.MINDAR||(window.MINDAR={});window.MINDAR.FACE=e;exports.e=e;
