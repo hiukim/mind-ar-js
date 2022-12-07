@@ -21,8 +21,17 @@ export default defineConfig({
                 'mindar-image-three': './src/image-target/three.js',
                 'mindar-face': './src/face-target/index.js',
                 'mindar-face-aframe': './src/face-target/aframe.js',
-                'mindar-face-three': './src/face-target/three.js'
+                'mindar-face-three': './src/face-target/three.js',
             }
+        }
+    },
+    resolve:{
+        alias: {
+            '@tensorflow/tfjs$':
+                path.resolve(__dirname, './custom_tfjs/custom_tfjs.js'),
+            '@tensorflow/tfjs-core$': path.resolve(
+                __dirname, './custom_tfjs/custom_tfjs_core.js'),
+          
         }
     }
 });

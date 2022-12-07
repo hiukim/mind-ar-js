@@ -22,17 +22,6 @@ import {registerKernel} from '@tensorflow/tfjs-core/dist/base';
 import '@tensorflow/tfjs-core/dist/base_side_effects';
 export * from '@tensorflow/tfjs-core/dist/base';
 
-//backend = cpu
-export * from '@tensorflow/tfjs-backend-cpu/dist/base';
-import {reshapeConfig as Reshape_cpu} from '@tensorflow/tfjs-backend-cpu/dist/kernels/Reshape';
-registerKernel(Reshape_cpu);
-import {subConfig as Sub_cpu} from '@tensorflow/tfjs-backend-cpu/dist/kernels/Sub';
-registerKernel(Sub_cpu);
-import {castConfig as Cast_cpu} from '@tensorflow/tfjs-backend-cpu/dist/kernels/Cast';
-registerKernel(Cast_cpu);
-import {packConfig as Pack_cpu} from '@tensorflow/tfjs-backend-cpu/dist/kernels/Pack';
-registerKernel(Pack_cpu);
-
 //backend = webgl
 export * from '@tensorflow/tfjs-backend-webgl/dist/base';
 import {reshapeConfig as Reshape_webgl} from '@tensorflow/tfjs-backend-webgl/dist/kernels/Reshape';

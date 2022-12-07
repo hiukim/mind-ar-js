@@ -1,4 +1,4 @@
-
+import * as path from 'path'
 import {defineConfig} from 'vite'
 /** @type {import('vite').UserConfig} */
 export default defineConfig({
@@ -24,6 +24,15 @@ export default defineConfig({
                 'mindar-face-aframe': './src/face-target/aframe.js',
                 'mindar-face-three': './src/face-target/three.js'
             }
+        }
+    },
+    resolve:{
+        alias: {
+            '@tensorflow/tfjs$':
+                path.resolve(__dirname, './custom_tfjs/custom_tfjs.js'),
+            '@tensorflow/tfjs-core$': path.resolve(
+                __dirname, './custom_tfjs/custom_tfjs_core.js'),
+          
         }
     }
 });

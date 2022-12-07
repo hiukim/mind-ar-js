@@ -1,21 +1,11 @@
 {
     "kernels": ["Reshape",
-    "BinomialFilter",
-    "DownsampleBilinear",
     "Sub",
-    "UpsampleBilinear",
-    "BuildExtremas",
-    "ExtremaReduction",
-    "ComputeLocalization",
-    "ComputeOrientationHistograms",
-    "SmoothHistograms",
-    "ComputeExtremaAngles",
-    "ComputeExtremaFreak",
     "Cast",
-    "Pack",
-    "ComputeFreakDescriptors"],
+    "Pack"
+    ],
     "backends": [
-        "cpu","webgl"
+        "webgl"
     ],
     "models": [
        
