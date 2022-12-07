@@ -1,5 +1,5 @@
-const {Controller, UI} = window.MINDAR.FACE;
-
+//const {Controller, UI} = window.MINDAR.FACE;
+import {Controller,UI} from './index.js'
 const THREE = AFRAME.THREE;
 
 AFRAME.registerSystem('mindar-face-system', {

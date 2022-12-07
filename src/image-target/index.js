@@ -14,4 +14,8 @@ if (!window.MINDAR) {
 
 window.MINDAR.IMAGE = e;
 
-export default e;
+export {
+  Controller, 
+  Compiler,
+  UI
+};

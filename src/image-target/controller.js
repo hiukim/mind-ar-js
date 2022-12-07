@@ -52,7 +52,7 @@ class Controller {
       far: far,
     });
 
-    this.worker = new Worker(new URL('./controller.worker.js', import.meta.url));
+    this.worker = new Worker(new URL('./controller.worker.js', import.meta.url),{type: 'module'});
     this.workerMatchDone = null;
     this.workerTrackDone = null;
     this.worker.onmessage = (e) => {

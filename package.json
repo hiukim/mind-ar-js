@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "watch": "webpack build --watch --config webpack.config.dev.cjs",
-    "build": "webpack build --config webpack.config.prod.cjs"
+    "build": "webpack build --config webpack.config.prod.cjs",
+    "build-dev":"webpack build --config webpack.config.dev.cjs"
   },
   "engines": {
     "node": ">=14.0.0"
