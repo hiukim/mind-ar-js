@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --config vite.config.dev.js",
     "watch": "vite build --watch --config vite.config.dev.js",
+    "build-dev": "vite build --config vite.config.dev.js",
     "build": "vite build --config vite.config.prod.js"
   },
   "engines": {
