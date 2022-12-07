@@ -2,87 +2,96 @@
  multi-target example
 -->
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="../../dist-dev/mindar-image.js"></script>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/16/Stats.min.js"></script>
-    <script src="../../dist-dev/mindar-image-aframe.js"></script>
 
-    <style>
-      body {
-        margin: 0;
-      }
-      .example-container {
-        overflow: hidden;
-        position: absolute;
-        width: 100%;
-        height: 100%;
-      }
-      #example-control-overlay {
-	background: none;
-	height: 30px;
-      }
-      #example-control-overlay >div {
-	position: absolute;
-	right: 0;
-      }
-   </style>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="../../dist-dev/mindar-image.js" type="module"></script>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/16/Stats.min.js"></script>
+  <script src="../../dist-dev/mindar-image-aframe.js" type="module"></script>
 
-   <script>
-     document.addEventListener("DOMContentLoaded", () => {
-       const startButton = document.querySelector("#start-button");
-       const detectAllButton = document.getElementById("detect-all-button");
-       const detect0Button = document.getElementById("detect-0-button");
-       const detect1Button = document.getElementById("detect-1-button");
-       const sceneEl = document.querySelector('a-scene');
-       const arSystem = sceneEl.systems["mindar-image-system"];
+  <style>
+    body {
+      margin: 0;
+    }
 
-       detectAllButton.addEventListener("click", () => {
-	 console.log("detecting all...");
-	 arSystem.switchTarget(-1);
-       });
-       detect0Button.addEventListener("click", () => {
-	 console.log("detecting 0 only...");
-	 arSystem.switchTarget(0);
-       });
-       detect1Button.addEventListener("click", () => {
-	 console.log("detecting 1 only...");
-	 arSystem.switchTarget(1);
-       });
-       startButton.addEventListener('click', () => {
-	 arSystem.start(); // start AR 
-       });
-     });
-   </script>
-  </head>
-  <body>
-    <div id="example-control-overlay" class="overlay">
-      <div>
-	<button id="start-button">Start</button>
-	<button id="detect-all-button">Detect All</button>
-	<button id="detect-0-button">Detect 0</button>
-	<button id="detect-1-button">Detect 1</button>
-      </div>
+    .example-container {
+      overflow: hidden;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+
+    #example-control-overlay {
+      background: none;
+      height: 30px;
+    }
+
+    #example-control-overlay>div {
+      position: absolute;
+      right: 0;
+    }
+  </style>
+
+  <script type="module">
+    document.addEventListener("DOMContentLoaded", () => {
+      const startButton = document.querySelector("#start-button");
+      const detectAllButton = document.getElementById("detect-all-button");
+      const detect0Button = document.getElementById("detect-0-button");
+      const detect1Button = document.getElementById("detect-1-button");
+      const sceneEl = document.querySelector('a-scene');
+      const arSystem = sceneEl.systems["mindar-image-system"];
+
+      detectAllButton.addEventListener("click", () => {
+        console.log("detecting all...");
+        arSystem.switchTarget(-1);
+      });
+      detect0Button.addEventListener("click", () => {
+        console.log("detecting 0 only...");
+        arSystem.switchTarget(0);
+      });
+      detect1Button.addEventListener("click", () => {
+        console.log("detecting 1 only...");
+        arSystem.switchTarget(1);
+      });
+      startButton.addEventListener('click', () => {
+        arSystem.start(); // start AR 
+      });
+    });
+  </script>
+</head>
+
+<body>
+  <div id="example-control-overlay" class="overlay">
+    <div>
+      <button id="start-button">Start</button>
+      <button id="detect-all-button">Detect All</button>
+      <button id="detect-0-button">Detect 0</button>
+      <button id="detect-1-button">Detect 1</button>
     </div>
+  </div>
 
-    <div class="example-container">
-      <a-scene mindar-image="imageTargetSrc: ./assets/band-example/band.mind; showStats: true; autoStart: false; maxTrack: 1" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-        <a-assets>
-          <a-asset-item id="bearModel" src="./assets/band-example/bear/scene.gltf"></a-asset-item>
-          <a-asset-item id="raccoonModel" src="./assets/band-example/raccoon/scene.gltf"></a-asset-item>
-        </a-assets>
+  <div class="example-container">
+    <a-scene
+      mindar-image="imageTargetSrc: ./assets/band-example/band.mind; showStats: true; autoStart: false; maxTrack: 1"
+      embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+      <a-assets>
+        <a-asset-item id="bearModel" src="./assets/band-example/bear/scene.gltf"></a-asset-item>
+        <a-asset-item id="raccoonModel" src="./assets/band-example/raccoon/scene.gltf"></a-asset-item>
+      </a-assets>
 
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity mindar-image-target="targetIndex: 0">
-          <a-gltf-model rotation="90 0 0 " position="0 0 0" scale="0.05 0.05 0.05" src="#raccoonModel" animation-mixer>
-        </a-entity>
-        <a-entity mindar-image-target="targetIndex: 1">
-          <a-gltf-model rotation="90 0 0 " position="0 0 0" scale="0.05 0.05 0.05" src="#bearModel" animation-mixer>
-        </a-entity>
-      </a-scene>
-    </div>
-  </body>
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-gltf-model rotation="90 0 0 " position="0 0 0" scale="0.05 0.05 0.05" src="#raccoonModel" animation-mixer>
+      </a-entity>
+      <a-entity mindar-image-target="targetIndex: 1">
+        <a-gltf-model rotation="90 0 0 " position="0 0 0" scale="0.05 0.05 0.05" src="#bearModel" animation-mixer>
+      </a-entity>
+    </a-scene>
+  </div>
+</body>
+
 </html>

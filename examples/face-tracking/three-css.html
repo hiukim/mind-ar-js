@@ -14,8 +14,8 @@
 
     <script type="module">
       import { CSS3DObject } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/renderers/CSS3DRenderer.js';
-
-      const THREE = window.MINDAR.FACE.THREE;
+      import * as THREE from 'three';
+      //const THREE = window.MINDAR.FACE.THREE;
       const mindarThree = new window.MINDAR.FACE.MindARThree({
 	container: document.querySelector("#container"),
       });
