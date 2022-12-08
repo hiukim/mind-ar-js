@@ -1,47 +1,62 @@
 <html>
-  <head>
-    <script src="../../dist-dev/mindar-face-three.js" type="module"></script>
 
-    <script type="module">
-      const THREE = window.MINDAR.FACE.THREE;
-      const mindarThree = new window.MINDAR.FACE.MindARThree({
-	container: document.querySelector("#container"),
+<head>
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.136.0/build/three.module.js",
+        "mindar-face-three":"../../dist-dev/mindar-face-three.js"
+      }
+    }
+  </script>
+  <script src="../../dist-dev/mindar-face-three.js" type="module"></script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import {MindARThree} from 'mindar-face-three';
+    const mindarThree = new window.MINDAR.FACE.MindARThree({
+      container: document.querySelector("#container"),
+    });
+    const { renderer, scene, camera } = mindarThree;
+
+    const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+    scene.add(light);
+
+    const faceMesh = mindarThree.addFaceMesh();
+    const texture = new THREE.TextureLoader().load('./assets/canonical_face_model_uv_visualization.png');
+    faceMesh.material.map = texture;
+    faceMesh.material.transparent = true;
+    faceMesh.material.needsUpdate = true;
+    scene.add(faceMesh);
+
+    const start = async () => {
+      await mindarThree.start();
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
       });
-      const {renderer, scene, camera} = mindarThree;
+    }
+    start();
+  </script>
 
-      const light = new THREE.HemisphereLight( 0xffffff, 0xbbbbff, 1 );
-      scene.add(light);
+  <style>
+    body {
+      margin: 0;
+    }
 
-      const faceMesh = mindarThree.addFaceMesh();
-      const texture = new THREE.TextureLoader().load('./assets/canonical_face_model_uv_visualization.png');
-      faceMesh.material.map = texture;
-      faceMesh.material.transparent = true;
-      faceMesh.material.needsUpdate = true;
-      scene.add(faceMesh);
+    #container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+  </style>
+</head>
 
-      const start = async() => {
-	await mindarThree.start();
-	renderer.setAnimationLoop(() => {
-	  renderer.render(scene, camera);
-	});
-      }
-      start();
-    </script>
+<body>
+  <div id="container">
+  </div>
+</body>
 
-    <style>
-      body {
-	margin: 0;
-      }
-      #container {
-	width: 100vw;
-	height: 100vh;
-	position: relative;
-	overflow: hidden;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="container">
-    </div>
-  </body>
 </html>

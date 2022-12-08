@@ -2,6 +2,8 @@ import { Scene, WebGLRenderer, PerspectiveCamera, sRGBEncoding, Mesh, MeshStanda
 import { CSS3DRenderer } from '../libs/CSS3DRenderer.js';
 import { Controller } from "./controller.js";
 import { UI } from "../ui/ui.js";
+import {BufferGeometry,BufferAttribute} from "three";
+const THREE={BufferGeometry,BufferAttribute};
 
 export class MindARThree {
   constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null}) {

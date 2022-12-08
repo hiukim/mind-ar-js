@@ -1,7 +1,8 @@
-const {Controller, UI} = window.MINDAR.FACE;
-
+//const {Controller, UI} = window.MINDAR.FACE;
+import {Controller,UI} from './index.js'
 const THREE = AFRAME.THREE;
-
+const needsDOMRefresh=document.readyState === 'complete'||document.readyState=='interactive';
+//console.log("Registering custom AFRAME stuff. Needs Refresh:",needsDOMRefresh,document.readyState);
 AFRAME.registerSystem('mindar-face-system', {
   container: null,
   video: null,
@@ -314,3 +315,15 @@ AFRAME.registerComponent('mindar-face-default-face-occluder', {
     this.el.setObject3D('mesh', mesh);
   },
 });
+
+/*
+This is a hack.
+If the user's browser has cached A-Frame,
+then A-Frame will process the webpage *before* the system and components get registered.
+Resulting in a blank page. This happens because module loading is deferred. 
+*/
+if(needsDOMRefresh){
+  console.log("mindar-face-aframe::Refreshing DOM...")
+  document.body.innerHTML=document.body.innerHTML;
+}
+

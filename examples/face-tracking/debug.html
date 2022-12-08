@@ -1,6 +1,6 @@
 <html>
   <head>
-    <script src="../../dist-dev/mindar-face.js"></script>
+    <script src="../../dist-dev/mindar-face.js" type="module"></script>
     <script>
       const loadImage = async (src) => {
 	return new Promise((resolve, reject) => {
@@ -11,11 +11,11 @@
       };
     </script>
 
-    <script>
+    <script type="module">
       const process = async() => {
 	const queryImage = await loadImage('./assets/face1.jpeg');
 	
-	const controller = new MINDAR.FACE.Controller();
+	const controller = new window.MINDAR.FACE.Controller({});
 	await controller.setup();
 	controller.setInputSize(queryImage.width, queryImage.height);
 	controller.setDisplaySize(queryImage.width, queryImage.height);
