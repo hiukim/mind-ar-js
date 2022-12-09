@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --config vite.config.dev.js",
     "watch": "vite build --watch --config vite.config.dev.js",
-    "build-dev": "node vite.build.dev.mjs",
-    "build": "node vite.build.prod.mjs"
+    "build-dev": "vite build --config vite.config.dev.js",
+    "build": "vite build --config vite.config.prod.js"
   },
   "engines": {
     "node": ">=14.0.0"
