@@ -1,1 +1,0 @@
-"use strict";Object.defineProperties(exports,{__esModule:{value:!0},[Symbol.toStringTag]:{value:"Module"}});const o=require("./controller.692152fa.cjs"),r=require("./ui.b39aa37a.cjs"),e={Controller:o.Controller,UI:r.UI};window.MINDAR||(window.MINDAR={});window.MINDAR.FACE=e;exports.e=e;
