@@ -1,6 +1,6 @@
-import {Register as RegisterWebgl} from'./webgl/index.js';
-import {Register as RegisterCpu} from './cpu/index.js';
+import './webgl/index.js';
+import './cpu/index.js';
 
 
-RegisterCpu();
-RegisterWebgl();
+
+

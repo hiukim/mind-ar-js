@@ -11,9 +11,9 @@ import { extract } from './tracker/extract.js';
 const CURRENT_VERSION = 2;
 
 class Compiler {
-  constructor(offline = false) {
+  constructor(avoidWorker = false) {
     this.data = null;
-    this.isOffline = offline
+    this.avoidWorker = avoidWorker
   }
 
   // input html Images
@@ -64,7 +64,7 @@ class Compiler {
       // compute tracking data with worker: 50% progress
       const compileTrack = () => {
         return new Promise((resolve, reject) => {
-          if (this.isOffline) {
+          if (this.avoidWorker) {
             const percentPerImage = 50.0 / targetImages.length;
             let percent = 0.0;
             const list = [];
