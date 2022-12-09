@@ -286,7 +286,7 @@ If the user's browser has cached A-Frame,
 then A-Frame will process the webpage *before* the system and components get registered.
 Resulting in a blank page. This happens because module loading is deferred. 
 */
-if(needsDOMRefresh){
+/* if(needsDOMRefresh){
   console.log("mindar-face-aframe::Refreshing DOM...")
   document.body.innerHTML=document.body.innerHTML;
-}
+} */
