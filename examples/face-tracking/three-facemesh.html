@@ -11,12 +11,12 @@
       }
     }
   </script>
-  <script src="../../dist-dev/mindar-face-three.js" type="module"></script>
+  
 
   <script type="module">
     import * as THREE from 'three';
     import {MindARThree} from 'mindar-face-three';
-    const mindarThree = new window.MINDAR.FACE.MindARThree({
+    const mindarThree = new MindARThree({
       container: document.querySelector("#container"),
     });
     const { renderer, scene, camera } = mindarThree;
