@@ -6,15 +6,18 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://unpkg.com/three@0.136.0/build/three.module.js"
+      "three": "https://unpkg.com/three@0.136.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.136.0/examples/jsm/",
+      "mindar-face-three":"../../dist-dev/mindar-face-three.js"
     }
   }
 </script>
-  <script src="../../dist-dev/mindar-face-three.js" type="module"></script>
+  
 
   <script type="module">
     import * as THREE from 'three';
-    const mindarThree = new window.MINDAR.FACE.MindARThree({
+    import {MindARThree} from 'mindar-face-three';
+    const mindarThree = new MindARThree({
       container: document.querySelector("#container"),
       filterMinCF: 0.001,
       filterBeta: 10,

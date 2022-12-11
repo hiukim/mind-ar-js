@@ -6,18 +6,19 @@
       {
         "imports": {
           "three": "https://unpkg.com/three@0.136.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.136.0/examples/jsm/"
+          "three/addons/": "https://unpkg.com/three@0.136.0/examples/jsm/",
+          "mindar-face-three":"../../dist-dev/mindar-face-three.js"
         }
       }
     </script>
-    <script src="../../dist-dev/mindar-face-three.js" type="module"></script>
+ 
 
     <script type="module">
-      //import { CSS3DObject } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/renderers/CSS3DRenderer.js';
-
+ 
       import * as THREE from "three";
+      import {MindARThree} from 'mindar-face-three';
       import {CSS3DObject} from "three/addons/renderers/CSS3DRenderer.js"
-      const mindarThree = new window.MINDAR.FACE.MindARThree({
+      const mindarThree = new MindARThree({
 	container: document.querySelector("#container"),
       });
       const {renderer, cssRenderer, cssScene, camera} = mindarThree;

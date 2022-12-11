@@ -18,13 +18,18 @@ const moduleConfig={
             formats:['es']
         },
         rollupOptions:{
-            external:['three','three/examples/jsm/'],
+            external:(id)=>(id==='three'||id.includes('three/examples/jsm/')||id.includes('three/addons/')),
             input:{
                 'mindar-image': './src/image-target/index.js',
                 'mindar-image-three': './src/image-target/three.js',
                 'mindar-face': './src/face-target/index.js',
                 'mindar-face-three': './src/face-target/three.js',
             }
+        },
+    },
+    resolve:{
+        alias:{
+            'three/addons/':'three/examples/jsm/'
         }
     }
 };
