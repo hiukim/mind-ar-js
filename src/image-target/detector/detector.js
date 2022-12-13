@@ -107,10 +107,8 @@ class Detector {
 		// compute the orientation angle for each pruned extremas
 		const extremaHistogramsT = this._computeOrientationHistograms(prunedExtremasT, pyramidImagesT);
 
-		const extremaAnglesT = tf.tidy(() => {
-			const smoothedHistogramsT = this._smoothHistograms(extremaHistogramsT);
-			return this._computeExtremaAngles(smoothedHistogramsT);
-		});
+		const smoothedHistogramsT = this._smoothHistograms(extremaHistogramsT);
+		const extremaAnglesT = this._computeExtremaAngles(smoothedHistogramsT);
 
 		// to compute freak descriptors, we first find the pixel value of 37 freak points for each extrema 
 		const extremaFreaksT = this._computeExtremaFreak(pyramidImagesT, prunedExtremasT, extremaAnglesT);
@@ -138,7 +136,7 @@ class Detector {
 		extremasResultsT.forEach((t) => t.dispose());
 		prunedExtremasT.dispose();
 		extremaHistogramsT.dispose();
-		//smoothedHistogramsT.dispose();
+		smoothedHistogramsT.dispose();
 		extremaAnglesT.dispose();
 		extremaFreaksT.dispose();
 		freakDescriptorsT.dispose();
