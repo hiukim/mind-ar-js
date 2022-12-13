@@ -5,6 +5,7 @@ import * as msgpack from '@msgpack/msgpack';
 import * as tf from '@tensorflow/tfjs';
 import { createCanvas } from 'canvas'
 import { extract } from './tracker/extract.js';
+import CompilerWorker  from "./compiler.worker.js?worker&inline";
 
 // TODO: better compression method. now grey image saved in pixels, which could be larger than original image
 
@@ -83,7 +84,8 @@ class Compiler {
             }
             resolve(list);
           } else {
-            const worker = new Worker(new URL('./compiler.worker.js', import.meta.url));
+            //const worker = new Worker(new URL('./compiler.worker.js', import.meta.url));
+	    const worker = new CompilerWorker();
             worker.onmessage = (e) => {
               if (e.data.type === 'progress') {
                 progressCallback(50 + e.data.percent);
