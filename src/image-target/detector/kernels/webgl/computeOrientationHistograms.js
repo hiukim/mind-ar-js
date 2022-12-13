@@ -114,8 +114,9 @@ export const computeOrientationHistograms=(args)=>{
     const [program1,program2]=GetPrograms(prunedExtremasT, radialPropertiesT,pyramidImagesLength);
     
     const result1 = backend.runWebGLProgram(program1, [...gaussianImagesT, prunedExtremasT, radialPropertiesT],radialPropertiesT.dtype);
-	return backend.runWebGLProgram(program2, [result1],radialPropertiesT.dtype);
-    
+    const result2 = backend.runWebGLProgram(program2, [result1],radialPropertiesT.dtype);
+    backend.disposeIntermediateTensorInfo(result1);
+    return result2;
 }
 
 export const computeOrientationHistogramsConfig={

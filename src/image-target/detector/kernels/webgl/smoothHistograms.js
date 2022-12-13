@@ -37,7 +37,11 @@ export const smoothHistograms=(args)=>{
 
     const program = GetProgram(histograms);
     for (let i = 0; i < ORIENTATION_SMOOTHING_ITERATIONS; i++) {
+        const _histograms = histograms;
         histograms = backend.runWebGLProgram(program,[histograms],histograms.dtype);//this._compileAndRun(program, [histograms]);
+      	if (i > 0) {
+	  backend.disposeIntermediateTensorInfo(_histograms);
+	}
     }
     return histograms;
     

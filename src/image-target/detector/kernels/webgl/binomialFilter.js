@@ -58,7 +58,9 @@ export const binomialFilter = (args) =>{//{inputs: UnaryInputs, backend: MathBac
   const[kernel1,kernel2]=GetKernels(image);
   
   const result1=backend.runWebGLProgram(kernel1,[image],image.dtype);
-  return backend.runWebGLProgram(kernel2,[result1],image.dtype);  
+  const result2=backend.runWebGLProgram(kernel2,[result1],image.dtype);  
+  backend.disposeIntermediateTensorInfo(result1);
+  return result2;
 }
 
 
