@@ -1,4 +1,4 @@
-const tf = require('@tensorflow/tfjs');
+import * as tf from '@tensorflow/tfjs';
 
 // More efficient implementation for tf.browser.fromPixels
 //   original implementation: /node_modules/@tensorflow/tfjs-backend-webgl/src/kernels/FromPixels.ts
@@ -82,6 +82,6 @@ class InputLoader {
   }
 }
 
-module.exports = {
+export {
   InputLoader
 };

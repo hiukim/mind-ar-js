@@ -65,6 +65,6 @@ class OneEuroFilter {
   }
 }
 
-module.exports = {
+export {
   OneEuroFilter
 }

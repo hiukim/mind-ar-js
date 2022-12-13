@@ -1,19 +1,18 @@
-const cv = require("../libs/opencv.js");
-
+import {cv} from './opencv.js'
 let initialized = false;
 
 const _cv = {};
 
 const waitResolves = [];
 
-const waitCV = async() => {
+export const waitCV = async() => {
   if (initialized) return true;
   return new Promise((resolve, reject) => {
     waitResolves.push(resolve);
   });
 }
 
-cv.then((target) => {
+cv().then((target) => {
   initialized = true;
   Object.assign(_cv, target);
   waitResolves.forEach((resolve) => {
@@ -21,7 +20,5 @@ cv.then((target) => {
   });
 });
 
-module.exports = {
-  cv: _cv,
-  waitCV,
-}
+export const opencv=_cv;
+//module.exports={waitCV,opencv}

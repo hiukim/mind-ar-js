@@ -1,4 +1,4 @@
-const {Matrix, inverse} = require('ml-matrix');
+import {Matrix, inverse} from 'ml-matrix';
 
 const solveHomography = (srcPoints, dstPoints) => {
   const {normPoints: normSrcPoints, param: srcParam} = _normalizePoints(srcPoints);
@@ -144,6 +144,6 @@ const _denormalizeHomography = (nH, srcParam, dstParam) => {
   return H;
 }
 
-module.exports = {
+export {
   solveHomography
 }

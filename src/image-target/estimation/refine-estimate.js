@@ -1,5 +1,5 @@
-const {Matrix, inverse} = require('ml-matrix');
-const {normalizePoints, applyModelViewProjectionTransform, buildModelViewProjectionTransform, computeScreenCoordiate} = require('./utils.js');
+import {Matrix, inverse} from 'ml-matrix';
+import { applyModelViewProjectionTransform, buildModelViewProjectionTransform, computeScreenCoordiate} from './utils.js';
 
 const TRACKING_THRESH = 5.0; // default
 const K2_FACTOR = 4.0; // Question: should it be relative to the size of the screen instead of hardcoded?
@@ -297,6 +297,6 @@ const _getJ_U_S = ({modelViewProjectionTransform, modelViewTransform, projection
   return J_U_S;
 }
 
-module.exports = {
+export {
   refineEstimate
 }

@@ -1,4 +1,4 @@
-const {match} = require('./matching');
+import {match} from './matching.js';
 
 class Matcher {
   constructor(queryWidth, queryHeight, debugMode = false) {
@@ -46,6 +46,6 @@ class Matcher {
   }
 }
 
-module.exports = {
+export {
   Matcher
 }

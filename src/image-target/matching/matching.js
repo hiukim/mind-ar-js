@@ -1,8 +1,8 @@
-const TinyQueue = require('tinyqueue').default;
-const {compute: hammingCompute} = require('./hamming-distance.js');
-const {computeHoughMatches} = require('./hough.js');
-const {computeHomography} = require('./ransacHomography.js');
-const {multiplyPointHomographyInhomogenous, matrixInverse33} = require('../utils/geometry.js');
+import TinyQueue from 'tinyqueue';
+import {compute as hammingCompute} from './hamming-distance.js';
+import {computeHoughMatches} from './hough.js';
+import {computeHomography} from './ransacHomography.js';
+import {multiplyPointHomographyInhomogenous, matrixInverse33} from '../utils/geometry.js';
 
 const INLIER_THRESHOLD = 3;
 //const MIN_NUM_INLIERS = 8;  //default
@@ -218,6 +218,6 @@ const _findInlierMatches = (options) => {
   return goodMatches;
 }
 
-module.exports = {
+export {
   match
 }

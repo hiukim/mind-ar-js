@@ -1,10 +1,11 @@
-const tf = require('@tensorflow/tfjs');
-const Worker = require("./controller.worker.js");
-const {Tracker} = require('./tracker/tracker.js');
-const {CropDetector} = require('./detector/crop-detector.js');
-const {Compiler} = require('./compiler.js');
-const {InputLoader} = require('./input-loader.js');
-const {OneEuroFilter} = require('../libs/one-euro-filter.js');
+import {memory,nextFrame} from '@tensorflow/tfjs';
+const tf = {memory,nextFrame};
+import ControllerWorker  from "./controller.worker.js?worker&inline";
+import {Tracker} from './tracker/tracker.js';
+import {CropDetector} from './detector/crop-detector.js';
+import {Compiler} from './compiler.js';
+import {InputLoader} from './input-loader.js';
+import {OneEuroFilter} from '../libs/one-euro-filter.js';
 
 const DEFAULT_FILTER_CUTOFF = 0.001; // 1Hz. time period in milliseconds
 const DEFAULT_FILTER_BETA = 1000;
@@ -52,7 +53,7 @@ class Controller {
       far: far,
     });
 
-    this.worker = new Worker();
+    this.worker = new ControllerWorker()//new Worker(new URL('./controller.worker.js', import.meta.url));
     this.workerMatchDone = null;
     this.workerTrackDone = null;
     this.worker.onmessage = (e) => {
@@ -362,6 +363,6 @@ class Controller {
   }
 }
 
-module.exports = {
+export {
  Controller
 }

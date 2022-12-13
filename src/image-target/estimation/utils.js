@@ -69,7 +69,7 @@ const screenToMarkerCoordinate = (modelViewProjectionTransform, sx, sy) => {
   }
 }
 
-module.exports = {
+export {
   buildModelViewProjectionTransform,
   applyModelViewProjectionTransform,
   computeScreenCoordiate,

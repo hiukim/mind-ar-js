@@ -1,5 +1,5 @@
-const {Matcher} = require('./matching/matcher.js');
-const {Estimator} = require('./estimation/estimator.js');
+import {Matcher} from './matching/matcher.js';
+import {Estimator} from './estimation/estimator.js';
 
 let projectionTransform = null;
 let matchingDataList = null;

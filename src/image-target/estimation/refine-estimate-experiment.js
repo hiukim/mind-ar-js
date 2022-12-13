@@ -8,8 +8,8 @@
  *   I have problem understanding the jacobian and things like that
  *
  */
-const {Matrix, inverse} = require('ml-matrix');
-const {applyModelViewProjectionTransform, buildModelViewProjectionTransform, computeScreenCoordiate} = require('./utils.js');
+import {Matrix, inverse} from 'ml-matrix';
+import {applyModelViewProjectionTransform, buildModelViewProjectionTransform, computeScreenCoordiate} from './utils.js';
 
 const TRACKING_THRESH = 5.0; // default
 const K2_FACTOR = 4.0; // Question: should it be relative to the size of the screen instead of hardcoded?
@@ -413,6 +413,6 @@ const normalizePoints = (coords) => {
   return {normalizedCoords, param: {meanX, meanY, s}};
 }
 
-module.exports = {
+export {
   refineEstimate
 }

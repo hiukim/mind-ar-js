@@ -36,6 +36,6 @@ class Cumsum {
   }
 }
 
-module.exports = {
+export {
   Cumsum
 }

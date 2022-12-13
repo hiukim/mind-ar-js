@@ -1,0 +1,7 @@
+testing/
+examples/
+dist-dev/
+custom_tfjs_config.json
+custom_tfjs/
+vite.config.*
+mind-ar-*.tgz
