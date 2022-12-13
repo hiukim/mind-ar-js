@@ -1,6 +1,5 @@
 <html>
   <head>
-    <script src="../../dist-dev/mindar-image.js"></script>
     <script>
       const loadImage = async (src) => {
 	return new Promise((resolve, reject) => {
@@ -11,11 +10,13 @@
       };
     </script>
 
-    <script>
+    <script type="module">
+      import {Controller} from "../../dist-dev/mindar-image.js";
+
       const process = async() => {
 	const queryImage = await loadImage('./assets/card-example/test-card.png');
 	
-	const controller = new MINDAR.IMAGE.Controller({inputWidth: queryImage.width, inputHeight: queryImage.height});
+	const controller = new window.MINDAR.IMAGE.Controller({inputWidth: queryImage.width, inputHeight: queryImage.height});
 	const {dimensions, matchingDataList, imageListList} = await controller.addImageTargets('./assets/card-example/card.mind');
 
 	const {featurePoints} = await controller.detect(queryImage);
