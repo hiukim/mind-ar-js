@@ -110,6 +110,13 @@ class Controller {
     return {dimensions: dimensions, matchingDataList, trackingDataList};
   }
 
+  dispose() {
+    this.stopProcessVideo();
+    this.worker.postMessage({
+      type: "dispose"
+    });
+  }
+
   // warm up gpu - build kernels is slow
   dummyRun(input) {
     const inputT = this.inputLoader.loadInput(input);
