@@ -1,9 +1,13 @@
 import { Matrix4, Vector3, Quaternion, Scene, WebGLRenderer, PerspectiveCamera, Group, sRGBEncoding } from "three";
 import * as tf from '@tensorflow/tfjs';
-//import { CSS3DRenderer } from '../libs/CSS3DRenderer.js';
-import {CSS3DRenderer} from 'three/addons/renderers/CSS3DRenderer.js'
+import { CSS3DRenderer } from 'three/addons/renderers/CSS3DRenderer.js'
 import { Controller } from "./controller.js";
 import { UI } from "../ui/ui.js";
+import { FilterInterface } from '../libs/filter-interface.js';
+import { OneEuroFilter } from '../libs/one-euro-filter.js'
+import { SmoothDampFilter } from '../libs/smooth-damp-filter.js'
+
+export { FilterInterface, OneEuroFilter, SmoothDampFilter };
 
 const cssScaleDownMatrix = new Matrix4();
 cssScaleDownMatrix.compose(new Vector3(), new Quaternion(), new Vector3(0.001, 0.001, 0.001));
@@ -11,13 +15,14 @@ cssScaleDownMatrix.compose(new Vector3(), new Quaternion(), new Vector3(0.001, 0
 export class MindARThree {
   constructor({
     container, imageTargetSrc, maxTrack, uiLoading = "yes", uiScanning = "yes", uiError = "yes",
-    filterMinCF = null, filterBeta = null, warmupTolerance = null, missTolerance = null
+    filterMinCF = null, filterBeta = null, warmupTolerance = null, missTolerance = null, customFilter = null
   }) {
     this.container = container;
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
     this.filterMinCF = filterMinCF;
     this.filterBeta = filterBeta;
+    this.customFilter = customFilter;
     this.warmupTolerance = warmupTolerance;
     this.missTolerance = missTolerance;
     this.ui = new UI({ uiLoading, uiScanning, uiError });
@@ -115,19 +120,21 @@ export class MindARThree {
     return new Promise(async (resolve, reject) => {
       const video = this.video;
       const container = this.container;
-
+      this.isScanning = true;
+      this.scanState = true;
       this.controller = new Controller({
         inputWidth: video.videoWidth,
         inputHeight: video.videoHeight,
         filterMinCF: this.filterMinCF,
         filterBeta: this.filterBeta,
+        customFilter: this.customFilter,
         warmupTolerance: this.warmupTolerance,
         missTolerance: this.missTolerance,
         maxTrack: this.maxTrack,
         onUpdate: (data) => {
           if (data.type === 'updateMatrix') {
             const { targetIndex, worldMatrix } = data;
-
+            this.isScanning = true;
             for (let i = 0; i < this.anchors.length; i++) {
               if (this.anchors[i].targetIndex === targetIndex) {
                 if (this.anchors[i].css) {
@@ -163,9 +170,17 @@ export class MindARThree {
                 }
 
                 if (worldMatrix !== null) {
-                  this.ui.hideScanning();
+                  //this.ui.hideScanning();
+                  this.isScanning = false;
                 }
               }
+            }
+            if (this.isScanning != this.scanState) {
+              if (this.isScanning)
+                this.ui.showScanning();
+              else
+                this.ui.hideScanning();
+              this.scanState = this.isScanning;
             }
           }
         }
@@ -259,5 +274,4 @@ if (!window.MINDAR.IMAGE) {
 }
 
 window.MINDAR.IMAGE.MindARThree = MindARThree;
-//window.MINDAR.IMAGE.THREE = THREE;
 window.MINDAR.IMAGE.tf = tf;
