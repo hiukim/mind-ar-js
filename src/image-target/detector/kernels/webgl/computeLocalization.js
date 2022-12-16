@@ -50,8 +50,9 @@ export const computeLocalization=(args)=>{
 	const backend = args.backend;
 	const program = GetProgram(dogPyramidImagesT.length,prunedExtremasList.length);
 	const prunedExtremasT = tensor(prunedExtremasList, [prunedExtremasList.length, prunedExtremasList[0].length], 'int32');
-	return backend.runWebGLProgram(program, [...dogPyramidImagesT.slice(1), prunedExtremasT],dogPyramidImagesT[0].dtype);
-	 
+	const result= backend.runWebGLProgram(program, [...dogPyramidImagesT.slice(1), prunedExtremasT],dogPyramidImagesT[0].dtype);
+	backend.disposeIntermediateTensorInfo(prunedExtremasT);
+	return result;
 }
 
 export const computeLocalizationConfig = {//: KernelConfig

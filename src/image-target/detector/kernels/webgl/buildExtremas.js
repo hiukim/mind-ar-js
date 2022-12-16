@@ -99,7 +99,11 @@ export const buildExtremas=(args)=>{
     
     image0=engine().runKernel('DownsampleBilinear',{image:image0});
     image2=engine().runKernel('UpsampleBilinear',{image:image2,targetImage:image1});
-    return backend.runWebGLProgram(program,[image0,image1,image2],image1.dtype);
+    
+    const result= backend.runWebGLProgram(program,[image0,image1,image2],image1.dtype);
+    backend.disposeIntermediateTensorInfo(image0);
+    backend.disposeIntermediateTensorInfo(image2);
+    return result;
 }
 
 export const buildExtremasConfig = {//: KernelConfig
