@@ -53,6 +53,7 @@ AFRAME.registerSystem('mindar-image-system', {
       track.stop();
     });
     this.video.remove();
+    this.controller.dispose();
   },
 
   pause: function(keepVideo=false) {
@@ -229,6 +230,10 @@ AFRAME.registerComponent('mindar-image', {
         arSystem.start();
       });
     }
+  },  
+  remove: function () {
+    const arSystem = this.el.sceneEl.systems['mindar-image-system'];
+    arSystem.stop();
   }
 });
 
