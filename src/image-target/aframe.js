@@ -13,11 +13,13 @@ AFRAME.registerSystem('mindar-image-system', {
   tick: function() {
   },
 
-  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError, missTolerance, warmupTolerance, filterMinCF, filterBeta}) {
+  setup: function({imageTargetSrc, maxTrack, showStats, uiLoading, uiScanning, uiError, missTolerance, warmupTolerance, filterMinCF, filterBeta, stayVisible, stayVisibleScale}) {
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
     this.filterMinCF = filterMinCF;
     this.filterBeta = filterBeta;
+    this.stayVisible = stayVisible;
+    this.stayVisibleScale = stayVisibleScale;
     this.missTolerance = missTolerance;
     this.warmupTolerance = warmupTolerance;
     this.showStats = showStats;
@@ -110,9 +112,11 @@ AFRAME.registerSystem('mindar-image-system', {
     this.controller = new Controller({
       inputWidth: video.videoWidth,
       inputHeight: video.videoHeight,
-      maxTrack: this.maxTrack, 
+      maxTrack: this.maxTrack,
       filterMinCF: this.filterMinCF,
       filterBeta: this.filterBeta,
+      stayVisible: this.stayVisible,
+      stayVisibleScale: this.stayVisibleScale,
       missTolerance: this.missTolerance,
       warmupTolerance: this.warmupTolerance,
       onUpdate: (data) => {
@@ -203,6 +207,8 @@ AFRAME.registerComponent('mindar-image', {
     filterBeta: {type: 'number', default: -1},
     missTolerance: {type: 'int', default: -1},
     warmupTolerance: {type: 'int', default: -1},
+    stayVisible: {type: 'boolean', default: false},
+    stayVisibleScale: {type: 'int', default: 50},
     showStats: {type: 'boolean', default: false},
     autoStart: {type: 'boolean', default: true},
     uiLoading: {type: 'string', default: 'yes'},
@@ -214,12 +220,14 @@ AFRAME.registerComponent('mindar-image', {
     const arSystem = this.el.sceneEl.systems['mindar-image-system'];
 
     arSystem.setup({
-      imageTargetSrc: this.data.imageTargetSrc, 
+      imageTargetSrc: this.data.imageTargetSrc,
       maxTrack: this.data.maxTrack,
       filterMinCF: this.data.filterMinCF === -1? null: this.data.filterMinCF,
       filterBeta: this.data.filterBeta === -1? null: this.data.filterBeta,
       missTolerance: this.data.missTolerance === -1? null: this.data.missTolerance,
       warmupTolerance: this.data.warmupTolerance === -1? null: this.data.warmupTolerance,
+      stayVisible: this.data.stayVisible,
+      stayVisibleScale: this.data.stayVisibleScale,
       showStats: this.data.showStats,
       uiLoading: this.data.uiLoading,
       uiScanning: this.data.uiScanning,
@@ -230,7 +238,7 @@ AFRAME.registerComponent('mindar-image', {
         arSystem.start();
       });
     }
-  },  
+  },
   remove: function () {
     const arSystem = this.el.sceneEl.systems['mindar-image-system'];
     arSystem.stop();

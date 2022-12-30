@@ -13,7 +13,7 @@ const DEFAULT_WARMUP_TOLERANCE = 5;
 const DEFAULT_MISS_TOLERANCE = 5;
 
 class Controller {
-  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1, 
+  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, stayVisible=false, stayVisibleScale=0, maxTrack=1,
     warmupTolerance=null, missTolerance=null, filterMinCF=null, filterBeta=null}) {
 
     this.inputWidth = inputWidth;
@@ -28,6 +28,8 @@ class Controller {
     this.markerDimensions = null;
     this.onUpdate = onUpdate;
     this.debugMode = debugMode;
+    this.stayVisible = stayVisible;
+    this.stayVisibleScale = stayVisibleScale;
     this.processingVideo = false;
     this.interestedTargetIndex = -1;
     this.trackingStates = [];
@@ -173,7 +175,7 @@ class Controller {
 	  return acc + (!!s.isTracking? 1: 0);
 	}, 0);
 
-	// detect and match only if less then maxTrack
+	// detect and match only if less than maxTrack
 	if (nTracking < this.maxTrack) {
 
 	  const matchingIndexes = [];
@@ -196,11 +198,10 @@ class Controller {
 	// tracking update
 	for (let i = 0; i < this.trackingStates.length; i++) {
 	  const trackingState = this.trackingStates[i];
-
-	  if (trackingState.isTracking) {
+	  if (trackingState.isTracking && trackingState.currentModelViewTransform) {
 	    let modelViewTransform = await this._trackAndUpdate(inputT, trackingState.currentModelViewTransform, i);
 	    if (modelViewTransform === null) {
-	      trackingState.isTracking = false;
+            trackingState.isTracking = false;
 	    } else {
 	      trackingState.currentModelViewTransform = modelViewTransform;
 	    }
@@ -218,26 +219,34 @@ class Controller {
 	      }
 	    }
 	  }
-	  
+
 	  // if showing, then count miss, and hide it when reaches tolerance
 	  if (trackingState.showing) {
 	    if (!trackingState.isTracking) {
 	      trackingState.trackCount = 0;
 	      trackingState.trackMiss += 1;
-
-	      if (trackingState.trackMiss > this.missTolerance) {
-		trackingState.showing = false;
-		trackingState.trackingMatrix = null;
-		this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
+	      if (trackingState.trackMiss > this.missTolerance && !this.stayVisible) {
+            trackingState.showing = false;
+            trackingState.trackingMatrix = null;
+            this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
 	      }
 	    } else {
 	      trackingState.trackMiss = 0;
 	    }
 	  }
-	  
+
 	  // if showing, then call onUpdate, with world matrix
 	  if (trackingState.showing) {
-	    const worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
+          let worldMatrix;
+	      if (trackingState.trackMiss <= this.missTolerance){
+              worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
+          }
+          else {
+              const dimensions = this.markerDimensions[i];
+              worldMatrix = [
+                1, 0, 0, 0, 0, 1, 0, 0, -0, -0, 1, 0, -dimensions[0] / 2, -dimensions[1] / 2, -(dimensions[0] * dimensions[1]) / (100 + this.stayVisibleScale), 1
+              ];
+          }
 	    trackingState.trackingMatrix = trackingState.filter.filter(Date.now(), worldMatrix);
 
 	    const clone = [];
@@ -307,7 +316,7 @@ class Controller {
   _glModelViewMatrix(modelViewTransform, targetIndex) {
     const height = this.markerDimensions[targetIndex][1];
 
-    // Question: can someone verify this interpreation is correct? 
+    // Question: can someone verify this interpreation is correct?
     // I'm not very convinced, but more like trial and error and works......
     //
     // First, opengl has y coordinate system go from bottom to top, while the marker corrdinate goes from top to bottom,
@@ -318,7 +327,7 @@ class Controller {
     //    [0 -1  0  h]
     //    [0  0 -1  0]
     //    [0  0  0  1]
-    //    
+    //
     //    This is tested that if we reverse marker coordinate from bottom to top and estimate the modelViewTransform,
     //    then the above matrix is not necessary.
     //
