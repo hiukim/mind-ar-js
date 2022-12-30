@@ -124,11 +124,11 @@ AFRAME.registerSystem('mindar-image-system', {
 	  if (this.mainStats) this.mainStats.update();
 	}
 	else if (data.type === 'updateMatrix') {
-	  const {targetIndex, worldMatrix} = data;
+	  const {targetIndex, worldMatrix, targetPresent} = data;
 
 	  for (let i = 0; i < this.anchorEntities.length; i++) {
 	    if (this.anchorEntities[i].targetIndex === targetIndex) {
-	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix, );
+	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix, targetPresent);
 	      if (worldMatrix) {
 		this.ui.hideScanning();
 	      }
@@ -261,6 +261,8 @@ AFRAME.registerComponent('mindar-image-target', {
     const root = this.el.object3D;
     root.visible = false;
     root.matrixAutoUpdate = false;
+
+    this.targetPresentPrevious = false;
   },
 
   setupMarker([markerWidth, markerHeight]) {
@@ -276,11 +278,13 @@ AFRAME.registerComponent('mindar-image-target', {
     this.postMatrix.compose(position, quaternion, scale);
   },
 
-  updateWorldMatrix(worldMatrix) {
-    if (!this.el.object3D.visible && worldMatrix !== null) {
+  updateWorldMatrix(worldMatrix, targetPresent) {
+    if (this.targetPresentPrevious === false && targetPresent === true) {
       this.el.emit("targetFound");
-    } else if (this.el.object3D.visible && worldMatrix === null) {
+      this.targetPresentPrevious = true;
+    } else if (this.targetPresentPrevious === true && targetPresent === false) {
       this.el.emit("targetLost");
+      this.targetPresentPrevious = false;
     }
 
     this.el.object3D.visible = worldMatrix !== null;

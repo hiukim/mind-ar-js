@@ -237,15 +237,17 @@ class Controller {
 
 	  // if showing, then call onUpdate, with world matrix
 	  if (trackingState.showing) {
-          let worldMatrix;
+          let worldMatrix, targetPresent;
 	      if (trackingState.trackMiss <= this.missTolerance){
               worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
+              targetPresent = true;
           }
           else {
               const dimensions = this.markerDimensions[i];
               worldMatrix = [
                 1, 0, 0, 0, 0, 1, 0, 0, -0, -0, 1, 0, -dimensions[0] / 2, -dimensions[1] / 2, -(dimensions[0] * dimensions[1]) / (100 + this.stayVisibleScale), 1
               ];
+              targetPresent = false;
           }
 	    trackingState.trackingMatrix = trackingState.filter.filter(Date.now(), worldMatrix);
 
@@ -253,7 +255,7 @@ class Controller {
 	    for (let j = 0; j < trackingState.trackingMatrix.length; j++) {
 	      clone[j] = trackingState.trackingMatrix[j];
 	    }
-	    this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
+	    this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone, targetPresent: targetPresent});
 	  }
 	}
 
