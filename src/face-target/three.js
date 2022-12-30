@@ -223,13 +223,3 @@ export class MindARThree {
     cssCanvas.style.transform = 'scale(' + (vw / parseFloat(cssCanvas.style.width)) + ',' + (vh / parseFloat(cssCanvas.style.height)) + ')';
   }
 }
-
-if (!window.MINDAR) {
-  window.MINDAR = {};
-}
-if (!window.MINDAR.FACE) {
-  window.MINDAR.FACE = {};
-}
-
-window.MINDAR.FACE.MindARThree = MindARThree;
-//window.MINDAR.FACE.THREE = THREE;

@@ -250,14 +250,3 @@ export class MindARThree {
     cssRenderer.setSize(container.clientWidth, container.clientHeight);
   }
 }
-
-if (!window.MINDAR) {
-  window.MINDAR = {};
-}
-if (!window.MINDAR.IMAGE) {
-  window.MINDAR.IMAGE = {};
-}
-
-window.MINDAR.IMAGE.MindARThree = MindARThree;
-//window.MINDAR.IMAGE.THREE = THREE;
-window.MINDAR.IMAGE.tf = tf;

@@ -6,11 +6,4 @@ const e = {
   UI
 }
 
-if (!window.MINDAR) {
-  window.MINDAR = {};
-}
-
-window.MINDAR.FACE = e;
-
-
 export {Controller,UI}
