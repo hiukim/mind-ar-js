@@ -206,10 +206,9 @@ class Controller {
 	      trackingState.currentModelViewTransform = modelViewTransform;
 	    }
 	  }
-
 	  // if not showing, then show it once it reaches warmup number of frames
 	  if (!trackingState.showing) {
-	    if (trackingState.isTracking) {
+	    if (trackingState.isTracking || this.stayVisible) {
 	      trackingState.trackMiss = 0;
 	      trackingState.trackCount += 1;
 	      if (trackingState.trackCount > this.warmupTolerance) {
@@ -228,17 +227,16 @@ class Controller {
 	      if (trackingState.trackMiss > this.missTolerance && !this.stayVisible) {
             trackingState.showing = false;
             trackingState.trackingMatrix = null;
-            this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
+            this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null, targetPresent: false});
 	      }
 	    } else {
 	      trackingState.trackMiss = 0;
 	    }
 	  }
-
 	  // if showing, then call onUpdate, with world matrix
 	  if (trackingState.showing) {
           let worldMatrix, targetPresent;
-	      if (trackingState.trackMiss <= this.missTolerance){
+	      if (trackingState.trackMiss <= this.missTolerance && trackingState.isTracking){
               worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
               targetPresent = true;
           }
