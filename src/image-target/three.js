@@ -32,7 +32,7 @@ export class MindARThree {
     this.renderer.outputEncoding = sRGBEncoding;
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.camera = new PerspectiveCamera();
-    this.targetPresentPrevious = false;
+    this.targetPresentBefore = false;
     this.anchors = [];
 
     this.renderer.domElement.style.position = 'absolute';
@@ -154,21 +154,21 @@ export class MindARThree {
                   this.anchors[i].group.matrix = m;
                 }
 
-                if (this.targetPresentPrevious === true && targetPresent === false) {
+                if (this.targetPresentBefore === true && targetPresent === false) {
                   this.anchors[i].visible = false;
                   console.log(this.anchors[i].onTargetFound);
                   if (this.anchors[i].onTargetLost) {
                     this.anchors[i].onTargetLost();
-                    this.targetPresentPrevious = false;
+                    this.targetPresentBefore = false;
                   }
                 }
 
-                if (!this.targetPresentPrevious === false && targetPresent === true) {
+                if (!this.targetPresentBefore === false && targetPresent === true) {
                   this.anchors[i].visible = true;
                   console.log(this.anchors[i].onTargetFound);
                   if (this.anchors[i].onTargetFound) {
                     this.anchors[i].onTargetFound();
-                    this.targetPresentPrevious = true;
+                    this.targetPresentBefore = true;
                   }
                 }
 

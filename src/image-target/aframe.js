@@ -262,7 +262,7 @@ AFRAME.registerComponent('mindar-image-target', {
     root.visible = false;
     root.matrixAutoUpdate = false;
 
-    this.targetPresentPrevious = false;
+    this.targetPresentBefore = false;
   },
 
   setupMarker([markerWidth, markerHeight]) {
@@ -279,12 +279,12 @@ AFRAME.registerComponent('mindar-image-target', {
   },
 
   updateWorldMatrix(worldMatrix, targetPresent) {
-    if (this.targetPresentPrevious === false && targetPresent === true) {
+    if (this.targetPresentBefore === false && targetPresent === true) {
       this.el.emit("targetFound");
-      this.targetPresentPrevious = true;
-    } else if (this.targetPresentPrevious === true && targetPresent === false) {
+      this.targetPresentBefore = true;
+    } else if (this.targetPresentBefore === true && targetPresent === false) {
       this.el.emit("targetLost");
-      this.targetPresentPrevious = false;
+      this.targetPresentBefore = false;
     }
 
     this.el.object3D.visible = worldMatrix !== null;
