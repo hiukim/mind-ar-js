@@ -236,12 +236,12 @@ class Controller {
 	  // if showing, then call onUpdate, with world matrix
 	  if (trackingState.showing) {
           let worldMatrix, targetPresent;
-	      if (trackingState.trackMiss <= this.missTolerance && trackingState.currentModelViewTransform){
+	      if (trackingState.trackMiss <= this.missTolerance && trackingState.currentModelViewTransform) {
               worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
               targetPresent = true;
           }
-          else {
-              // if !isTracking, use "fake" worldMatrix that centers objects on the screen
+          else if (this.stayVisible) {
+              // if target is not present and stayVisible is true, use "fake" worldMatrix that centers objects on the screen
               const dimensions = this.markerDimensions[i];
               worldMatrix = [
                 1, 0, 0, 0, 0, 1, 0, 0, -0, -0, 1, 0, -dimensions[0] / 2, -dimensions[1] / 2,
