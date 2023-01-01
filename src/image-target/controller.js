@@ -235,7 +235,7 @@ class Controller {
 	  }
 	  // if showing, then call onUpdate, with world matrix
 	  if (trackingState.showing) {
-          let worldMatrix, targetPresent;
+          let worldMatrix = [], targetPresent;
 	      if (trackingState.trackMiss <= this.missTolerance && trackingState.currentModelViewTransform) {
               worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
               targetPresent = true;
