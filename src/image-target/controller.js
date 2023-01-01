@@ -241,9 +241,11 @@ class Controller {
               targetPresent = true;
           }
           else {
+              // if !isTracking, use "fake" worldMatrix that centers objects on the screen
               const dimensions = this.markerDimensions[i];
               worldMatrix = [
-                1, 0, 0, 0, 0, 1, 0, 0, -0, -0, 1, 0, -dimensions[0] / 2, -dimensions[1] / 2, -(dimensions[0] * dimensions[1]) / (100 + this.stayVisibleScale), 1
+                1, 0, 0, 0, 0, 1, 0, 0, -0, -0, 1, 0, -dimensions[0] / 2, -dimensions[1] / 2,
+                -(dimensions[0] * dimensions[1]) / (100 + this.stayVisibleScale), 1
               ];
               targetPresent = false;
           }
