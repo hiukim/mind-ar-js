@@ -11,13 +11,16 @@ cssScaleDownMatrix.compose(new Vector3(), new Quaternion(), new Vector3(0.001, 0
 export class MindARThree {
   constructor({
     container, imageTargetSrc, maxTrack, uiLoading = "yes", uiScanning = "yes", uiError = "yes",
-    filterMinCF = null, filterBeta = null, warmupTolerance = null, missTolerance = null
+    filterMinCF = null, filterBeta = null, warmupTolerance = null, missTolerance = null,
+    stayVisible = false, stayVisibleScale = 50,
   }) {
     this.container = container;
     this.imageTargetSrc = imageTargetSrc;
     this.maxTrack = maxTrack;
     this.filterMinCF = filterMinCF;
     this.filterBeta = filterBeta;
+    this.stayVisible = stayVisible;
+    this.stayVisibleScale = stayVisibleScale;
     this.warmupTolerance = warmupTolerance;
     this.missTolerance = missTolerance;
     this.ui = new UI({ uiLoading, uiScanning, uiError });
@@ -29,6 +32,7 @@ export class MindARThree {
     this.renderer.outputEncoding = sRGBEncoding;
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.camera = new PerspectiveCamera();
+    this.targetPresentBefore = false;
     this.anchors = [];
 
     this.renderer.domElement.style.position = 'absolute';
@@ -121,12 +125,14 @@ export class MindARThree {
         inputHeight: video.videoHeight,
         filterMinCF: this.filterMinCF,
         filterBeta: this.filterBeta,
+        stayVisible: this.stayVisible,
+        stayVisibleScale: this.stayVisibleScale,
         warmupTolerance: this.warmupTolerance,
         missTolerance: this.missTolerance,
         maxTrack: this.maxTrack,
         onUpdate: (data) => {
           if (data.type === 'updateMatrix') {
-            const { targetIndex, worldMatrix } = data;
+            const { targetIndex, worldMatrix, targetPresent } = data;
 
             for (let i = 0; i < this.anchors.length; i++) {
               if (this.anchors[i].targetIndex === targetIndex) {
@@ -148,21 +154,23 @@ export class MindARThree {
                   this.anchors[i].group.matrix = m;
                 }
 
-                if (this.anchors[i].visible && worldMatrix === null) {
+                if (this.targetPresentBefore === true && targetPresent === false) {
                   this.anchors[i].visible = false;
                   if (this.anchors[i].onTargetLost) {
                     this.anchors[i].onTargetLost();
+                    this.targetPresentBefore = false;
                   }
                 }
 
-                if (!this.anchors[i].visible && worldMatrix !== null) {
+                if (!this.targetPresentBefore === false && targetPresent === true) {
                   this.anchors[i].visible = true;
                   if (this.anchors[i].onTargetFound) {
                     this.anchors[i].onTargetFound();
+                    this.targetPresentBefore = true;
                   }
                 }
 
-                if (worldMatrix !== null) {
+                if (worldMatrix !== null && !this.stayVisible) {
                   this.ui.hideScanning();
                 }
               }
@@ -193,7 +201,7 @@ export class MindARThree {
 
       await this.controller.dummyRun(this.video);
       this.ui.hideLoading();
-      this.ui.showScanning();
+      if (!this.stayVisible) this.ui.showScanning();
 
       this.controller.processVideo(this.video);
       resolve();
