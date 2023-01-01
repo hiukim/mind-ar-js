@@ -129,8 +129,8 @@ AFRAME.registerSystem('mindar-image-system', {
 	  for (let i = 0; i < this.anchorEntities.length; i++) {
 	    if (this.anchorEntities[i].targetIndex === targetIndex) {
 	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix, targetPresent);
-	      if (worldMatrix) {
-		this.ui.hideScanning();
+	      if (worldMatrix && !this.stayVisible) {
+              this.ui.hideScanning();
 	      }
 	    }
 	  }
@@ -153,7 +153,7 @@ AFRAME.registerSystem('mindar-image-system', {
     await this.controller.dummyRun(this.video);
     this.el.emit("arReady");
     this.ui.hideLoading();
-    this.ui.showScanning();
+    if (!this.stayVisible) this.ui.showScanning();
 
     this.controller.processVideo(this.video);
   },
