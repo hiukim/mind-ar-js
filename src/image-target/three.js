@@ -156,7 +156,6 @@ export class MindARThree {
 
                 if (this.targetPresentBefore === true && targetPresent === false) {
                   this.anchors[i].visible = false;
-                  console.log(this.anchors[i].onTargetFound);
                   if (this.anchors[i].onTargetLost) {
                     this.anchors[i].onTargetLost();
                     this.targetPresentBefore = false;
@@ -165,7 +164,6 @@ export class MindARThree {
 
                 if (!this.targetPresentBefore === false && targetPresent === true) {
                   this.anchors[i].visible = true;
-                  console.log(this.anchors[i].onTargetFound);
                   if (this.anchors[i].onTargetFound) {
                     this.anchors[i].onTargetFound();
                     this.targetPresentBefore = true;
