@@ -13,7 +13,7 @@ const DEFAULT_WARMUP_TOLERANCE = 5;
 const DEFAULT_MISS_TOLERANCE = 5;
 
 class Controller {
-  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, stayVisible=false, stayVisibleScale=0, maxTrack=1,
+  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, stayVisible=false, stayVisibleScale=50, maxTrack=1,
     warmupTolerance=null, missTolerance=null, filterMinCF=null, filterBeta=null}) {
 
     this.inputWidth = inputWidth;
