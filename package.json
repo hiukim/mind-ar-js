@@ -1,6 +1,6 @@
 {
-  "name": "@roelvanhintum/mind-ar",
-  "version": "1.0.0",
+  "name": "mind-ar",
+  "version": "1.2.0",
   "description": "web augmented reality framework",
   "main": "index.js",
   "scripts": {
