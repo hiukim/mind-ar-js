@@ -4,6 +4,17 @@ import * as path from 'path';
 
 const outDir = 'dist-dev'
 
+const externalMatcher = (id)=> (
+    id.indexOf('@mediapipe/face_mesh') === 0
+    ||id.indexOf('@msgpack/msgpack') === 0
+    ||id.indexOf('@tensorflow/tfjs') === 0
+    ||id.indexOf('canvas') === 0
+    ||id.indexOf('ml-matrix') === 0
+    ||id.indexOf('svd-js') === 0
+    ||id.indexOf('three') === 0
+    ||id.indexOf('tinyqueue') === 0
+);
+
 const moduleConfig={
     mode: 'development',
     assetsInclude:'**/*.html',
@@ -19,7 +30,7 @@ const moduleConfig={
             formats:['es']
         },
         rollupOptions:{
-            external:(id)=>(id==='three'||id.includes('three/examples/jsm/')||id.includes('three/addons/')),
+            external:externalMatcher,
             input:{
                 'mindar-image': './src/image-target/index.js',
                 'mindar-image-three': './src/image-target/three.js',
@@ -47,6 +58,7 @@ const faceAframeConfig=defineConfig({
             formats:['iife']
         },
         rollupOptions:{
+            external:externalMatcher,
             input:{
                 'mindar-face-aframe': './src/face-target/aframe.js',
             },
@@ -69,6 +81,7 @@ const imageAframeConfig=defineConfig({
 
         },
         rollupOptions:{
+            external:externalMatcher,
             input:{
                 'mindar-image-aframe': './src/image-target/aframe.js'
             }

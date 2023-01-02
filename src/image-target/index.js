@@ -7,13 +7,3 @@ export {
   Compiler,
   UI
 }
-
-if (!window.MINDAR) {
-  window.MINDAR = {};
-}
-
-window.MINDAR.IMAGE = {
-  Controller, 
-  Compiler,
-  UI
-};

@@ -1,4 +1,3 @@
-//const {Controller, UI} = window.MINDAR.FACE;
 import {Controller,UI} from './index.js'
 const THREE = AFRAME.THREE;
 const needsDOMRefresh=document.readyState === 'complete'||document.readyState=='interactive';
