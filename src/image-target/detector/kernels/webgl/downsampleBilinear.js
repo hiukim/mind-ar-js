@@ -5,9 +5,9 @@ const cache={};
  * @returns {GPGPUProgram}
  */
 function GetProgram(image){
-    const imageHeight = image.shape[0];
     const imageWidth = image.shape[1];
-    const kernelKey = 'w' + imageWidth;
+    const imageHeight = image.shape[0];
+    const kernelKey = 'w' + imageWidth + "h" + imageHeight;
     if(!cache.hasOwnProperty(kernelKey)){
         const kernel = {
             variableNames: ['p'],
