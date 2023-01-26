@@ -17,7 +17,7 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { MindARThree,SmoothDampFilter } from 'mindar-image-three';
+        import { MindARThree,SmoothDampFilter,OneEuroFilter } from 'mindar-image-three';
         import GUI from 'three/addons/libs/lil-gui.module.min.js'
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         //const THREE = window.MINDAR.IMAGE.THREE;
@@ -76,7 +76,7 @@
             mindarThree = new MindARThree({
                 container: document.querySelector("#container"),
                 imageTargetSrc: './assets/card-example/card.mind',
-                customFilter:{opts:{minCutOff: 1, beta: 10000}}
+                customFilter:{filter:OneEuroFilter,opts:{minCutOff: 1, beta: 10000}}
             });
             Setup(mindarThree);
             await mindarThree.start();
