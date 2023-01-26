@@ -7,6 +7,7 @@ const outDir = 'dist-dev'
 const moduleConfig={
     mode: 'development',
     assetsInclude:'**/*.html',
+    base:'./',
     plugins:[],
     build: {
         outDir: outDir,

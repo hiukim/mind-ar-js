@@ -8,6 +8,7 @@ const outDir = 'dist'
 const moduleConfig= defineConfig({
     mode: 'production',
     publicDir:false,
+    base:'./',
     build: {
         outDir:outDir,
         emptyOutDir:false,
