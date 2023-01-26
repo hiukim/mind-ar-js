@@ -17,6 +17,7 @@ export class SmoothDampFilter extends FilterInterface {
         this.smoothTime = Math.max(smoothTime, 0.0001);
         this.maxSpeed = maxSpeed;
         this.maxChange = this.maxSpeed * this.smoothTime;
+        this.negMaxChange=-1.0*this.maxChange
         this.omega = 2.0 / smoothTime;
         this.lastTime = 0;
         this.initialized = false;
@@ -32,12 +33,10 @@ export class SmoothDampFilter extends FilterInterface {
      */
     filter(timestamp, target) {
         //this.current is updated with the new matrix everytime
-        //but we copy to output as a safe reference 
-        const output = []
         if (!this.initialized) {
             this.currentVelocity= target.map(()=>0);//this.currentVelocity.fill(0, 0, target.length);
             this.current=target.map((value)=>{return value;});
-            output.push(...target);
+            //output.push(...target);
             this.initialized = true;
         } else {
             const deltaTime = (timestamp - this.lastTime)*0.001;
@@ -45,10 +44,12 @@ export class SmoothDampFilter extends FilterInterface {
             const x = this.omega * deltaTime;
             const exp = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x);
 
-            for (let i = 0; i < target.length; i++) {
-                let change = this.current[i] - target[i];
-                const originalTo = target[i];
-                change = Math.min(Math.max(change, -1 * this.maxChange), this.maxChange);
+            //for (let i = 0; i < target.length; i++) {
+            target.forEach((value,i)=>{
+                const originalTo = value;
+                //clamp the change between negative and positive max change
+                const change = Math.min(Math.max(this.current[i] - value, this.negMaxChange), this.maxChange);
+                
                 const _target = this.current[i] - change;
 
                 const temp = (this.currentVelocity[i] + this.omega * change) * deltaTime;
@@ -60,44 +61,10 @@ export class SmoothDampFilter extends FilterInterface {
                     this.currentVelocity[i] = (out - originalTo) / deltaTime;
                 }
                 this.current[i] = out;
-                output.push(out);
-            }
+            });
         }
         this.lastTime = timestamp;
-        return output;
+        return this.current;
     }
 }
 
-/*
-
-ublic static float SmoothDamp(float current, float target, ref float currentVelocity, float smoothTime, [uei.DefaultValue("Mathf.Infinity")]  float maxSpeed, [uei.DefaultValue("Time.deltaTime")]  float deltaTime)
-        {
-            // Based on Game Programming Gems 4 Chapter 1.10
-            smoothTime = Mathf.Max(0.0001F, smoothTime);
-            float omega = 2F / smoothTime;
-
-            float x = omega * deltaTime;
-            float exp = 1F / (1F + x + 0.48F * x * x + 0.235F * x * x * x);
-            float change = current - target;
-            float originalTo = target;
-
-            // Clamp maximum speed
-            float maxChange = maxSpeed * smoothTime;
-            change = Mathf.Clamp(change, -maxChange, maxChange);
-            target = current - change;
-
-            float temp = (currentVelocity + omega * change) * deltaTime;
-            currentVelocity = (currentVelocity - omega * temp) * exp;
-            float output = target + (change + temp) * exp;
-
-            // Prevent overshooting
-            if (originalTo - current > 0.0F == output > originalTo)
-            {
-                output = originalTo;
-                currentVelocity = (output - originalTo) / deltaTime;
-            }
-
-            return output;
-        }
-
-*/
