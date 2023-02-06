@@ -1,4 +1,4 @@
-const {uvs, faces} = require("./face-data.js");
+import {uvs, faces} from "./face-data.js";
 
 const nLandmarks = uvs.length;
 
@@ -36,6 +36,6 @@ const createThreeFaceGeometry = (THREE) => {
   return new FaceGeometry();
 }
 
-module.exports = {
+export {
   createThreeFaceGeometry
 }

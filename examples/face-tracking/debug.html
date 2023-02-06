@@ -1,6 +1,5 @@
 <html>
   <head>
-    <script src="../../dist-dev/mindar-face.js"></script>
     <script>
       const loadImage = async (src) => {
 	return new Promise((resolve, reject) => {
@@ -11,20 +10,17 @@
       };
     </script>
 
-    <script>
+    <script type="module">
+      import {Controller} from "../../dist-dev/mindar-face.js";
+
       const process = async() => {
 	const queryImage = await loadImage('./assets/face1.jpeg');
 	
-	const controller = new MINDAR.FACE.Controller();
-	await controller.setup();
-	controller.setInputSize(queryImage.width, queryImage.height);
-	controller.setDisplaySize(queryImage.width, queryImage.height);
+	const controller = new Controller({});
+	await controller.setup(queryImage);
 
-	const hasFace = await controller.detect(queryImage);
-	console.log("detected face", hasFace, controller.faceGeometry);
-
-	const landmark = controller.getLandmarkProperties(0);
-	console.log("landmark", landmark);
+	const result = await controller.faceMeshHelper.detect(queryImage);
+	console.log("result", result);
       }
       process();
     </script>

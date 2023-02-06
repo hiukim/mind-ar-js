@@ -179,16 +179,19 @@ Whatever you can think of. It's an opensource web AR framework for everyone!
 #### Directories explained
 
 1. `/src` folder contains majority of the source code
-2. `/dist` folder contains the built library
-3. `/examples` folder contains examples to test out during development
+2. `/examples` folder contains examples to test out during development
 
 #### To create a production build
 
-run `> npm run build`. `mindar-XXX.prod.js` and `mindar-XXX-aframe.propd.js will be generated for each tracking type.
+run `> npm run build`. the build will be generated in `dist` folder
 
 #### For development
 
-run `> npm run watch`. This will observe the file changes in `src` folder and continuously build a `mindar-XXX.js` and `mindar-XXX-aframe` inside the `dist-dev` folder. The examples inside the `examples` folder is using this development build. You can open this examples in browser to start debug/development. 
+To develop threeJS version, run `> npm run watch`. This will observe the file changes in `src` folder and continuously build the artefacts in `dist-dev`.
+
+To develop AFRAME version, you will need to run `>npm run build-dev` everytime you make changes. The `--watch` parameter currently failed to automatically generate `mindar-XXX-aframe.js`. 
+
+All the examples in the `examples` folder is configured to use this development build, so you can open those examples in browser to start debugging or development.
 
 The examples should run in desktop browser and they are just html files, so it's easy to start development. However, because it requires camera access, so you need a webcam. Also, you need to run the html file with some localhost web server. Simply opening the files won't work.
 

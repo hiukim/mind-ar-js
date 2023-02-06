@@ -1,5 +1,5 @@
-const {Matrix, inverse} = require('ml-matrix');
-const {solveHomography} = require('../utils/homography');
+import {Matrix, inverse} from 'ml-matrix';
+import {solveHomography} from '../utils/homography.js';
 
 // build world matrix with list of matching worldCoords|screenCoords
 //
@@ -61,6 +61,6 @@ const estimate = ({screenCoords, worldCoords, projectionTransform}) => {
   return initialModelViewTransform;
 };
 
-module.exports = {
+export {
   estimate
 }

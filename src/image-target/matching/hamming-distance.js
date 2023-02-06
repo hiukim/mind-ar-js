@@ -20,6 +20,6 @@ const bitCount = (v) => {
   return c;
 }
 
-module.exports = {
+export {
   compute
 };

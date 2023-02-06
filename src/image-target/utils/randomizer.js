@@ -27,7 +27,6 @@ const createRandomizer = () => {
   }
   return randomizer;
 }
-
-module.exports = {
+export {
   createRandomizer
 }

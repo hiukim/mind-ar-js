@@ -1,5 +1,5 @@
-const tf = require('@tensorflow/tfjs');
-const {buildModelViewProjectionTransform, computeScreenCoordiate} = require('../estimation/utils.js');
+import * as tf from '@tensorflow/tfjs';
+import {buildModelViewProjectionTransform, computeScreenCoordiate} from '../estimation/utils.js';
 
 const AR2_DEFAULT_TS = 6;
 const AR2_DEFAULT_TS_GAP = 1;
@@ -342,6 +342,6 @@ class Tracker {
   }
 }
 
-module.exports = {
+export {
   Tracker
 };
