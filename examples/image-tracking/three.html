@@ -34,7 +34,7 @@
     const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.5 });
     const plane = new THREE.Mesh(geometry, material);
     anchor.group.add(plane);
-
+    
     const start = async () => {
       await mindarThree.start();
       renderer.setAnimationLoop(() => {
@@ -46,6 +46,8 @@
     startButton.addEventListener("click", () => {
       start();
     });
+    
+    const stopButton = document.querySelector("#stopButton");
     stopButton.addEventListener("click", () => {
       mindarThree.stop();
       mindarThree.renderer.setAnimationLoop(null);
@@ -65,10 +67,10 @@
     }
 
     #control {
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
-      z-index: 2;
+      z-index: 3;
     }
   </style>
 </head>
