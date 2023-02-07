@@ -1,4 +1,4 @@
-import { extract } from './tracker/extract.js';
+import { extractTrackingFeatures } from './tracker/extract-utils.js';
 import { buildTrackingImageList } from './image-list.js';
 
 onmessage = (msg) => {
@@ -6,7 +6,7 @@ onmessage = (msg) => {
   if (data.type === 'compile') {
     //console.log("worker compile...");
     const { targetImages } = data;
-    const percentPerImage = 50.0 / targetImages.length;
+    const percentPerImage = 100.0 / targetImages.length;
     let percent = 0.0;
     const list = [];
     for (let i = 0; i < targetImages.length; i++) {
@@ -15,7 +15,7 @@ onmessage = (msg) => {
       const percentPerAction = percentPerImage / imageList.length;
 
       //console.log("compiling tracking...", i);
-      const trackingData = _extractTrackingFeatures(imageList, (index) => {
+      const trackingData = extractTrackingFeatures(imageList, (index) => {
         //console.log("done tracking", i, index);
         percent += percentPerAction
         postMessage({ type: 'progress', percent });
@@ -28,24 +28,3 @@ onmessage = (msg) => {
     });
   }
 };
-
-const _extractTrackingFeatures = (imageList, doneCallback) => {
-  const featureSets = [];
-  for (let i = 0; i < imageList.length; i++) {
-    const image = imageList[i];
-    const points = extract(image);
-
-    const featureSet = {
-      data: image.data,
-      scale: image.scale,
-      width: image.width,
-      height: image.height,
-      points,
-    };
-    featureSets.push(featureSet);
-
-    doneCallback(i);
-  }
-  return featureSets;
-}
-
