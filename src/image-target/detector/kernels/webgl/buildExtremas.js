@@ -12,9 +12,9 @@ const EDGE_HESSIAN_THRESHOLD = ((EDGE_THRESHOLD+1) * (EDGE_THRESHOLD+1) / EDGE_T
 const cache={};
 function GetProgram(image){
   const imageWidth = image.shape[1];
-  const kernelKey = 'w' + imageWidth;
+  const imageHeight = image.shape[0];
+  const kernelKey = 'w' + imageWidth + "h" + imageHeight;
   if(!cache.hasOwnProperty(kernelKey)){
-    const imageHeight=image.shape[0];
     const kernel = {
       variableNames: ['image0', 'image1', 'image2'],
       outputShape: [imageHeight, imageWidth],
