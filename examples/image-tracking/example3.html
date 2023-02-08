@@ -51,6 +51,10 @@
           console.log("target lost");
         });
 
+        exampleTarget.addEventListener("targetUpdate", event => {
+          console.log("target position update");
+        });
+
 
 	loadingOverlay.style.display = "block";
 	controlOverlay.style.display = "block";

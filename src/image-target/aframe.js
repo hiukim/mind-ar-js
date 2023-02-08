@@ -277,6 +277,7 @@ AFRAME.registerComponent('mindar-image-target', {
   },
 
   updateWorldMatrix(worldMatrix) {
+    this.el.emit("targetUpdate");
     if (!this.el.object3D.visible && worldMatrix !== null) {
       this.el.emit("targetFound");
     } else if (this.el.object3D.visible && worldMatrix === null) {

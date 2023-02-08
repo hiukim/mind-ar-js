@@ -58,7 +58,7 @@ export class MindARThree {
     const group = new Group();
     group.visible = false;
     group.matrixAutoUpdate = false;
-    const anchor = { group, targetIndex, onTargetFound: null, onTargetLost: null, css: false, visible: false };
+    const anchor = { group, targetIndex, onTargetFound: null, onTargetLost: null, onTargetUpdate: null, css: false, visible: false };
     this.anchors.push(anchor);
     this.scene.add(group);
     return anchor;
@@ -68,7 +68,7 @@ export class MindARThree {
     const group = new Group();
     group.visible = false;
     group.matrixAutoUpdate = false;
-    const anchor = { group, targetIndex, onTargetFound: null, onTargetLost: null, css: true, visible: false };
+    const anchor = { group, targetIndex, onTargetFound: null, onTargetLost: null, onTargetUpdate: null, css: true, visible: false };
     this.anchors.push(anchor);
     this.cssScene.add(group);
     return anchor;
@@ -160,6 +160,10 @@ export class MindARThree {
                   if (this.anchors[i].onTargetFound) {
                     this.anchors[i].onTargetFound();
                   }
+                }
+                
+                if (this.anchors[i].onTargetUpdate) {
+                  this.anchors[i].onTargetUpdate();
                 }
               }
             }
