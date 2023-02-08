@@ -125,11 +125,17 @@ AFRAME.registerSystem('mindar-image-system', {
 	  for (let i = 0; i < this.anchorEntities.length; i++) {
 	    if (this.anchorEntities[i].targetIndex === targetIndex) {
 	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix, );
-	      if (worldMatrix) {
-		this.ui.hideScanning();
-	      }
 	    }
-	  }
+    }
+
+    let isAnyVisible = this.anchorEntities.reduce((acc, entity) => {
+      return acc || entity.el.el.object3D.visible;
+    }, false);
+    if (isAnyVisible) {
+      this.ui.hideScanning();
+    } else {
+      this.ui.showScanning();
+    }
 	}
       }
     });

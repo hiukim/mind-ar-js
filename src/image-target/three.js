@@ -161,11 +161,16 @@ export class MindARThree {
                     this.anchors[i].onTargetFound();
                   }
                 }
-
-                if (worldMatrix !== null) {
-                  this.ui.hideScanning();
-                }
               }
+            }
+
+            let isAnyVisible = this.anchors.reduce((acc, anchor) => {
+              return acc || anchor.visible;
+            }, false);
+            if (isAnyVisible) {
+              this.ui.hideScanning();
+            } else {
+              this.ui.showScanning();
             }
           }
         }
