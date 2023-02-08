@@ -256,6 +256,8 @@ AFRAME.registerComponent('mindar-image-target', {
     const arSystem = this.el.sceneEl.systems['mindar-image-system'];
     arSystem.registerAnchor(this, this.data.targetIndex);
 
+    this.invisibleMatrix = new AFRAME.THREE.Matrix4(0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1);
+
     const root = this.el.object3D;
     root.visible = false;
     root.matrixAutoUpdate = false;
@@ -283,6 +285,7 @@ AFRAME.registerComponent('mindar-image-target', {
 
     this.el.object3D.visible = worldMatrix !== null;
     if (worldMatrix === null) {
+      this.el.object3D.matrix = this.invisibleMatrix;
       return;
     }
     var m = new AFRAME.THREE.Matrix4();
