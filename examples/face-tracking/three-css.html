@@ -31,6 +31,7 @@
 	height: 100vh;
 	position: relative;
 	overflow: hidden;
+        transform: scaleX(-1);
       }
       #ar-div {
 	width: 1000px;
@@ -44,6 +45,9 @@
 	align-items: center;
 	color: white;
       }
+      #ar-div > div {
+        transform: scaleX(-1);
+      }
     </style>
   </head>
   <body>
@@ -51,7 +55,9 @@
     </div>
 
     <div id="ar-div">
-      This is a CSS div
+      <div>
+        This is a CSS div
+      </div>
     </div>
   </body>
 </html>
