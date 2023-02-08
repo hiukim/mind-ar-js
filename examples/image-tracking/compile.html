@@ -8,11 +8,11 @@
     -->
 
     <script type="module">
-      import {Compiler} from "../../dist-dev/mindar-image.js";
+			import { Compiler } from "../../src/image-target/compiler.js";
 
       Dropzone.autoDiscover = false;
       //document.getElementById('mindar-module').onload=()=>{
-      const compiler = new window.MINDAR.IMAGE.Compiler();
+      const compiler = new Compiler();
 
       const download = (buffer) => {
         var blob = new Blob([buffer]);
