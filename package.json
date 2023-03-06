@@ -1,6 +1,6 @@
 {
   "name": "mind-ar",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "web augmented reality framework",
   "main": "index.js",
   "scripts": {
