@@ -10,7 +10,7 @@ const exponentialSmoothing = (a, x, xPrev) => {//4
 }
 
 class OneEuroFilter {
-  constructor({ minCutOff, beta }) {
+  constructor({ minCutOff=0.001, beta=1 }) {
     this.minCutOff = minCutOff;
     this.beta = beta;
     this.dCutOff = 0.001; // period in milliseconds, so default to 0.001 = 1Hz

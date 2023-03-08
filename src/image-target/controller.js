@@ -6,14 +6,14 @@ import { CropDetector } from './detector/crop-detector.js';
 import { Compiler } from './compiler.js';
 import { InputLoader } from './input-loader.js';
 import { OneEuroFilter } from '../libs/one-euro-filter.js';
-import { SmoothDampFilter } from '../libs/smooth-damp-filter.js'
+
 
 const DEFAULT_FILTER_CUTOFF = 0.001; // 1Hz. time period in milliseconds
 const DEFAULT_FILTER_BETA = 1000;
 const DEFAULT_WARMUP_TOLERANCE = 5;
 const DEFAULT_MISS_TOLERANCE = 5;
 
-const DEFAULT_FILTER={filter:SmoothDampFilter} //,opts:{minCutOff: DEFAULT_FILTER_CUTOFF, beta: DEFAULT_FILTER_BETA} //old settings from One Euro Filter
+const DEFAULT_FILTER={filter:OneEuroFilter,opts:{minCutOff: DEFAULT_FILTER_CUTOFF, beta: DEFAULT_FILTER_BETA}}; //old settings from One Euro Filter
 
 class Controller {
   constructor({ inputWidth, inputHeight, onUpdate = null, debugMode = false, maxTrack = 1,
