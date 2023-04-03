@@ -106,13 +106,18 @@ AFRAME.registerSystem('mindar-image-system', {
   _startAR: async function() {
     const video = this.video;
     const container = this.container;
-
+    const minCutOff=this.filterMinCF;
+    const beta=this.filterBeta;
     this.controller = new Controller({
       inputWidth: video.videoWidth,
       inputHeight: video.videoHeight,
       maxTrack: this.maxTrack, 
-      filterMinCF: this.filterMinCF,
-      filterBeta: this.filterBeta,
+      customFilter:{
+        opts:{
+          minCutOff,
+          beta
+        }
+      },
       missTolerance: this.missTolerance,
       warmupTolerance: this.warmupTolerance,
       onUpdate: (data) => {
