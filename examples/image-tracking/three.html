@@ -2,22 +2,11 @@
 
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.136.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.136.0/examples/jsm/",
-      "mindar-image-three":"../../dist-dev/mindar-image-three.js"
-    }
-  }
-</script>
-  <!-- <script src="../../dist-dev/mindar-image-three.js" type="module"></script> -->
 
   <script type="module">
     import * as THREE from 'three';
-    import { MindARThree } from 'mindar-image-three';
+    //import { MindARThree } from 'mindar-image-three';
+    import { MindARThree } from "../../src/image-target/three.js";
     //const THREE = window.MINDAR.IMAGE.THREE;
     const mindarThree = new MindARThree({
       container: document.querySelector("#container"),
@@ -34,7 +23,7 @@
     const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.5 });
     const plane = new THREE.Mesh(geometry, material);
     anchor.group.add(plane);
-
+    
     const start = async () => {
       await mindarThree.start();
       renderer.setAnimationLoop(() => {
@@ -46,6 +35,8 @@
     startButton.addEventListener("click", () => {
       start();
     });
+    
+    const stopButton = document.querySelector("#stopButton");
     stopButton.addEventListener("click", () => {
       mindarThree.stop();
       mindarThree.renderer.setAnimationLoop(null);
@@ -65,10 +56,10 @@
     }
 
     #control {
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
-      z-index: 2;
+      z-index: 3;
     }
   </style>
 </head>

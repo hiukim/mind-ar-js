@@ -125,11 +125,17 @@ AFRAME.registerSystem('mindar-image-system', {
 	  for (let i = 0; i < this.anchorEntities.length; i++) {
 	    if (this.anchorEntities[i].targetIndex === targetIndex) {
 	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix, );
-	      if (worldMatrix) {
-		this.ui.hideScanning();
-	      }
 	    }
-	  }
+    }
+
+    let isAnyVisible = this.anchorEntities.reduce((acc, entity) => {
+      return acc || entity.el.el.object3D.visible;
+    }, false);
+    if (isAnyVisible) {
+      this.ui.hideScanning();
+    } else {
+      this.ui.showScanning();
+    }
 	}
       }
     });
@@ -250,6 +256,8 @@ AFRAME.registerComponent('mindar-image-target', {
     const arSystem = this.el.sceneEl.systems['mindar-image-system'];
     arSystem.registerAnchor(this, this.data.targetIndex);
 
+    this.invisibleMatrix = new AFRAME.THREE.Matrix4(0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1);
+
     const root = this.el.object3D;
     root.visible = false;
     root.matrixAutoUpdate = false;
@@ -269,6 +277,7 @@ AFRAME.registerComponent('mindar-image-target', {
   },
 
   updateWorldMatrix(worldMatrix) {
+    this.el.emit("targetUpdate");
     if (!this.el.object3D.visible && worldMatrix !== null) {
       this.el.emit("targetFound");
     } else if (this.el.object3D.visible && worldMatrix === null) {
@@ -277,6 +286,7 @@ AFRAME.registerComponent('mindar-image-target', {
 
     this.el.object3D.visible = worldMatrix !== null;
     if (worldMatrix === null) {
+      this.el.object3D.matrix = this.invisibleMatrix;
       return;
     }
     var m = new AFRAME.THREE.Matrix4();

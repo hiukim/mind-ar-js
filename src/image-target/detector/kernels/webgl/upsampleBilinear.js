@@ -2,12 +2,13 @@ import {MathBackendWebGL} from '@tensorflow/tfjs-backend-webgl';
 
 const cache={};
 function GetProgram(image,targetImage){
-    const imageWidth = image.shape[1];
-    const kernelKey = 'w' + imageWidth;
+    const targetImageWidth = targetImage.shape[1];
+    const targetImageHeight = targetImage.shape[0];
+    const kernelKey = 'w' + targetImageWidth + "h" + targetImageHeight;
     if(!cache.hasOwnProperty(kernelKey)){
         const kernel = {
             variableNames: ['p'],
-            outputShape: [targetImage.shape[0], targetImage.shape[1]],
+            outputShape: [targetImageHeight, targetImageWidth],
             userCode: `
               void main() {
                 ivec2 coords = getOutputCoords();

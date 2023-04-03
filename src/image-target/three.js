@@ -63,7 +63,7 @@ export class MindARThree {
     const group = new Group();
     group.visible = false;
     group.matrixAutoUpdate = false;
-    const anchor = { group, targetIndex, onTargetFound: null, onTargetLost: null, css: false, visible: false };
+    const anchor = { group, targetIndex, onTargetFound: null, onTargetLost: null, onTargetUpdate: null, css: false, visible: false };
     this.anchors.push(anchor);
     this.scene.add(group);
     return anchor;
@@ -73,7 +73,7 @@ export class MindARThree {
     const group = new Group();
     group.visible = false;
     group.matrixAutoUpdate = false;
-    const anchor = { group, targetIndex, onTargetFound: null, onTargetLost: null, css: true, visible: false };
+    const anchor = { group, targetIndex, onTargetFound: null, onTargetLost: null, onTargetUpdate: null, css: true, visible: false };
     this.anchors.push(anchor);
     this.cssScene.add(group);
     return anchor;
@@ -168,19 +168,20 @@ export class MindARThree {
                     this.anchors[i].onTargetFound();
                   }
                 }
-
-                if (worldMatrix !== null) {
-                  //this.ui.hideScanning();
-                  this.isScanning = false;
+                
+                if (this.anchors[i].onTargetUpdate) {
+                  this.anchors[i].onTargetUpdate();
                 }
               }
             }
-            if (this.isScanning != this.scanState) {
-              if (this.isScanning)
-                this.ui.showScanning();
-              else
-                this.ui.hideScanning();
-              this.scanState = this.isScanning;
+
+            let isAnyVisible = this.anchors.reduce((acc, anchor) => {
+              return acc || anchor.visible;
+            }, false);
+            if (isAnyVisible) {
+              this.ui.hideScanning();
+            } else {
+              this.ui.showScanning();
             }
           }
         }

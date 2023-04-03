@@ -8,9 +8,9 @@ const cache={};
  */
 function GetKernels(image){
   const imageWidth = image.shape[1];
-  const key = 'w' + imageWidth;
+  const imageHeight = image.shape[0];
+  const key = 'w' + imageWidth + "h" + imageHeight;
   if(!cache.hasOwnProperty(key)){
-    const imageHeight = image.shape[0];
     const kernel1 = {
       variableNames: ['p'],
       outputShape: [imageHeight, imageWidth],

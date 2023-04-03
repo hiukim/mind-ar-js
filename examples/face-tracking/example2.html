@@ -4,10 +4,9 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+    <script src="../../src/face-target/aframe.js" type="module"></script>
     
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="../../dist-dev/mindar-face-aframe.js"></script>
-
     <script>
       document.addEventListener("DOMContentLoaded", function() {
 	const list = ["glasses1", "glasses2", "hat1", "hat2", "earring"];
@@ -44,6 +43,7 @@
         position: absolute;
         width: 100%;
         height: 100%;
+        transform: scaleX(-1);
       }
       .options-panel {
 	position: fixed;
@@ -90,7 +90,7 @@
 
 	<!-- head occluder -->
         <a-entity mindar-face-target="anchorIndex: 168">
-	  <a-gltf-model mindar-face-occluder position="0 -0.3 0.15"rotation="0 0 0" scale="0.065 0.065 0.065" src="#headModel"></a-gltf-model>
+	  <a-gltf-model mindar-face-occluder position="0 -0.3 0.15" rotation="0 0 0" scale="0.065 0.065 0.065" src="#headModel"></a-gltf-model>
         </a-entity>
 
         <a-entity mindar-face-target="anchorIndex: 10">
