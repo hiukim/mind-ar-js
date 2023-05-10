@@ -1,10 +1,12 @@
-import { OfflineCompiler } from '../../src/image-target/offline-compiler.js';
+import { OfflineCompiler } from './offline-compiler.js';
 
 import { writeFile } from 'fs/promises'
 import { loadImage } from 'canvas';
 
+console.time('execution time');
+
 //canvas.loadImage treats path as relative from where nodejs was executed, not relative to the script's location
-const imagePaths = ['examples/image-tracking/assets/card-example/card.png'];
+const imagePaths = ['../../../examples/image-tracking/assets/card-example/card.png'];
 
 async function run() {
     //load all images
@@ -13,6 +15,7 @@ async function run() {
     await compiler.compileImageTargets(images, console.log);
     const buffer = compiler.exportData();
     await writeFile('targets.mind', buffer);
+    console.timeEnd('execution time');
 }
 
 

@@ -1,0 +1,16 @@
+{
+  "name": "mind-ar-node-canvas",
+  "version": "1.0.0",
+  "description": "Create image target library using nodejs",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "hiukim",
+  "license": "MIT",
+  "dependencies": {
+    "canvas": "^2.11.2"
+  }
+}

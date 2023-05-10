@@ -1,0 +1,16 @@
+{
+  "name": "mind-ar-puppetier",
+  "version": "1.0.0",
+  "description": "Create image target library using nodejs and puppetier",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Linas Ozeraitis",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^20.1.2"
+  }
+}
