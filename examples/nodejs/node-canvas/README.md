@@ -1,0 +1,2 @@
+## Example script how to create offline .mind target files
+A original version of generating .mind files using node (previously was `examples/nodejs/createImageTargetLibrary.js`) now in it's own package.

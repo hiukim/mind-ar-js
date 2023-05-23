@@ -1,8 +1,8 @@
-import {CompilerBase} from './compiler-base.js'
-import { buildTrackingImageList } from './image-list.js';
-import { extractTrackingFeatures } from './tracker/extract-utils.js';
+import {CompilerBase} from '../../../src/image-target/compiler-base.js'
+import { buildTrackingImageList } from '../../../src/image-target/image-list.js';
+import { extractTrackingFeatures } from '../../../src/image-target/tracker/extract-utils.js';
 import { createCanvas } from 'canvas'
-import './detector/kernels/cpu/index.js'
+import '../../../src/image-target/detector/kernels/cpu/index.js'
 
 export class OfflineCompiler extends CompilerBase {
   createProcessCanvas(img) {
