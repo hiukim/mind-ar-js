@@ -21,6 +21,19 @@ MindAR is the only actively maintained web AR SDK which offer comparable feature
   <tbody>
     <tr>
       <td valign="top">
+        <h2>Unity WebAR Foundation</h2>
+        <p>
+          <a href="https://assetstore.unity.com/packages/tools/integration/webar-foundation-250806">WebAR Foundation</a> is a unity package that allows Unity developer to build WebGL-platform AR applications. It acts as a Unity Plugin that wraps around popular Web SDK.
+        </p>
+        <p>
+          If you are a Unity developer, check it out! <a href="https://github.com/hiukim/unity-webar-foundation" target="_blank">https://github.com/hiukim/unity-webar-foundation</a>
+        </p>
+        <p>
+      </td>
+      <td><img src="https://user-images.githubusercontent.com/459126/240146462-c7c2559d-cde9-43cd-846a-cf490ce99bb3.png" border="10"/></td>
+    </tr>
+    <tr>
+      <td valign="top">
         <h2>Web AR Development Course</h2>
         <p>I'm offering a WebAR development course in Udemy. It's a very comprehensive guide to Web AR development, not limited to MindAR.</p>
         <p>Check it out if you are interested: <a target="_blank" href="https://www.udemy.com/course/introduction-to-web-ar-development/?referralCode=D2565F4CA6D767F30D61">https://www.udemy.com/course/introduction-to-web-ar-development/?referralCode=D2565F4CA6D767F30D61</a></p>
@@ -40,7 +53,7 @@ MindAR is the only actively maintained web AR SDK which offer comparable feature
         </p>
       </td>
       <td><img src="https://www.mindar.org/content/images/2022/07/screenshot.png" border="10"/></td>
-    </tr>
+    </tr>    
     <tr>
       <td valign="top">
         <h2>Pictarize</h2>
