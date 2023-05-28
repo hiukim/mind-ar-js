@@ -7,7 +7,9 @@ import {BufferGeometry,BufferAttribute} from "three";
 const THREE={BufferGeometry,BufferAttribute};
 
 export class MindARThree {
-  constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null}) {
+  constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null,
+    userDeviceId = null, environmentDeviceId = null
+  }) {
     this.container = container;
     this.ui = new UI({ uiLoading, uiScanning, uiError });
 
@@ -22,6 +24,8 @@ export class MindARThree {
     this.renderer.outputEncoding = sRGBEncoding;
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.camera = new PerspectiveCamera();
+    this.userDeviceId = userDeviceId;
+    this.environmentDeviceId = environmentDeviceId;
 
     this.anchors = [];
     this.faceMeshes = [];
@@ -102,11 +106,25 @@ export class MindARThree {
         return;
       }
 
-      navigator.mediaDevices.getUserMedia({
-        audio: false, video: {
-          facingMode: (this.shouldFaceUser ? 'face' : 'environment'),
+      const constraints = {
+        audio: false,
+        video: {}
+      };
+      if (this.shouldFaceUser) {
+        if (this.userDeviceId) {
+          constraints.video.deviceId = { exact: this.userDeviceId };
+        } else {
+          constraints.video.facingMode = 'user';
         }
-      }).then((stream) => {
+      } else {
+        if (this.environmentDeviceId) {
+          constraints.video.deviceId = { exact: this.environmentDeviceId };
+        } else {
+          constraints.video.facingMode = 'environment';
+        }
+      }
+
+      navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         this.video.addEventListener('loadedmetadata', () => {
           this.video.setAttribute('width', this.video.videoWidth);
           this.video.setAttribute('height', this.video.videoHeight);

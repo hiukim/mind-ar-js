@@ -11,7 +11,8 @@ cssScaleDownMatrix.compose(new Vector3(), new Quaternion(), new Vector3(0.001, 0
 export class MindARThree {
   constructor({
     container, imageTargetSrc, maxTrack, uiLoading = "yes", uiScanning = "yes", uiError = "yes",
-    filterMinCF = null, filterBeta = null, warmupTolerance = null, missTolerance = null
+    filterMinCF = null, filterBeta = null, warmupTolerance = null, missTolerance = null,
+    userDeviceId = null, environmentDeviceId = null
   }) {
     this.container = container;
     this.imageTargetSrc = imageTargetSrc;
@@ -21,6 +22,10 @@ export class MindARThree {
     this.warmupTolerance = warmupTolerance;
     this.missTolerance = missTolerance;
     this.ui = new UI({ uiLoading, uiScanning, uiError });
+    this.userDeviceId = userDeviceId;
+    this.environmentDeviceId = environmentDeviceId;
+
+    this.shouldFaceUser = false;
 
     this.scene = new Scene();
     this.cssScene = new Scene();
@@ -52,6 +57,12 @@ export class MindARThree {
       track.stop();
     });
     this.video.remove();
+  }
+
+  switchCamera() {
+    this.shouldFaceUser = !this.shouldFaceUser;
+    this.stop();
+    this.start();
   }
 
   addAnchor(targetIndex) {
@@ -93,11 +104,25 @@ export class MindARThree {
         return;
       }
 
-      navigator.mediaDevices.getUserMedia({
-        audio: false, video: {
-          facingMode: 'environment',
+      const constraints = {
+        audio: false,
+        video: {}
+      };
+      if (this.shouldFaceUser) {
+        if (this.userDeviceId) {
+          constraints.video.deviceId = { exact: this.userDeviceId };
+        } else {
+          constraints.video.facingMode = 'user';
         }
-      }).then((stream) => {
+      } else {
+        if (this.environmentDeviceId) {
+          constraints.video.deviceId = { exact: this.environmentDeviceId };
+        } else {
+          constraints.video.facingMode = 'environment';
+        }
+      }
+
+      navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         this.video.addEventListener('loadedmetadata', () => {
           this.video.setAttribute('width', this.video.videoWidth);
           this.video.setAttribute('height', this.video.videoHeight);
