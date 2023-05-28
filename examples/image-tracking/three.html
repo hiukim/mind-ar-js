@@ -69,11 +69,11 @@
 
         if (device.kind === 'videoinput') {
           const option = document.createElement('option');
-          option.text = device.label || 'camera ' + (cameraDeviceSelect.length + 1);
+          option.text = device.label || 'camera ' + (frontCameraDeviceSelect.length);
           option.value = device.deviceId;
 
           const option2 = document.createElement('option');
-          option2.text = device.label || 'camera ' + (cameraDeviceSelect.length + 1);
+          option2.text = device.label || 'camera ' + (backCameraDeviceSelect.length);
           option2.value = device.deviceId;
 
           frontCameraDeviceSelect.appendChild(option);
