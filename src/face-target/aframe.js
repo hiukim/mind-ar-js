@@ -102,7 +102,7 @@ AFRAME.registerSystem('mindar-face-system', {
     }
 
     navigator.mediaDevices.getUserMedia({audio: false, video: {
-      facingMode: (this.shouldFaceUser? 'face': 'environment'),
+      facingMode: (this.shouldFaceUser? 'user': 'environment'),
     }}).then((stream) => {
       this.video.addEventListener( 'loadedmetadata', async () => {
         this.video.setAttribute('width', this.video.videoWidth);
