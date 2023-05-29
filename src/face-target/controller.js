@@ -27,10 +27,12 @@ class Controller {
     this.faceScaleFilter = new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
   }
 
-  async setup(input) {
+  async setup() {
     await waitCV();
-
     this.faceMeshHelper = new FaceMeshHelper();
+  }
+
+  onInputResized(input) {
     this.estimator = new Estimator(input);
   }
 

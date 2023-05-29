@@ -182,18 +182,8 @@ export class MindARThree {
         }
       }
       this._resize();
-      await this.controller.setup(video);
 
-      const { fov, aspect, near, far } = this.controller.getCameraParams();
-      this.camera.fov = fov;
-      this.camera.aspect = aspect;
-      this.camera.near = near;
-      this.camera.far = far;
-      this.camera.updateProjectionMatrix();
-
-      this.renderer.setSize(this.video.videoWidth, this.video.videoHeight);
-      this.cssRenderer.setSize(this.video.videoWidth, this.video.videoHeight);
-
+      await this.controller.setup();
       await this.controller.dummyRun(video);
 
       this._resize();
@@ -205,6 +195,21 @@ export class MindARThree {
   _resize() {
     const { renderer, cssRenderer, camera, container, video } = this;
     if (!video) return;
+
+    if (true) { // only needed if video dimension updated (e.g. when mobile orientation changes)
+      this.video.setAttribute('width', this.video.videoWidth);
+      this.video.setAttribute('height', this.video.videoHeight);
+      this.controller.onInputResized(video);
+
+      const { fov, aspect, near, far } = this.controller.getCameraParams();
+      this.camera.fov = fov;
+      this.camera.aspect = aspect;
+      this.camera.near = near;
+      this.camera.far = far;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(this.video.videoWidth, this.video.videoHeight);
+      this.cssRenderer.setSize(this.video.videoWidth, this.video.videoHeight);
+    }
 
     let vw, vh; // display css width, height
     const videoRatio = video.videoWidth / video.videoHeight;

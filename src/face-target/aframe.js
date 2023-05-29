@@ -160,20 +160,8 @@ AFRAME.registerSystem('mindar-face-system', {
     });
     this._resize();
 
-    await this.controller.setup(this.video);
+    await this.controller.setup();
     await this.controller.dummyRun(this.video);
-    const {fov, aspect, near, far} = this.controller.getCameraParams();
-
-    const camera = new THREE.PerspectiveCamera();
-    camera.fov = fov;
-    camera.aspect = aspect;
-    camera.near = near;
-    camera.far = far;
-    camera.updateProjectionMatrix();
-
-    const cameraEle = this.container.getElementsByTagName("a-camera")[0];
-    cameraEle.setObject3D('camera', camera);
-    cameraEle.setAttribute('camera', 'active', true);
 
     for (let i = 0; i < this.faceMeshEntities.length; i++) {
       this.faceMeshEntities[i].el.addFaceMesh(this.controller.createThreeFaceGeometry(THREE));
@@ -187,6 +175,24 @@ AFRAME.registerSystem('mindar-face-system', {
   _resize: function() {
     const video = this.video;
     const container = this.container;
+
+    if (true) { // only needed if video dimension updated (e.g. when mobile orientation changes)
+      this.video.setAttribute('width', this.video.videoWidth);
+      this.video.setAttribute('height', this.video.videoHeight);
+      this.controller.onInputResized(video);
+
+      const {fov, aspect, near, far} = this.controller.getCameraParams();
+
+      const cameraEle = this.container.getElementsByTagName("a-camera")[0];
+      const camera = cameraEle.getObject3D('camera');
+      camera.fov = fov;
+      camera.aspect = aspect;
+      camera.near = near;
+      camera.far = far;
+      camera.updateProjectionMatrix();
+      cameraEle.setAttribute('camera', 'active', true);
+    }
+
     let vw, vh; // display css width, height
     const videoRatio = video.videoWidth / video.videoHeight;
     const containerRatio = container.clientWidth / container.clientHeight;
