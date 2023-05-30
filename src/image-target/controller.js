@@ -1,4 +1,5 @@
 import {memory,nextFrame} from '@tensorflow/tfjs';
+
 const tf = {memory,nextFrame};
 import ControllerWorker  from "./controller.worker.js?worker&inline";
 import {Tracker} from './tracker/tracker.js';
@@ -129,6 +130,21 @@ class Controller {
     return this.projectionMatrix;
   }
 
+  getRotatedZ90Matrix(m) { // rotate 90 degree along z-axis
+    // rotation matrix
+    // |  0  -1  0  0 |
+    // |  1   0  0  0 |
+    // |  0   0  1  0 |
+    // |  0   0  0  1 |
+    const rotatedMatrix = [
+      -m[1], m[0], m[2], m[3],
+      -m[5], m[4], m[6], m[7],
+      -m[9], m[8], m[10], m[11],
+      -m[13], m[12], m[14], m[15]
+    ];
+    return rotatedMatrix;
+  }
+
   getWorldMatrix(modelViewTransform, targetIndex) {
     return this._glModelViewMatrix(modelViewTransform, targetIndex);
   }
@@ -240,10 +256,16 @@ class Controller {
 	    const worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
 	    trackingState.trackingMatrix = trackingState.filter.filter(Date.now(), worldMatrix);
 
-	    const clone = [];
+	    let clone = [];
 	    for (let j = 0; j < trackingState.trackingMatrix.length; j++) {
 	      clone[j] = trackingState.trackingMatrix[j];
 	    }
+
+      const isInputRotated = input.width === this.inputHeight && input.height === this.inputWidth;
+      if (isInputRotated) {
+        clone = this.getRotatedZ90Matrix(clone);
+      }
+
 	    this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
 	  }
 	}

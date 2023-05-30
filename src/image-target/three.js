@@ -238,6 +238,9 @@ export class MindARThree {
     const { renderer, cssRenderer, camera, container, video } = this;
     if (!video) return;
 
+    this.video.setAttribute('width', this.video.videoWidth);
+    this.video.setAttribute('height', this.video.videoHeight);
+
     let vw, vh; // display css width, height
     const videoRatio = video.videoWidth / video.videoHeight;
     const containerRatio = container.clientWidth / container.clientHeight;
@@ -250,10 +253,34 @@ export class MindARThree {
     }
 
     const proj = this.controller.getProjectionMatrix();
-    const fov = 2 * Math.atan(1 / proj[5] / vh * container.clientHeight) * 180 / Math.PI; // vertical fov
+
+    // TODO: move this logic to controller
+    // Handle when phone is rotated, video width and height are swapped
+    const inputRatio = this.controller.inputWidth / this.controller.inputHeight;
+    let inputAdjust;
+    if (inputRatio > containerRatio) {
+      inputAdjust = this.video.width / this.controller.inputWidth;
+    } else {
+      inputAdjust = this.video.height / this.controller.inputHeight;
+    }
+    let videoDisplayHeight;
+    let videoDisplayWidth;
+    if (inputRatio > containerRatio) {
+      videoDisplayHeight = container.clientHeight;
+      videoDisplayHeight *= inputAdjust;
+    } else {
+      videoDisplayWidth = container.clientWidth;
+      videoDisplayHeight = videoDisplayWidth / this.controller.inputWidth * this.controller.inputHeight;
+      videoDisplayHeight *= inputAdjust;
+    }
+    let fovAdjust = container.clientHeight / videoDisplayHeight;
+
+    // const fov = 2 * Math.atan(1 / proj[5] / vh * container.clientHeight) * 180 / Math.PI; // vertical fov
+    const fov = 2 * Math.atan(1 / proj[5] * fovAdjust) * 180 / Math.PI; // vertical fov
     const near = proj[14] / (proj[10] - 1.0);
     const far = proj[14] / (proj[10] + 1.0);
     const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
+
     camera.fov = fov;
     camera.near = near;
     camera.far = far;
