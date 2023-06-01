@@ -8,6 +8,8 @@ import { UI } from "../ui/ui.js";
 const cssScaleDownMatrix = new Matrix4();
 cssScaleDownMatrix.compose(new Vector3(), new Quaternion(), new Vector3(0.001, 0.001, 0.001));
 
+const invisibleMatrix = new Matrix4().set(0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1);
+
 export class MindARThree {
   constructor({
     container, imageTargetSrc, maxTrack, uiLoading = "yes", uiScanning = "yes", uiError = "yes",
@@ -171,6 +173,8 @@ export class MindARThree {
                     m.multiply(cssScaleDownMatrix);
                   }
                   this.anchors[i].group.matrix = m;
+                } else {
+                  this.anchors[i].group.matrix = invisibleMatrix;
                 }
 
                 if (this.anchors[i].visible && worldMatrix === null) {
