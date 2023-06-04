@@ -4,7 +4,13 @@ class FaceMeshHelper {
   constructor() {
     this.detectResolve = null;
 
-    this.faceMesh = new FaceMesh({locateFile: (file) => {
+    let _FaceMesh = FaceMesh;
+    if (_FaceMesh === undefined) {
+      console.log("FaceMesh undefined, using window.FaceMesh");
+      _FaceMesh = window.FaceMesh;
+    }
+
+    this.faceMesh = new _FaceMesh({locateFile: (file) => {
       return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`;
     }});
 
