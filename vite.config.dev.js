@@ -40,6 +40,7 @@ const faceAframeConfig=defineConfig({
         outDir: outDir,
         emptyOutDir:false,
         sourcemap:'inline' ,
+        minify: false,
         lib: {
             name:"MINDAR",
             fileName:"[name]",
@@ -61,6 +62,7 @@ const imageAframeConfig=defineConfig({
         outDir: outDir,
         emptyOutDir:false,
         sourcemap:'inline' ,
+        minify: false,
         lib: {
             name:"MINDAR",
             fileName:"[name]",
