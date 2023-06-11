@@ -1,7 +1,7 @@
 import {FaceMesh} from "@mediapipe/face_mesh";
 
 class FaceMeshHelper {
-  constructor() {
+  constructor(flipFace) {
     this.detectResolve = null;
 
     let _FaceMesh = FaceMesh;
@@ -14,12 +14,15 @@ class FaceMeshHelper {
       return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`;
     }});
 
+    console.log("flipFace", flipFace);
+
     this.faceMesh.setOptions({
       maxNumFaces: 1,
       //refineLandmarks: true,
       refineLandmarks: false,
       minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      minTrackingConfidence: 0.5,
+      selfieMode: flipFace
     });
 
     this.faceMesh.onResults((results) => {

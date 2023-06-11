@@ -8,7 +8,7 @@ const THREE={BufferGeometry,BufferAttribute};
 
 export class MindARThree {
   constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null,
-    userDeviceId = null, environmentDeviceId = null
+    userDeviceId = null, environmentDeviceId = null, disableFaceMirror = false,
   }) {
     this.container = container;
     this.ui = new UI({ uiLoading, uiScanning, uiError });
@@ -17,6 +17,7 @@ export class MindARThree {
       filterMinCF: filterMinCF,
       filterBeta: filterBeta,
     });
+    this.disableFaceMirror = disableFaceMirror;
     this.scene = new Scene();
     this.cssScene = new Scene();
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
@@ -183,7 +184,9 @@ export class MindARThree {
       }
       this._resize();
 
-      await this.controller.setup();
+      const flipFace = this.shouldFaceUser && !this.disableFaceMirror;
+
+      await this.controller.setup(flipFace);
       await this.controller.dummyRun(video);
 
       this._resize();
@@ -226,6 +229,12 @@ export class MindARThree {
     video.style.left = (-(vw - container.clientWidth) / 2) + "px";
     video.style.width = vw + "px";
     video.style.height = vh + "px";
+
+    if (this.shouldFaceUser && !this.disableFaceMirror) {
+      video.style.transform = 'scaleX(-1)';
+    } else {
+      video.style.transform = 'scaleX(1)';
+    }
 
     const canvas = renderer.domElement;
     const cssCanvas = cssRenderer.domElement;

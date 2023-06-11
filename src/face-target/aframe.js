@@ -8,16 +8,18 @@ AFRAME.registerSystem('mindar-face-system', {
   video: null,
   shouldFaceUser: true,
   lastHasFace: false,
+  disableFaceMirror: false,
 
   init: function() {
     this.anchorEntities = [];
     this.faceMeshEntities = [];
   },
 
-  setup: function({uiLoading, uiScanning, uiError, filterMinCF, filterBeta}) {
+  setup: function({uiLoading, uiScanning, uiError, filterMinCF, filterBeta, disableFaceMirror}) {
     this.ui = new UI({uiLoading, uiScanning, uiError});
     this.filterMinCF = filterMinCF;
     this.filterBeta = filterBeta;
+    this.disableFaceMirror = disableFaceMirror;
   },
 
   registerFaceMesh: function(el) {
@@ -160,7 +162,9 @@ AFRAME.registerSystem('mindar-face-system', {
     });
     this._resize();
 
-    await this.controller.setup();
+    const flipFace = this.shouldFaceUser && !this.disableFaceMirror;
+
+    await this.controller.setup(flipFace);
     await this.controller.dummyRun(this.video);
 
     for (let i = 0; i < this.faceMeshEntities.length; i++) {
@@ -208,6 +212,12 @@ AFRAME.registerSystem('mindar-face-system', {
     this.video.style.width = vw + "px";
     this.video.style.height = vh + "px";
 
+    if (this.shouldFaceUser && !this.disableFaceMirror) {
+      video.style.transform = 'scaleX(-1)';
+    } else {
+      video.style.transform = 'scaleX(1)';
+    }
+
     const sceneEl = container.getElementsByTagName("a-scene")[0];
     sceneEl.style.top = this.video.style.top;
     sceneEl.style.left = this.video.style.left;
@@ -227,6 +237,7 @@ AFRAME.registerComponent('mindar-face', {
     uiError: {type: 'string', default: 'yes'},
     filterMinCF: {type: 'number', default: -1},
     filterBeta: {type: 'number', default: -1},
+    disableFaceMirror: {type: 'boolean', default: 'false'},
   },
 
   init: function() {
@@ -244,6 +255,7 @@ AFRAME.registerComponent('mindar-face', {
       uiError: this.data.uiError,
       filterMinCF: this.data.filterMinCF === -1? null: this.data.filterMinCF,
       filterBeta: this.data.filterBeta === -1? null: this.data.filterBeta,
+      disableFaceMirror: this.data.disableFaceMirror,
     });
 
     if (this.data.autoStart) {
