@@ -38,7 +38,25 @@ class InputLoader {
 
   // input is instance of HTMLVideoElement or HTMLImageElement
   loadInput(input) {
-    this.context.drawImage(input, 0, 0, this.width, this.height);
+    const context = this.context;
+    context.clearRect(0, 0, this.context.canvas.width, this.context.canvas.height);
+
+    const isInputRotated = input.width === this.height && input.height === this.width;
+    if (isInputRotated) { // rotate 90 degree and draw
+      let x = this.context.canvas.width / 2;
+      let y = this.context.canvas.height / 2;
+      let angleInDegrees = 90;
+
+      context.save(); // save the current context state
+      context.translate(x, y); // move the context origin to the center of the image
+      context.rotate(angleInDegrees * Math.PI / 180); // rotate the context
+
+      // draw the image with its center at the origin
+      context.drawImage(input, -input.width / 2, -input.height / 2);
+      context.restore(); // restore the context to its original state
+    } else {
+      this.context.drawImage(input, 0, 0, input.width, input.height);
+    }
 
     const backend = tf.backend();
     backend.gpgpu.uploadPixelDataToTexture(backend.getTexture(this.tempPixelHandle.dataId), this.context.canvas);

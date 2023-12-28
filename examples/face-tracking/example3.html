@@ -58,12 +58,15 @@
         position: absolute;
         width: 100%;
         height: 100%;
-        transform: scaleX(-1);
       }
 
       #example-control-overlay {
+        position: fixed;
+        right: 0;
+        width: 300px;
 	background: none;
 	height: 30px;
+  z-index: 999;
       }
       #example-control-overlay >div {
 	position: absolute;
@@ -73,17 +76,17 @@
   </head>
 
   <body>
-    <div class="example-container">
-      <div id="example-control-overlay" class="overlay">
-	<div>
-	  <button id="example-start-button">Start</button>
-	  <button id="example-stop-button">Stop</button>
-	  <button id="example-switch-camera-button">Switch Camera</button>
-	</div>
+    <div id="example-control-overlay" class="overlay">
+      <div>
+        <button id="example-start-button">Start</button>
+        <button id="example-stop-button">Stop</button>
+        <button id="example-switch-camera-button">Switch Camera</button>
       </div>
+    </div>
 
+    <div class="example-container">
       <a-scene mindar-face="autoStart: false; filterBeta: 100; filterMinCF: 0.1" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-        <a-camera active="false" position="0 0 0" look-controls="false"></a-camera>
+        <a-camera active="false" position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-face-target="anchorIndex: 1">
 	  <a-sphere id="example-target-link" color="green" radius="0.1"></a-sphere>

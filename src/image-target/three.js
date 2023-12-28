@@ -12,10 +12,13 @@ export { FilterInterface, OneEuroFilter, SmoothDampFilter };
 const cssScaleDownMatrix = new Matrix4();
 cssScaleDownMatrix.compose(new Vector3(), new Quaternion(), new Vector3(0.001, 0.001, 0.001));
 
+const invisibleMatrix = new Matrix4().set(0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,1);
+
 export class MindARThree {
   constructor({
     container, imageTargetSrc, maxTrack, uiLoading = "yes", uiScanning = "yes", uiError = "yes",
-    filterMinCF = null, filterBeta = null, warmupTolerance = null, missTolerance = null, customFilter = null
+    filterMinCF = null, filterBeta = null, warmupTolerance = null, missTolerance = null, customFilter = null,
+    userDeviceId = null, environmentDeviceId = null
   }) {
     this.container = container;
     this.imageTargetSrc = imageTargetSrc;
@@ -26,6 +29,10 @@ export class MindARThree {
     this.warmupTolerance = warmupTolerance;
     this.missTolerance = missTolerance;
     this.ui = new UI({ uiLoading, uiScanning, uiError });
+    this.userDeviceId = userDeviceId;
+    this.environmentDeviceId = environmentDeviceId;
+
+    this.shouldFaceUser = false;
 
     this.scene = new Scene();
     this.cssScene = new Scene();
@@ -57,6 +64,12 @@ export class MindARThree {
       track.stop();
     });
     this.video.remove();
+  }
+
+  switchCamera() {
+    this.shouldFaceUser = !this.shouldFaceUser;
+    this.stop();
+    this.start();
   }
 
   addAnchor(targetIndex) {
@@ -98,11 +111,25 @@ export class MindARThree {
         return;
       }
 
-      navigator.mediaDevices.getUserMedia({
-        audio: false, video: {
-          facingMode: 'environment',
+      const constraints = {
+        audio: false,
+        video: {}
+      };
+      if (this.shouldFaceUser) {
+        if (this.userDeviceId) {
+          constraints.video.deviceId = { exact: this.userDeviceId };
+        } else {
+          constraints.video.facingMode = 'user';
         }
-      }).then((stream) => {
+      } else {
+        if (this.environmentDeviceId) {
+          constraints.video.deviceId = { exact: this.environmentDeviceId };
+        } else {
+          constraints.video.facingMode = 'environment';
+        }
+      }
+
+      navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         this.video.addEventListener('loadedmetadata', () => {
           this.video.setAttribute('width', this.video.videoWidth);
           this.video.setAttribute('height', this.video.videoHeight);
@@ -153,6 +180,8 @@ export class MindARThree {
                     m.multiply(cssScaleDownMatrix);
                   }
                   this.anchors[i].group.matrix = m;
+                } else {
+                  this.anchors[i].group.matrix = invisibleMatrix;
                 }
 
                 if (this.anchors[i].visible && worldMatrix === null) {
@@ -220,6 +249,9 @@ export class MindARThree {
     const { renderer, cssRenderer, camera, container, video } = this;
     if (!video) return;
 
+    this.video.setAttribute('width', this.video.videoWidth);
+    this.video.setAttribute('height', this.video.videoHeight);
+
     let vw, vh; // display css width, height
     const videoRatio = video.videoWidth / video.videoHeight;
     const containerRatio = container.clientWidth / container.clientHeight;
@@ -232,10 +264,34 @@ export class MindARThree {
     }
 
     const proj = this.controller.getProjectionMatrix();
-    const fov = 2 * Math.atan(1 / proj[5] / vh * container.clientHeight) * 180 / Math.PI; // vertical fov
+
+    // TODO: move this logic to controller
+    // Handle when phone is rotated, video width and height are swapped
+    const inputRatio = this.controller.inputWidth / this.controller.inputHeight;
+    let inputAdjust;
+    if (inputRatio > containerRatio) {
+      inputAdjust = this.video.width / this.controller.inputWidth;
+    } else {
+      inputAdjust = this.video.height / this.controller.inputHeight;
+    }
+    let videoDisplayHeight;
+    let videoDisplayWidth;
+    if (inputRatio > containerRatio) {
+      videoDisplayHeight = container.clientHeight;
+      videoDisplayHeight *= inputAdjust;
+    } else {
+      videoDisplayWidth = container.clientWidth;
+      videoDisplayHeight = videoDisplayWidth / this.controller.inputWidth * this.controller.inputHeight;
+      videoDisplayHeight *= inputAdjust;
+    }
+    let fovAdjust = container.clientHeight / videoDisplayHeight;
+
+    // const fov = 2 * Math.atan(1 / proj[5] / vh * container.clientHeight) * 180 / Math.PI; // vertical fov
+    const fov = 2 * Math.atan(1 / proj[5] * fovAdjust) * 180 / Math.PI; // vertical fov
     const near = proj[14] / (proj[10] - 1.0);
     const far = proj[14] / (proj[10] + 1.0);
     const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
+
     camera.fov = fov;
     camera.near = near;
     camera.far = far;

@@ -33,10 +33,12 @@ class Controller {
     this.faceScaleFilter = new this.customFilter.filter(this.customFilter.opts);//new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
   }
 
-  async setup(input) {
+  async setup(flipFace) {
     await waitCV();
+    this.faceMeshHelper = new FaceMeshHelper(flipFace);
+  }
 
-    this.faceMeshHelper = new FaceMeshHelper();
+  onInputResized(input) {
     this.estimator = new Estimator(input);
   }
 
