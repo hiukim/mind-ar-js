@@ -16,6 +16,7 @@ class Controller {
     this.filterMinCF = filterMinCF === null? DEFAULT_FILTER_CUTOFF: filterMinCF;
     this.filterBeta = filterBeta === null? DEFAULT_FILTER_BETA: filterBeta;
     this.onUpdate = onUpdate;
+    this.flipFace = false;
 
     //console.log("filter", this.filterMinCF, this.filterBeta);
 
@@ -28,8 +29,10 @@ class Controller {
   }
 
   async setup(flipFace) {
+    this.flipFace = flipFace;
     await waitCV();
-    this.faceMeshHelper = new FaceMeshHelper(flipFace);
+    this.faceMeshHelper = new FaceMeshHelper();
+    await this.faceMeshHelper.init();
   }
 
   onInputResized(input) {
@@ -49,14 +52,33 @@ class Controller {
     await this.faceMeshHelper.detect(input);
   }
 
+
   processVideo(input) {
     if (this.processingVideo) return;
+
+    const flippedCanvasElement = document.createElement('canvas');
+    flippedCanvasElement.width = input.width;
+    flippedCanvasElement.height = input.height;
+    const flippedInputContext = flippedCanvasElement.getContext('2d');
 
     this.processingVideo = true;
 
     const doProcess = async () => {
-      const results = await this.faceMeshHelper.detect(input);
-      if (results.multiFaceLandmarks.length === 0) {
+      let results;
+
+      if (this.flipFace) {
+        flippedInputContext.clearRect(0, 0, flippedCanvasElement.width, flippedCanvasElement.height);
+        flippedInputContext.save();
+        flippedInputContext.translate(flippedCanvasElement.width, 0);
+        flippedInputContext.scale(-1, 1);
+        flippedInputContext.drawImage(input, 0, 0, flippedCanvasElement.width, flippedCanvasElement.height);
+        flippedInputContext.restore();
+        results = await this.faceMeshHelper.detect(flippedCanvasElement);
+      } else {
+        results = await this.faceMeshHelper.detect(input);
+      }
+
+      if (results.faceLandmarks.length === 0) {
 	this.lastEstimateResult = null;
 	this.onUpdate({hasFace: false});
 
@@ -66,7 +88,7 @@ class Controller {
 	this.faceMatrixFilter.reset();
 	this.faceScaleFilter.reset();
       } else {
-	const landmarks = results.multiFaceLandmarks[0].map((l) => {
+	const landmarks = results.faceLandmarks[0].map((l) => {
 	  return [l.x, l.y, l.z];
 	});
 	const estimateResult = this.estimator.estimate(landmarks);

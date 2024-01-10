@@ -1,4 +1,5 @@
 // TODO: delete opencv Mat
+// ref: https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_geometry/libs/geometry_pipeline.cc#L72-L290
 //
 import {positions as canonicalMetricLandmarks, landmarkBasis} from "./face-data.js";
 import {opencv} from "../../libs/opencv-helper.js";
@@ -62,6 +63,8 @@ class Estimator {
   }
 
   estimate(landmarks) {
+    landmarks = landmarks.slice(0, canonicalMetricLandmarks.length); // in new mediapipe version, there is 10 extra landmarks for iris (which we don't have in canonical model)
+
     //console.log("landmarks", landmarks);
     const screenLandmarks = this._projectToScreen(landmarks);
     //console.log("screenLandmarks", screenLandmarks);

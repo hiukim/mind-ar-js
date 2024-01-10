@@ -15,11 +15,12 @@ AFRAME.registerSystem('mindar-face-system', {
     this.faceMeshEntities = [];
   },
 
-  setup: function({uiLoading, uiScanning, uiError, filterMinCF, filterBeta, disableFaceMirror}) {
+  setup: function({showStats, uiLoading, uiScanning, uiError, filterMinCF, filterBeta, disableFaceMirror}) {
     this.ui = new UI({uiLoading, uiScanning, uiError});
     this.filterMinCF = filterMinCF;
     this.filterBeta = filterBeta;
     this.disableFaceMirror = disableFaceMirror;
+    this.showStats = showStats;
   },
 
   registerFaceMesh: function(el) {
@@ -34,6 +35,14 @@ AFRAME.registerSystem('mindar-face-system', {
     this.ui.showLoading();
 
     this.container = this.el.sceneEl.parentNode;
+
+    if (this.showStats) {
+      this.mainStats = new Stats();
+      this.mainStats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+      this.mainStats.domElement.style.cssText = 'position:absolute;top:0px;left:0px;z-index:999';
+      this.container.appendChild(this.mainStats.domElement);
+    }
+
     //this.__startVideo();
     this._startVideo();
   },
@@ -122,6 +131,7 @@ AFRAME.registerSystem('mindar-face-system', {
 
   _processVideo: function() {
     this.controller.onUpdate = ({hasFace, estimateResult}) => {
+      if (this.mainStats) this.mainStats.update();
 
       if (hasFace && !this.lastHasFace) {
 	this.el.emit("targetFound");
@@ -212,17 +222,20 @@ AFRAME.registerSystem('mindar-face-system', {
     this.video.style.width = vw + "px";
     this.video.style.height = vh + "px";
 
-    if (this.shouldFaceUser && !this.disableFaceMirror) {
-      video.style.transform = 'scaleX(-1)';
-    } else {
-      video.style.transform = 'scaleX(1)';
-    }
-
     const sceneEl = container.getElementsByTagName("a-scene")[0];
     sceneEl.style.top = this.video.style.top;
     sceneEl.style.left = this.video.style.left;
     sceneEl.style.width = this.video.style.width;
     sceneEl.style.height = this.video.style.height;
+
+    if (this.shouldFaceUser && !this.disableFaceMirror) {
+      video.style.transform = 'scaleX(-1)';
+      //sceneEl.style.transform = 'scaleX(-1)';
+    } else {
+      video.style.transform = 'scaleX(1)';
+      //sceneEl.style.transform = 'scaleX(1)';
+    }
+
   }
 });
 
@@ -238,6 +251,7 @@ AFRAME.registerComponent('mindar-face', {
     filterMinCF: {type: 'number', default: -1},
     filterBeta: {type: 'number', default: -1},
     disableFaceMirror: {type: 'boolean', default: 'false'},
+    showStats: {type: 'boolean', default: false},
   },
 
   init: function() {
@@ -256,6 +270,7 @@ AFRAME.registerComponent('mindar-face', {
       filterMinCF: this.data.filterMinCF === -1? null: this.data.filterMinCF,
       filterBeta: this.data.filterBeta === -1? null: this.data.filterBeta,
       disableFaceMirror: this.data.disableFaceMirror,
+      showStats: this.data.showStats,
     });
 
     if (this.data.autoStart) {

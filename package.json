@@ -4,7 +4,7 @@
   "description": "web augmented reality framework",
   "main": "index.js",
   "scripts": {
-    "dev": "vite --config vite.config.dev.js",
+    "dev": "vite --config vite.config.dev.js --host",
     "watch": "vite build --watch --config vite.config.dev.js",
     "build-dev": "vite build --config vite.config.dev.js",
     "build": "vite build --config vite.config.prod.js"
@@ -29,9 +29,9 @@
   "author": "hiukim",
   "license": "MIT",
   "dependencies": {
-    "@mediapipe/face_mesh": "^0.4.1633559619",
     "@msgpack/msgpack": "^2.8.0",
     "@tensorflow/tfjs": "^4.2.0",
+    "@vitejs/plugin-basic-ssl": "^1.0.2",
     "canvas": "^2.10.2",
     "mathjs": "^11.6.0",
     "ml-matrix": "^6.10.4",

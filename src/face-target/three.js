@@ -166,6 +166,7 @@ export class MindARThree {
 
             if (this.anchors[i].css) {
               const cssScale = 0.001;
+
               const scaledElements = [
                 cssScale * landmarkMatrix[0], cssScale * landmarkMatrix[1], landmarkMatrix[2], landmarkMatrix[3],
                 cssScale * landmarkMatrix[4], cssScale * landmarkMatrix[5], landmarkMatrix[6], landmarkMatrix[7],
@@ -210,6 +211,7 @@ export class MindARThree {
       this.camera.near = near;
       this.camera.far = far;
       this.camera.updateProjectionMatrix();
+
       this.renderer.setSize(this.video.videoWidth, this.video.videoHeight);
       this.cssRenderer.setSize(this.video.videoWidth, this.video.videoHeight);
     }

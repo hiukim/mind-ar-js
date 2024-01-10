@@ -6,6 +6,7 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/16/Stats.min.js"></script>
   <script src="../../src/face-target/aframe.js" type="module"></script>
 
   <style>
@@ -24,7 +25,7 @@
 
 <body>
   <div class="example-container">
-    <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
+    <a-scene mindar-face="showStats: true;" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
       <a-assets>
         <a-asset-item id="glassesModel" src="./assets/glasses/scene.gltf"></a-asset-item>
