@@ -1,0 +1,85 @@
+<html>
+<head>
+  <script type="module">
+    import * as THREE from "three";
+    import { MindARThree } from "../../src/face-target/three.js";
+    import {CSS3DObject} from "three/addons/renderers/CSS3DRenderer.js"
+    const mindarThree = new MindARThree({
+      container: document.querySelector("#container"),
+    });
+    const {renderer} = mindarThree;
+
+    let rows = [];
+
+    const start = async() => {
+      await mindarThree.start();
+      renderer.setAnimationLoop(() => {
+        const estimate = mindarThree.getLatestEstimate();
+        if (estimate && estimate.blendshapes) {
+
+          if (rows.length === 0) {
+            for (let i = 0; i < estimate.blendshapes.categories.length; i++) {
+              const el = document.createElement("div");
+              const titleEl = document.createElement("span");
+              const valueEl = document.createElement("span");
+              titleEl.classList.add("title");
+              valueEl.classList.add("value");
+              el.appendChild(titleEl);
+              el.appendChild(valueEl);
+              rows.push(el);
+              document.querySelector("#blendshapes-div").appendChild(el);
+            }
+          }
+
+          let output = '';
+          output += "<div>";
+          estimate.blendshapes.categories.forEach((category, index) => {
+            rows[index].querySelector(".title").innerHTML = category.categoryName;
+            rows[index].querySelector(".value").innerHTML = parseFloat(category.score).toFixed(4);
+            //output += '<p>' + category.categoryName + ':' + category.score + '</p>';
+          });
+          output += "</div>";
+          //document.querySelector("#blendshapes-div").innerHTML = output;
+        }
+      });
+    }
+    start();
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+    }
+
+    #container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #blendshapes-div {
+      position: fixed;
+      top: 0;
+      right: 0;
+      font-size: 1em;
+      background: white;
+      height: 50vh;
+      overflow: auto;
+      padding: 10px;
+    }
+    #blendshapes-div > p {
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container">
+  </div>
+
+  <div id="blendshapes-div">
+  </div>
+</body>
+
+</html>

@@ -113,6 +113,7 @@ class Controller {
 	    metricLandmarks: newMetricLandmarks,
 	    faceMatrix: newFaceMatrix,
 	    faceScale: newFaceScale[0],
+      blendshapes: results.faceBlendshapes[0],
 	  }
 	}
 
