@@ -1,5 +1,5 @@
-//import vision from "@mediapipe/tasks-vision";
-import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import * as vision from "@mediapipe/tasks-vision";
+//import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
 
 class FaceMeshHelper {
   constructor() {
@@ -7,7 +7,7 @@ class FaceMeshHelper {
     
   async init() {
     const filesetResolver = await vision.FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm"
       //"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
     );
     this.faceLandmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {

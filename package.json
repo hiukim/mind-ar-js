@@ -29,9 +29,10 @@
   "author": "hiukim",
   "license": "MIT",
   "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.9",
     "@msgpack/msgpack": "^2.8.0",
     "@tensorflow/tfjs": "^4.16.0",
-    "@vitejs/plugin-basic-ssl": "^1.0.2",
+    "@vitejs/plugin-basic-ssl": "^1.1.0",
     "canvas": "^2.10.2",
     "mathjs": "^11.6.0",
     "ml-matrix": "^6.10.4",
@@ -41,11 +42,11 @@
   "peerDependencies": {
     "three": ">=0.136.0"
   },
-  "devDependencies": {
-    "vite": "^4.5.1"
-  },
   "files": [
     "dist/",
     "src/"
-  ]
+  ],
+  "devDependencies": {
+    "vite": "^5.0.11"
+  }
 }
