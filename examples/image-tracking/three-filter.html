@@ -1,0 +1,138 @@
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.136.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.136.0/examples/jsm/",
+      "mindar-image-three":"../../dist-dev/mindar-image-three.js"
+    }
+  }
+</script>
+    <!-- <script src="../../dist-dev/mindar-image-three.js" type="module"></script> -->
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { MindARThree,SmoothDampFilter,OneEuroFilter } from 'mindar-image-three';
+        import GUI from 'three/addons/libs/lil-gui.module.min.js'
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        //const THREE = window.MINDAR.IMAGE.THREE;
+        let mindarThree;
+        
+
+        const filterSettings = {
+            filterMinCF: 1,
+            filterBeta: 1000,
+        }
+        /* const gui = new GUI();
+        gui.add(filterSettings, "filterMinCF").min(0.001).onChange(value => {
+            mindarThree.controller.trackingStates.forEach(item=>{
+                item.filter.minCutOff=value;
+                item.filter.reset();
+            })
+            console.log("Updating MinCutoff",mindarThree.controller.trackingStates.length);
+        });;
+        gui.add(filterSettings, "filterBeta").onChange(value => {
+            mindarThree.controller.trackingStates.forEach(item=>{
+                item.filter.beta=value;
+                item.filter.reset();
+            })
+            console.log("Updating Beta");
+            //console.log(value);
+        });; */
+
+        function Setup(mindarThree){
+            const { renderer, scene, camera } = mindarThree;
+
+            const anchor = mindarThree.addAnchor(0);
+            const loader = new GLTFLoader().setPath( './assets/card-example/' );
+            loader.load( 'axes.gltf', function ( gltf ) {
+            anchor.group.add(gltf.scene); 
+            });
+            const geometry = new THREE.PlaneGeometry(1, 0.55);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.5 });
+            const plane = new THREE.Mesh(geometry, material);
+            anchor.group.add(plane);
+        }
+        const startSmoothDamp = async () => {
+            mindarThree = new MindARThree({
+                container: document.querySelector("#container"),
+                imageTargetSrc: './assets/card-example/card.mind',
+                customFilter:{filter:SmoothDampFilter}
+            });
+            Setup(mindarThree);
+            await mindarThree.start();
+            const { renderer, scene, camera } = mindarThree;
+            renderer.setAnimationLoop(() => {
+                renderer.render(scene, camera);
+            });
+        }
+
+        const startOneEuroFilter = async () => {
+            mindarThree = new MindARThree({
+                container: document.querySelector("#container"),
+                imageTargetSrc: './assets/card-example/card.mind',
+                customFilter:{filter:OneEuroFilter,opts:{minCutOff: 1, beta: 10000}}
+            });
+            Setup(mindarThree);
+            await mindarThree.start();
+            const { renderer, scene, camera } = mindarThree;
+            renderer.setAnimationLoop(() => {
+                renderer.render(scene, camera);
+            });
+        }
+
+        const startButton = document.querySelector("#startButton1");
+        const startButton2 = document.querySelector("#startButton2");
+
+        startButton.addEventListener("click", () => {
+            startOneEuroFilter();
+            startButton.disabled=true;
+            startButton2.disabled=true;
+        });
+        
+        startButton2.addEventListener("click", () => {
+            startSmoothDamp();
+            startButton.disabled=true;
+            startButton2.disabled=true;
+        });
+        
+    </script>
+
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #control {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 2;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="control">
+        <button id="startButton1">Start OneEuroFilter</button>
+        <button id="startButton2">Start SmoothDampFilter</button>
+        
+    </div>
+
+    <div id="container">
+    </div>
+</body>
+
+</html>

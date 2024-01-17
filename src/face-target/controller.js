@@ -8,13 +8,19 @@ import {OneEuroFilter} from '../libs/one-euro-filter.js';
 const DEFAULT_FILTER_CUTOFF = 0.001; // 1Hz. time period in milliseconds
 const DEFAULT_FILTER_BETA = 1;
 
+const DEFAULT_FILTER={filter:OneEuroFilter,opts:{minCutOff:DEFAULT_FILTER_CUTOFF,beta:DEFAULT_FILTER_BETA}}; //old settings from One Euro Filter
+
+
 class Controller {
-  constructor({onUpdate=null, filterMinCF=null, filterBeta=null}) {
+  constructor({onUpdate=null, customFilter=DEFAULT_FILTER}) {
     this.customFaceGeometries = [];
     this.estimator = null;
     this.lastEstimateResult = null;
-    this.filterMinCF = filterMinCF === null? DEFAULT_FILTER_CUTOFF: filterMinCF;
-    this.filterBeta = filterBeta === null? DEFAULT_FILTER_BETA: filterBeta;
+    /* this.filterMinCF = filterMinCF === null? DEFAULT_FILTER_CUTOFF: filterMinCF;
+    this.filterBeta = filterBeta === null? DEFAULT_FILTER_BETA: filterBeta; */
+    this.customFilter=customFilter===null?DEFAULT_FILTER:customFilter;
+    if(!this.customFilter.hasOwnProperty("filter")) customFilter.filter=DEFAULT_FILTER.filter;
+    if(!this.customFilter.hasOwnProperty("opts")) customFilter.opts=DEFAULT_FILTER.opts;
     this.onUpdate = onUpdate;
     this.flipFace = false;
 
@@ -22,10 +28,10 @@ class Controller {
 
     this.landmarkFilters = [];
     for (let i = 0; i < canonicalMetricLandmarks.length; i++) {
-      this.landmarkFilters[i] = new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
+      this.landmarkFilters[i] = new this.customFilter.filter(this.customFilter.opts);//new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
     }
-    this.faceMatrixFilter = new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
-    this.faceScaleFilter = new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
+    this.faceMatrixFilter = new this.customFilter.filter(this.customFilter.opts);//new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
+    this.faceScaleFilter = new this.customFilter.filter(this.customFilter.opts);//new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta});
   }
 
   async setup(flipFace) {

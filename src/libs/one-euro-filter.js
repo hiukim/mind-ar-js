@@ -1,16 +1,16 @@
 // Ref: https://jaantollander.com/post/noise-filtering-using-one-euro-filter/#mjx-eqn%3A1
 
-const smoothingFactor = (te, cutoff) => {
+const smoothingFactor = (te, cutoff) => {//5
   const r = 2 * Math.PI * cutoff * te;
-  return r / (r+1);
+  return r / (r + 1);
 }
 
-const exponentialSmoothing = (a, x, xPrev) => {
+const exponentialSmoothing = (a, x, xPrev) => {//4
   return a * x + (1 - a) * xPrev;
 }
 
 class OneEuroFilter {
-  constructor({minCutOff, beta}) {
+  constructor({ minCutOff=0.001, beta=1 }) {
     this.minCutOff = minCutOff;
     this.beta = beta;
     this.dCutOff = 0.001; // period in milliseconds, so default to 0.001 = 1Hz
@@ -24,7 +24,12 @@ class OneEuroFilter {
   reset() {
     this.initialized = false;
   }
-
+  /**
+   * 
+   * @param {number} t 
+   * @param {number[]} x 
+   * @returns 
+   */
   filter(t, x) {
     if (!this.initialized) {
       this.initialized = true;
@@ -34,7 +39,7 @@ class OneEuroFilter {
       return x;
     }
 
-    const {xPrev, tPrev, dxPrev} = this;
+    const { xPrev, tPrev, dxPrev } = this;
 
     //console.log("filter", x, xPrev, x.map((xx, i) => x[i] - xPrev[i]));
 
@@ -57,7 +62,7 @@ class OneEuroFilter {
     }
 
     // update prev
-    this.xPrev = xHat; 
+    this.xPrev = xHat;
     this.dxPrev = dxHat;
     this.tPrev = t;
 

@@ -6,16 +6,32 @@ import { UI } from "../ui/ui.js";
 import {BufferGeometry,BufferAttribute} from "three";
 const THREE={BufferGeometry,BufferAttribute};
 
+/**
+ * The complete Triforce, or one or more components of the Triforce.
+ * @typedef {Object} FilterParameters
+ * @property {typeof} filter - filter class to use. Defaults: OneEuroFilter
+ * @property {Object} opts - The opts object to pass to the filter's constructor
+ */
+
 export class MindARThree {
-  constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", filterMinCF=null, filterBeta=null,
+  /**
+   * 
+   * @param {Object} params 
+   * @param {HTMLElement} params.container 
+   * @param {(string|"yes")} params.uiLoading 
+   * @param {(string|"yes")} params.uiScanning 
+   * @param {(string|"yes")} params.uiError
+   * @param {FilterParameters} params.customFilter
+   * @param {(string | null)} params.userDeviceId
+   */
+  constructor({container, uiLoading="yes", uiScanning="yes", uiError="yes", customFilter=null,
     userDeviceId = null, environmentDeviceId = null, disableFaceMirror = false,
   }) {
     this.container = container;
     this.ui = new UI({ uiLoading, uiScanning, uiError });
 
     this.controller = new Controller({
-      filterMinCF: filterMinCF,
-      filterBeta: filterBeta,
+      customFilter
     });
     this.disableFaceMirror = disableFaceMirror;
     this.scene = new Scene();

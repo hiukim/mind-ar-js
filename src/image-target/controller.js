@@ -13,17 +13,20 @@ const DEFAULT_FILTER_BETA = 1000;
 const DEFAULT_WARMUP_TOLERANCE = 5;
 const DEFAULT_MISS_TOLERANCE = 5;
 
+const DEFAULT_FILTER={filter:OneEuroFilter,opts:{minCutOff: DEFAULT_FILTER_CUTOFF, beta: DEFAULT_FILTER_BETA}}; //old settings from One Euro Filter
+
 class Controller {
-  constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1, 
-    warmupTolerance=null, missTolerance=null, filterMinCF=null, filterBeta=null}) {
+  constructor({ inputWidth, inputHeight, onUpdate = null, debugMode = false, maxTrack = 1,
+    warmupTolerance = null, missTolerance = null, customFilter=null}) {
 
     this.inputWidth = inputWidth;
     this.inputHeight = inputHeight;
     this.maxTrack = maxTrack;
-    this.filterMinCF = filterMinCF === null? DEFAULT_FILTER_CUTOFF: filterMinCF;
-    this.filterBeta = filterBeta === null? DEFAULT_FILTER_BETA: filterBeta;
-    this.warmupTolerance = warmupTolerance === null? DEFAULT_WARMUP_TOLERANCE: warmupTolerance;
-    this.missTolerance = missTolerance === null? DEFAULT_MISS_TOLERANCE: missTolerance;
+    this.customFilter=customFilter===null?DEFAULT_FILTER:customFilter;
+    if(!this.customFilter.hasOwnProperty("filter")) customFilter.filter=DEFAULT_FILTER.filter;
+    if(!this.customFilter.hasOwnProperty("opts")) customFilter.opts={}
+    this.warmupTolerance = warmupTolerance === null ? DEFAULT_WARMUP_TOLERANCE : warmupTolerance;
+    this.missTolerance = missTolerance === null ? DEFAULT_MISS_TOLERANCE : missTolerance;
     this.cropDetector = new CropDetector(this.inputWidth, this.inputHeight, debugMode);
     this.inputLoader = new InputLoader(this.inputWidth, this.inputHeight);
     this.markerDimensions = null;
@@ -36,7 +39,7 @@ class Controller {
     const near = 10;
     const far = 100000;
     const fovy = 45.0 * Math.PI / 180; // 45 in radian. field of view vertical
-    const f = (this.inputHeight/2) / Math.tan(fovy/2);
+    const f = (this.inputHeight / 2) / Math.tan(fovy / 2);
     //     [fx  s cx]
     // K = [ 0 fx cy]
     //     [ 0  0  1]
@@ -108,7 +111,7 @@ class Controller {
 
     this.markerDimensions = dimensions;
 
-    return {dimensions: dimensions, matchingDataList, trackingDataList};
+    return { dimensions: dimensions, matchingDataList, trackingDataList };
   }
 
   dispose() {
@@ -150,14 +153,14 @@ class Controller {
   }
 
   async _detectAndMatch(inputT, targetIndexes) {
-    const {featurePoints} = this.cropDetector.detectMoving(inputT);
-    const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._workerMatch(featurePoints, targetIndexes);
-    return {targetIndex: matchedTargetIndex, modelViewTransform}
+    const { featurePoints } = this.cropDetector.detectMoving(inputT);
+    const { targetIndex: matchedTargetIndex, modelViewTransform } = await this._workerMatch(featurePoints, targetIndexes);
+    return { targetIndex: matchedTargetIndex, modelViewTransform }
   }
   async _trackAndUpdate(inputT, lastModelViewTransform, targetIndex) {
-    const {worldCoords, screenCoords} = this.tracker.track(inputT, lastModelViewTransform, targetIndex);
+    const { worldCoords, screenCoords } = this.tracker.track(inputT, lastModelViewTransform, targetIndex);
     if (worldCoords.length < 4) return null;
-    const modelViewTransform = await this._workerTrackUpdate(lastModelViewTransform, {worldCoords, screenCoords});
+    const modelViewTransform = await this._workerTrackUpdate(lastModelViewTransform, { worldCoords, screenCoords });
     return modelViewTransform;
   }
 
@@ -167,94 +170,95 @@ class Controller {
     this.processingVideo = true;
 
     this.trackingStates = [];
+    
     for (let i = 0; i < this.markerDimensions.length; i++) {
       this.trackingStates.push({
-	showing: false,
-	isTracking: false,
-	currentModelViewTransform: null,
-	trackCount: 0,
-	trackMiss: 0,
-	filter: new OneEuroFilter({minCutOff: this.filterMinCF, beta: this.filterBeta})
+        showing: false,
+        isTracking: false,
+        currentModelViewTransform: null,
+        trackCount: 0,
+        trackMiss: 0,
+        filter: new this.customFilter.filter(this.customFilter.opts),/* { minCutOff: this.filterMinCF, beta: this.filterBeta } )*/
       });
       //console.log("filterMinCF", this.filterMinCF, this.filterBeta);
     }
 
-    const startProcessing = async() => {
+    const startProcessing = async () => {
       while (true) {
-	if (!this.processingVideo) break;
+        if (!this.processingVideo) break;
 
-	const inputT = this.inputLoader.loadInput(input);
+        const inputT = this.inputLoader.loadInput(input);
 
-	const nTracking = this.trackingStates.reduce((acc, s) => {
-	  return acc + (!!s.isTracking? 1: 0);
-	}, 0);
+        const nTracking = this.trackingStates.reduce((acc, s) => {
+          return acc + (!!s.isTracking ? 1 : 0);
+        }, 0);
 
-	// detect and match only if less then maxTrack
-	if (nTracking < this.maxTrack) {
+        // detect and match only if less then maxTrack
+        if (nTracking < this.maxTrack) {
 
-	  const matchingIndexes = [];
-	  for (let i = 0; i < this.trackingStates.length; i++) {
-	    const trackingState = this.trackingStates[i];
-	    if (trackingState.isTracking === true) continue;
-	    if (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== i) continue;
+          const matchingIndexes = [];
+          for (let i = 0; i < this.trackingStates.length; i++) {
+            const trackingState = this.trackingStates[i];
+            if (trackingState.isTracking === true) continue;
+            if (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== i) continue;
 
-	    matchingIndexes.push(i);
-	  }
+            matchingIndexes.push(i);
+          }
 
-	  const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._detectAndMatch(inputT, matchingIndexes);
+          const { targetIndex: matchedTargetIndex, modelViewTransform } = await this._detectAndMatch(inputT, matchingIndexes);
 
-	  if (matchedTargetIndex !== -1) {
-	    this.trackingStates[matchedTargetIndex].isTracking = true;
-	    this.trackingStates[matchedTargetIndex].currentModelViewTransform = modelViewTransform;
-	  }
-	}
+          if (matchedTargetIndex !== -1) {
+            this.trackingStates[matchedTargetIndex].isTracking = true;
+            this.trackingStates[matchedTargetIndex].currentModelViewTransform = modelViewTransform;
+          }
+        }
 
-	// tracking update
-	for (let i = 0; i < this.trackingStates.length; i++) {
-	  const trackingState = this.trackingStates[i];
+        // tracking update
+        for (let i = 0; i < this.trackingStates.length; i++) {
+          const trackingState = this.trackingStates[i];
 
-	  if (trackingState.isTracking) {
-	    let modelViewTransform = await this._trackAndUpdate(inputT, trackingState.currentModelViewTransform, i);
-	    if (modelViewTransform === null) {
-	      trackingState.isTracking = false;
-	    } else {
-	      trackingState.currentModelViewTransform = modelViewTransform;
-	    }
-	  }
+          if (trackingState.isTracking) {
+            let modelViewTransform = await this._trackAndUpdate(inputT, trackingState.currentModelViewTransform, i);
+            if (modelViewTransform === null) {
+              trackingState.isTracking = false;
+            } else {
+              trackingState.currentModelViewTransform = modelViewTransform;
+            }
+          }
 
-	  // if not showing, then show it once it reaches warmup number of frames
-	  if (!trackingState.showing) {
-	    if (trackingState.isTracking) {
-	      trackingState.trackMiss = 0;
-	      trackingState.trackCount += 1;
-	      if (trackingState.trackCount > this.warmupTolerance) {
-		trackingState.showing = true;
-		trackingState.trackingMatrix = null;
-		trackingState.filter.reset();
-	      }
-	    }
-	  }
-	  
-	  // if showing, then count miss, and hide it when reaches tolerance
-	  if (trackingState.showing) {
-	    if (!trackingState.isTracking) {
-	      trackingState.trackCount = 0;
-	      trackingState.trackMiss += 1;
+          // if not showing, then show it once it reaches warmup number of frames
+          if (!trackingState.showing) {
+            if (trackingState.isTracking) {
+              trackingState.trackMiss = 0;
+              trackingState.trackCount += 1;
+              if (trackingState.trackCount > this.warmupTolerance) {
+                trackingState.showing = true;
+                trackingState.trackingMatrix = null;
+                trackingState.filter.reset();
+              }
+            }
+          }
 
-	      if (trackingState.trackMiss > this.missTolerance) {
-		trackingState.showing = false;
-		trackingState.trackingMatrix = null;
-		this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
-	      }
-	    } else {
-	      trackingState.trackMiss = 0;
-	    }
-	  }
-	  
-	  // if showing, then call onUpdate, with world matrix
-	  if (trackingState.showing) {
-	    const worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
-	    trackingState.trackingMatrix = trackingState.filter.filter(Date.now(), worldMatrix);
+          // if showing, then count miss, and hide it when reaches tolerance
+          if (trackingState.showing) {
+            if (!trackingState.isTracking) {
+              trackingState.trackCount = 0;
+              trackingState.trackMiss += 1;
+
+              if (trackingState.trackMiss > this.missTolerance) {
+                trackingState.showing = false;
+                trackingState.trackingMatrix = null;
+                this.onUpdate && this.onUpdate({ type: 'updateMatrix', targetIndex: i, worldMatrix: null });
+              }
+            } else {
+              trackingState.trackMiss = 0;
+            }
+          }
+
+          // if showing, then call onUpdate, with world matrix
+          if (trackingState.showing) {
+            const worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
+            trackingState.trackingMatrix = trackingState.filter.filter(Date.now(), worldMatrix);
 
 	    let clone = [];
 	    for (let j = 0; j < trackingState.trackingMatrix.length; j++) {
@@ -270,9 +274,9 @@ class Controller {
 	  }
 	}
 
-	inputT.dispose();
-        this.onUpdate && this.onUpdate({type: 'processDone'});
-	await tf.nextFrame();
+        inputT.dispose();
+        this.onUpdate && this.onUpdate({ type: 'processDone' });
+        await tf.nextFrame();
       }
     }
     startProcessing();
@@ -284,14 +288,14 @@ class Controller {
 
   async detect(input) {
     const inputT = this.inputLoader.loadInput(input);
-    const {featurePoints, debugExtra} = await this.cropDetector.detect(inputT);
+    const { featurePoints, debugExtra } = await this.cropDetector.detect(inputT);
     inputT.dispose();
-    return {featurePoints, debugExtra};
+    return { featurePoints, debugExtra };
   }
 
   async match(featurePoints, targetIndex) {
-    const {modelViewTransform, debugExtra} = await this._workerMatch(featurePoints, [targetIndex]);
-    return {modelViewTransform, debugExtra};
+    const { modelViewTransform, debugExtra } = await this._workerMatch(featurePoints, [targetIndex]);
+    return { modelViewTransform, debugExtra };
   }
 
   async track(input, modelViewTransform, targetIndex) {
@@ -302,7 +306,7 @@ class Controller {
   }
 
   async trackUpdate(modelViewTransform, trackFeatures) {
-    if (trackFeatures.worldCoords.length < 4 ) return null;
+    if (trackFeatures.worldCoords.length < 4) return null;
     const modelViewTransform2 = await this._workerTrackUpdate(modelViewTransform, trackFeatures);
     return modelViewTransform2;
   }
@@ -310,9 +314,9 @@ class Controller {
   _workerMatch(featurePoints, targetIndexes) {
     return new Promise(async (resolve, reject) => {
       this.workerMatchDone = (data) => {
-        resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform, debugExtra: data.debugExtra});
+        resolve({ targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform, debugExtra: data.debugExtra });
       }
-      this.worker.postMessage({type: 'match', featurePoints: featurePoints, targetIndexes});
+      this.worker.postMessage({ type: 'match', featurePoints: featurePoints, targetIndexes });
     });
   }
 
@@ -321,8 +325,8 @@ class Controller {
       this.workerTrackDone = (data) => {
         resolve(data.modelViewTransform);
       }
-      const {worldCoords, screenCoords} = trackingFeatures;
-      this.worker.postMessage({type: 'trackUpdate', modelViewTransform, worldCoords, screenCoords});
+      const { worldCoords, screenCoords } = trackingFeatures;
+      this.worker.postMessage({ type: 'trackUpdate', modelViewTransform, worldCoords, screenCoords });
     });
   }
 
@@ -375,7 +379,7 @@ class Controller {
 
   // build openGL projection matrix
   // ref: https://strawlab.org/2011/11/05/augmented-reality-with-OpenGL/
-  _glProjectionMatrix({projectionTransform, width, height, near, far}) {
+  _glProjectionMatrix({ projectionTransform, width, height, near, far }) {
     const proj = [
       [2 * projectionTransform[0][0] / width, 0, -(2 * projectionTransform[0][2] / width - 1), 0],
       [0, 2 * projectionTransform[1][1] / height, -(2 * projectionTransform[1][2] / height - 1), 0],
@@ -385,7 +389,7 @@ class Controller {
     const projMatrix = [];
     for (let i = 0; i < 4; i++) {
       for (let j = 0; j < 4; j++) {
-	projMatrix.push(proj[j][i]);
+        projMatrix.push(proj[j][i]);
       }
     }
     return projMatrix;
@@ -393,5 +397,5 @@ class Controller {
 }
 
 export {
- Controller
+  Controller
 }

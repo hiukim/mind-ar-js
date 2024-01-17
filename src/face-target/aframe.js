@@ -166,9 +166,13 @@ AFRAME.registerSystem('mindar-face-system', {
   },
 
   _setupAR: async function() {
+    const beta=this.filterBeta;
+    const minCutOff=this.filterMinCF;
     this.controller = new Controller({
-      filterMinCF: this.filterMinCF,
-      filterBeta: this.filterBeta,
+      customFilter:{opts:{
+        minCutOff,
+        beta
+      }}
     });
     this._resize();
 
