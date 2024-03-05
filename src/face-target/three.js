@@ -1,4 +1,12 @@
-import { Scene, WebGLRenderer, PerspectiveCamera, sRGBEncoding, Mesh, MeshStandardMaterial, Group } from "three";
+import {
+  Scene,
+  WebGLRenderer,
+  PerspectiveCamera,
+  SRGBColorSpace,
+  Mesh,
+  MeshStandardMaterial,
+  Group,
+} from "three";
 //import { CSS3DRenderer } from '../libs/CSS3DRenderer.js';
 import {CSS3DRenderer} from 'three/addons/renderers/CSS3DRenderer.js'
 import { Controller } from "./controller.js";
@@ -22,7 +30,7 @@ export class MindARThree {
     this.cssScene = new Scene();
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
     this.cssRenderer = new CSS3DRenderer({ antialias: true });
-    this.renderer.outputEncoding = sRGBEncoding;
+    this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.camera = new PerspectiveCamera();
     this.userDeviceId = userDeviceId;
