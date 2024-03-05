@@ -1,4 +1,13 @@
-import { Matrix4, Vector3, Quaternion, Scene, WebGLRenderer, PerspectiveCamera, Group, sRGBEncoding } from "three";
+import {
+  Matrix4,
+  Vector3,
+  Quaternion,
+  Scene,
+  WebGLRenderer,
+  PerspectiveCamera,
+  Group,
+  SRGBColorSpace,
+} from "three";
 import * as tf from '@tensorflow/tfjs';
 //import { CSS3DRenderer } from '../libs/CSS3DRenderer.js';
 import {CSS3DRenderer} from 'three/addons/renderers/CSS3DRenderer.js'
@@ -33,7 +42,7 @@ export class MindARThree {
     this.cssScene = new Scene();
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
     this.cssRenderer = new CSS3DRenderer({ antialias: true });
-    this.renderer.outputEncoding = sRGBEncoding;
+    this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.camera = new PerspectiveCamera();
     this.anchors = [];
