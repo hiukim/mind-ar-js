@@ -116,27 +116,26 @@ AFRAME.registerSystem('mindar-image-system', {
       missTolerance: this.missTolerance,
       warmupTolerance: this.warmupTolerance,
       onUpdate: (data) => {
-	if (data.type === 'processDone') {
-	  if (this.mainStats) this.mainStats.update();
-	}
-	else if (data.type === 'updateMatrix') {
-	  const {targetIndex, worldMatrix} = data;
+        if (data.type === 'processDone') {
+          if (this.mainStats) this.mainStats.update();
+        }
+        else if (data.type === 'updateMatrix') {
+          const {targetIndex, worldMatrix} = data;
+          for (let i = 0; i < this.anchorEntities.length; i++) {
+            if (this.anchorEntities[i].targetIndex === targetIndex) {
+              this.anchorEntities[i].el.updateWorldMatrix(worldMatrix);
+            }
+          }
 
-	  for (let i = 0; i < this.anchorEntities.length; i++) {
-	    if (this.anchorEntities[i].targetIndex === targetIndex) {
-	      this.anchorEntities[i].el.updateWorldMatrix(worldMatrix, );
-	    }
-    }
-
-    let isAnyVisible = this.anchorEntities.reduce((acc, entity) => {
-      return acc || entity.el.el.object3D.visible;
-    }, false);
-    if (isAnyVisible) {
-      this.ui.hideScanning();
-    } else {
-      this.ui.showScanning();
-    }
-	}
+          let isAnyVisible = this.anchorEntities.reduce((acc, entity) => {
+            return acc || entity.el.el.object3D.visible;
+          }, false);
+          if (isAnyVisible) {
+            this.ui.hideScanning();
+          } else {
+            this.ui.showScanning();
+          }
+        }
       }
     });
 
@@ -164,6 +163,11 @@ AFRAME.registerSystem('mindar-image-system', {
     const video = this.video;
     const container = this.container;
 
+    this.video.setAttribute('width', this.video.videoWidth);
+    this.video.setAttribute('height', this.video.videoHeight);
+
+    console.log(container);
+
     let vw, vh; // display css width, height
     const videoRatio = video.videoWidth / video.videoHeight;
     const containerRatio = container.clientWidth / container.clientHeight;
@@ -176,19 +180,42 @@ AFRAME.registerSystem('mindar-image-system', {
     }
 
     const proj = this.controller.getProjectionMatrix();
-    const fov = 2 * Math.atan(1/proj[5] / vh * container.clientHeight ) * 180 / Math.PI; // vertical fov
+
+    // TODO: move this logic to controller
+    // Handle when phone is rotated, video width and height are swapped
+    const inputRatio = this.controller.inputWidth / this.controller.inputHeight;
+    let inputAdjust;
+    if (inputRatio > containerRatio) {
+      inputAdjust = this.video.width / this.controller.inputWidth;
+    } else {
+      inputAdjust = this.video.height / this.controller.inputHeight;
+    }
+    let videoDisplayHeight;
+    let videoDisplayWidth;
+    if (inputRatio > containerRatio) {
+      videoDisplayHeight = container.clientHeight;
+      videoDisplayHeight *= inputAdjust;
+    } else {
+      videoDisplayWidth = container.clientWidth;
+      videoDisplayHeight = videoDisplayWidth / this.controller.inputWidth * this.controller.inputHeight;
+      videoDisplayHeight *= inputAdjust;
+    }
+    let fovAdjust = container.clientHeight / videoDisplayHeight;
+
+    // const fov = 2 * Math.atan(1 / proj[5] / vh * container.clientHeight) * 180 / Math.PI; // vertical fov
+    const fov = 2 * Math.atan(1 / proj[5] * fovAdjust) * 180 / Math.PI; // vertical fov
     const near = proj[14] / (proj[10] - 1.0);
     const far = proj[14] / (proj[10] + 1.0);
     const ratio = proj[5] / proj[0]; // (r-l) / (t-b)
-    //console.log("loaded proj: ", proj, ". fov: ", fov, ". near: ", near, ". far: ", far, ". ratio: ", ratio);
-    const newAspect = container.clientWidth / container.clientHeight;
+
     const cameraEle = container.getElementsByTagName("a-camera")[0];
     const camera = cameraEle.getObject3D('camera');
     camera.fov = fov;
-    camera.aspect = newAspect;
     camera.near = near;
     camera.far = far;
+    camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
+
     //const newCam = new AFRAME.THREE.PerspectiveCamera(fov, newRatio, near, far);
     //camera.getObject3D('camera').projectionMatrix = newCam.projectionMatrix;
 
@@ -196,6 +223,15 @@ AFRAME.registerSystem('mindar-image-system', {
     this.video.style.left = (-(vw - container.clientWidth) / 2) + "px";
     this.video.style.width = vw + "px";
     this.video.style.height = vh + "px";
+
+    const canvas = document.getElementsByClassName("a-canvas")[0];
+    canvas.style.position = 'absolute';
+    canvas.style.left = 0;
+    canvas.style.top = 0;
+    canvas.style.width = container.clientWidth + 'px';
+    canvas.style.height = container.clientHeight + 'px';
+
+    this.el.sceneEl.renderer.setSize(container.clientWidth, container.clientHeight);
   }
 });
 
