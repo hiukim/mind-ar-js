@@ -47,6 +47,9 @@ export class MindARThree {
   }
 
   async start() {
+    // starting while it's already started, creates multiple instances and causes trouble.
+    if (this.controller !== undefined) return;
+    
     this.ui.showLoading();
     await this._startVideo();
     await this._startAR();
@@ -54,6 +57,13 @@ export class MindARThree {
 
   stop() {
     this.controller.stopProcessVideo();
+    /**
+    * `start()` calls `_startAR()`, which re-sets `this.controller`,
+    * so we can set it undefined here which helps us in `start()` to detect
+    * whether it's already started or not.
+    */
+    this.controller = undefined;
+    
     const tracks = this.video.srcObject.getTracks();
     tracks.forEach(function (track) {
       track.stop();
