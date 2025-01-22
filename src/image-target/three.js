@@ -43,16 +43,20 @@ export class MindARThree {
     this.container.appendChild(this.renderer.domElement);
     this.container.appendChild(this.cssRenderer.domElement);
 
-    window.addEventListener('resize', this.resize.bind(this));
+    this.resizeHandler = this.resize.bind(this);
   }
 
   async start() {
+    window.addEventListener("resize", this.resizeHandler);
+    
     this.ui.showLoading();
     await this._startVideo();
     await this._startAR();
   }
 
   stop() {
+    window.removeEventListener("resize", this.resizeHandler);
+    
     this.controller.stopProcessVideo();
     const tracks = this.video.srcObject.getTracks();
     tracks.forEach(function (track) {
